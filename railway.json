@@ -7,7 +7,6 @@
     "startCommand": "cd server && npm start",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE",
-    "numReplicas": 1
+    "restartPolicyType": "ON_FAILURE"
   }
 } 
