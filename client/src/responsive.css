@@ -1,0 +1,141 @@
+
+/* 响应式设计样式 */
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .ant-table {
+    font-size: 12px;
+  }
+  
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+  }
+  
+  .ant-card {
+    margin-bottom: 16px;
+  }
+  
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+  
+  .ant-btn {
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .ant-input {
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .ant-select {
+    font-size: 12px;
+  }
+}
+
+/* 平板适配 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .ant-table {
+    font-size: 13px;
+  }
+  
+  .ant-card {
+    margin-bottom: 20px;
+  }
+}
+
+/* 桌面端优化 */
+@media (min-width: 1025px) {
+  .ant-table {
+    font-size: 14px;
+  }
+  
+  .ant-card {
+    margin-bottom: 24px;
+  }
+  
+  .ant-form-item {
+    margin-bottom: 24px;
+  }
+}
+
+/* 通用响应式工具类 */
+.responsive-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.responsive-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* 移动端隐藏元素 */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* 桌面端隐藏元素 */
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* 加载动画 */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.loading-text {
+  margin-left: 8px;
+  color: #666;
+}
+
+/* 空状态样式 */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #d9d9d9;
+}
+
+/* 成功状态样式 */
+.success-state {
+  text-align: center;
+  padding: 20px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  margin: 16px 0;
+}
+
+/* 错误状态样式 */
+.error-state {
+  text-align: center;
+  padding: 20px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  margin: 16px 0;
+}
