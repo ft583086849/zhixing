@@ -1,17 +1,19 @@
-# Vercel全栈部署触发器
+# 🚀 强制 Vercel 重新部署
 
-**部署时间**: 2025-01-30 02:02  
-**版本**: 2.0.3  
-**修复内容**: API函数运行时版本问题已解决  
+**问题**: Vercel 使用旧代码 (62bea21) 而不是最新的安全修复版本 (d2fb910)
 
-## 架构
-- 前端: React.js (client/build)
-- 后端: Vercel Serverless Functions (api/)
-- 配置: vercel.json
+## 解决方案
 
-## API端点
-- `/api/health` - 健康检查
-- `/api/sales` - 销售管理  
-- `/api/orders` - 订单管理
+### 方案1: Vercel控制台手动重新部署 (推荐)
+1. 访问 [Vercel Dashboard](https://vercel.com/dashboard)
+2. 选择 `zhixing-zeta` 项目
+3. 点击 **"Deployments"** 标签
+4. 点击最新部署右侧的 **"..."** 菜单
+5. 选择 **"Redeploy"**
+6. 确认重新部署
 
-**请使用最新commit进行部署！** 
+### 方案2: Git 提交触发 (备用)
+添加触发提交强制重新部署
+
+---
+**目标**: 确保 Vercel 使用最新的代码版本 d2fb910 
