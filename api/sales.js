@@ -1,7 +1,9 @@
 // Vercel Serverless Function - 销售相关API
-const { v4: uuidv4 } = require('crypto').randomUUID ? 
-  { v4: () => require('crypto').randomUUID() } : 
-  { v4: () => Date.now().toString(36) + Math.random().toString(36).substr(2) };
+
+// 简单的ID生成函数
+function generateUniqueId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
 
 module.exports = async (req, res) => {
   // 设置CORS头部
@@ -63,7 +65,7 @@ module.exports = async (req, res) => {
       const salesId = Date.now();
       
       // 生成唯一链接代码
-      const linkCode = v4().replace(/-/g, '').substring(0, 12) + salesId.toString().padStart(4, '0');
+      const linkCode = generateUniqueId() + salesId.toString().padStart(4, '0');
 
       const salesData = {
         id: salesId,
