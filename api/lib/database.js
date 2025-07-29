@@ -1,7 +1,7 @@
-// Vercel 临时数据库服务 - 使用内存存储
+// Vercel 数据库服务 - 生产环境安全版本
 const mysql = require('mysql2/promise');
 
-// 内存存储（临时解决方案）
+// 内存存储（仅用于开发/测试环境）
 let memoryStore = {
   sales: [],
   orders: [],
@@ -22,6 +22,9 @@ const dbConfig = {
 // 检查是否有数据库环境变量
 const hasDbConfig = process.env.DATABASE_HOST && process.env.DATABASE_USERNAME && process.env.DATABASE_PASSWORD && process.env.DATABASE_NAME;
 
+// 检查是否为生产环境
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+
 // 创建连接池
 let pool = null;
 
@@ -41,12 +44,24 @@ async function query(sql, params = []) {
       const [rows] = await connection.execute(sql, params);
       return rows;
     } else {
-      // 使用内存存储
+      // 生产环境不允许降级
+      if (isProduction) {
+        throw new Error('生产环境必须配置数据库连接');
+      }
+      // 开发环境可以使用内存存储
+      console.warn('⚠️ 开发环境：使用内存存储，数据不会持久化');
       return simulateQuery(sql, params);
     }
   } catch (error) {
     console.error('数据库查询错误:', error);
-    // 如果数据库连接失败，降级到内存存储
+    
+    // 生产环境直接抛出错误，不降级
+    if (isProduction) {
+      throw new Error(`数据库连接失败: ${error.message}`);
+    }
+    
+    // 开发环境可以降级
+    console.warn('⚠️ 开发环境：数据库连接失败，降级到内存存储');
     return simulateQuery(sql, params);
   }
 }
@@ -65,10 +80,20 @@ async function insert(sql, params = []) {
       const [result] = await connection.execute(sql, params);
       return result.insertId;
     } else {
+      if (isProduction) {
+        throw new Error('生产环境必须配置数据库连接');
+      }
+      console.warn('⚠️ 开发环境：使用内存存储');
       return simulateInsert(sql, params);
     }
   } catch (error) {
     console.error('数据库插入错误:', error);
+    
+    if (isProduction) {
+      throw new Error(`数据库操作失败: ${error.message}`);
+    }
+    
+    console.warn('⚠️ 开发环境：降级到内存存储');
     return simulateInsert(sql, params);
   }
 }
@@ -81,17 +106,25 @@ async function update(sql, params = []) {
       const [result] = await connection.execute(sql, params);
       return result.affectedRows;
     } else {
+      if (isProduction) {
+        throw new Error('生产环境必须配置数据库连接');
+      }
       return simulateUpdate(sql, params);
     }
   } catch (error) {
     console.error('数据库更新错误:', error);
+    
+    if (isProduction) {
+      throw new Error(`数据库操作失败: ${error.message}`);
+    }
+    
     return simulateUpdate(sql, params);
   }
 }
 
-// 模拟查询
+// 模拟查询（仅开发环境）
 function simulateQuery(sql, params) {
-  console.log('使用内存存储模拟查询:', sql, params);
+  console.log('🔧 开发环境模拟查询:', sql, params);
   
   if (sql.includes('FROM sales')) {
     if (sql.includes('WHERE link_code')) {
@@ -107,9 +140,9 @@ function simulateQuery(sql, params) {
   return [];
 }
 
-// 模拟插入
+// 模拟插入（仅开发环境）
 function simulateInsert(sql, params) {
-  console.log('使用内存存储模拟插入:', sql, params);
+  console.log('🔧 开发环境模拟插入:', sql, params);
   
   if (sql.includes('INSERT INTO sales')) {
     const id = memoryStore.counter++;
@@ -132,10 +165,10 @@ function simulateInsert(sql, params) {
   return memoryStore.counter++;
 }
 
-// 模拟更新
+// 模拟更新（仅开发环境）
 function simulateUpdate(sql, params) {
-  console.log('使用内存存储模拟更新:', sql, params);
-  return 1; // 返回影响的行数
+  console.log('🔧 开发环境模拟更新:', sql, params);
+  return 1;
 }
 
 // 事务执行
@@ -154,7 +187,9 @@ async function transaction(callback) {
       connection.release();
     }
   } else {
-    // 模拟事务
+    if (isProduction) {
+      throw new Error('生产环境必须配置数据库连接');
+    }
     return await callback(null);
   }
 }
@@ -174,12 +209,24 @@ async function testConnection() {
       const result = await query('SELECT 1 as test');
       return result.length > 0;
     } else {
-      return true; // 内存存储总是可用
+      if (isProduction) {
+        return false; // 生产环境没有数据库配置是失败
+      }
+      return true; // 开发环境内存存储可用
     }
   } catch (error) {
     console.error('数据库连接测试失败:', error);
     return false;
   }
+}
+
+// 获取当前存储状态
+function getStorageStatus() {
+  return {
+    hasDbConfig,
+    isProduction,
+    currentStorage: hasDbConfig ? 'database' : (isProduction ? 'none' : 'memory')
+  };
 }
 
 module.exports = {
@@ -189,5 +236,6 @@ module.exports = {
   update,
   transaction,
   closePool,
-  testConnection
+  testConnection,
+  getStorageStatus
 }; 
