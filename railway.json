@@ -8,5 +8,6 @@
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE"
-  }
+  },
+  "version": "1.0.1"
 } 
