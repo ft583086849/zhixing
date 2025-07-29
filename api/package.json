@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "知行财库API函数",
   "main": "health.js",
-  "dependencies": {},
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

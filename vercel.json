@@ -1,19 +1,55 @@
 {
   "functions": {
     "api/*.js": {
-      "runtime": "nodejs@18.x"
+      "runtime": "nodejs18.x"
     }
   },
-  "buildCommand": "cd client && npm run build",
+  "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/build",
   "routes": [
+    {
+      "src": "/api/sales/(.*)",
+      "dest": "/api/sales?path=$1"
+    },
+    {
+      "src": "/api/orders/(.*)",
+      "dest": "/api/orders?path=$1"
+    },
+    {
+      "src": "/api/admin/(.*)",
+      "dest": "/api/admin?path=$1"
+    },
+    {
+      "src": "/api/auth/(.*)",
+      "dest": "/api/auth?path=$1"
+    },
+    {
+      "src": "/api/lifetime-limit/(.*)",
+      "dest": "/api/lifetime-limit?path=$1"
+    },
+    {
+      "src": "/api/payment-config/(.*)",
+      "dest": "/api/payment-config?path=$1"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"
     },
     {
+      "src": "/purchase/(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/admin",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/index.html"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/client/build/index.html"
+      "dest": "/index.html"
     }
   ]
 } 
