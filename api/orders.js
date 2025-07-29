@@ -1,5 +1,5 @@
 // Vercel Serverless Function - 订单管理API
-export default function handler(req, res) {
+module.exports = (req, res) => {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -59,4 +59,4 @@ export default function handler(req, res) {
         message: '方法不允许'
       });
   }
-} 
+}; 

@@ -1,5 +1,5 @@
 // Vercel Serverless Function - 健康检查
-export default function handler(req, res) {
+module.exports = (req, res) => {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -28,4 +28,4 @@ export default function handler(req, res) {
     platform: 'Vercel Serverless',
     version: '2.0.0'
   });
-} 
+}; 
