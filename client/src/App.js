@@ -1,5 +1,5 @@
 import React, { useEffect, lazy, Suspense } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { verifyToken } from './store/slices/authSlice';
 
