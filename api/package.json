@@ -4,7 +4,9 @@
   "description": "知行财库API函数",
   "main": "health.js",
   "dependencies": {
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.6.5",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {},
   "scripts": {

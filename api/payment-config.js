@@ -13,15 +13,26 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === 'GET') {
-      // 模拟支付配置数据
+      // 真实的支付配置数据
       const paymentConfig = {
+        // 支付宝配置
+        alipay_account: '752304285@qq.com',
+        alipay_surname: '梁',
+        alipay_qr_code: null, // 暂无二维码，可以后续添加
+        
+        // 加密货币配置
+        crypto_chain_name: 'TRC10/TRC20',
+        crypto_address: 'TDnNfU9GYcDbzFqf8LUNzBuTsaDbCh5LTo',
+        crypto_qr_code: null, // 暂无二维码，可以后续添加
+        
+        // 其他配置（保留原有结构以兼容其他功能）
         durations: {
-          '7days': { label: '7天', price: 99 },
-          '1month': { label: '1个月', price: 299 },
-          '3months': { label: '3个月', price: 799 },
-          '6months': { label: '6个月', price: 1399 },
-          '1year': { label: '1年', price: 2499 },
-          'lifetime': { label: '永久', price: 4999 }
+          '7days': { label: '7天', price: 0 },
+          '1month': { label: '1个月', price: 188 },
+          '3months': { label: '3个月', price: 488 },
+          '6months': { label: '6个月', price: 688 },
+          '1year': { label: '1年', price: 1588 },
+          'lifetime': { label: '永久', price: 1888 }
         },
         payment_methods: {
           alipay: {
