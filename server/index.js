@@ -107,7 +107,18 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: '知行财库服务运行正常',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    port: PORT
+  });
+});
+
+// 根路径健康检查（备用）
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: '知行财库API服务',
+    timestamp: new Date().toISOString(),
+    health: '/api/health'
   });
 });
 
@@ -132,9 +143,10 @@ app.use('*', (req, res) => {
 // 启动服务器
 const startServer = async () => {
   // 先启动服务器，确保健康检查可用
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 服务器运行在端口 ${PORT}`);
-    console.log(`📊 健康检查: http://localhost:${PORT}/api/health`);
+    console.log(`📊 健康检查: http://0.0.0.0:${PORT}/api/health`);
+    console.log(`🌐 Railway环境: 监听所有网络接口`);
   });
 
   // 异步初始化数据库，不阻塞服务器启动
