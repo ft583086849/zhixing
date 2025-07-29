@@ -108,4 +108,4 @@ Thumbs.db
 uploads/
 backups/
 server/database.sqlite
-server/database.sqlite-journal 
+server/database.sqlite-journal VERCEL_ENV_SETUP.md

@@ -1,50 +1,36 @@
 {
-  "buildCommand": "cd client && npm install && npm run build",
-  "outputDirectory": "client/build",
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/api/sales/(.*)",
-      "destination": "/api/sales?path=$1"
+      "src": "server/index.js",
+      "use": "@vercel/node"
     },
     {
-      "source": "/api/orders/(.*)",
-      "destination": "/api/orders?path=$1"
-    },
-    {
-      "source": "/api/admin/(.*)",
-      "destination": "/api/admin?path=$1"
-    },
-    {
-      "source": "/api/auth/(.*)",
-      "destination": "/api/auth?path=$1"
-    },
-    {
-      "source": "/api/lifetime-limit/(.*)",
-      "destination": "/api/lifetime-limit?path=$1"
-    },
-    {
-      "source": "/api/payment-config/(.*)",
-      "destination": "/api/payment-config?path=$1"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/purchase/(.*)",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/admin",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/admin/(.*)",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
     }
-  ]
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/client/build/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "JWT_EXPIRES_IN": "24h",
+    "CORS_ORIGIN": "https://zhixing-zeta.vercel.app"
+  },
+  "functions": {
+    "server/index.js": {
+      "maxDuration": 30
+    }
+  }
 } 
