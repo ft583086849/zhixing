@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   Card, 
@@ -71,7 +71,7 @@ const SalesPage = () => {
       <div className="content-container">
         <Card className="card-container" role="region">
           <Title level={2} style={{ textAlign: 'center', marginBottom: 32 }}>
-            创建销售收款链接
+            销售页面
           </Title>
 
           <Form
