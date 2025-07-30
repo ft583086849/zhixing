@@ -102,14 +102,61 @@ if (isTestMode) {
   app.use('/api', require('./routes/paymentConfig'));
 }
 
-// 健康检查接口
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+// 健康检查接口（带数据库连接测试）
+app.get('/api/health', async (req, res) => {
+  const healthStatus = {
+    status: 'OK',
     message: '知行财库服务运行正常',
     timestamp: new Date().toISOString(),
-    port: PORT
-  });
+    port: PORT,
+    database: {
+      connected: false,
+      error: null
+    }
+  };
+  
+  // 测试数据库连接
+  try {
+    await sequelize.authenticate();
+    healthStatus.database.connected = true;
+    healthStatus.database.message = '数据库连接正常';
+  } catch (error) {
+    console.error('健康检查 - 数据库连接失败:', error.message);
+    healthStatus.database.connected = false;
+    healthStatus.database.error = error.message;
+    healthStatus.status = 'WARNING';
+    healthStatus.message = '服务运行但数据库连接异常';
+  }
+  
+  res.json(healthStatus);
+});
+
+// 环境变量调试接口
+app.get('/api/debug-env', (req, res) => {
+  // 安全地显示环境变量状态（不显示真实值）
+  const envStatus = {
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    database_vars: {
+      DB_HOST: process.env.DB_HOST ? `设置(${process.env.DB_HOST?.length}字符)` : '未设置',
+      DB_USER: process.env.DB_USER ? `设置(${process.env.DB_USER?.length}字符)` : '未设置',
+      DB_PASSWORD: process.env.DB_PASSWORD ? `设置(${process.env.DB_PASSWORD?.length}字符)` : '未设置', 
+      DB_NAME: process.env.DB_NAME ? `设置(${process.env.DB_NAME?.length}字符)` : '未设置'
+    },
+    legacy_vars: {
+      DATABASE_HOST: process.env.DATABASE_HOST ? `设置(${process.env.DATABASE_HOST?.length}字符)` : '未设置',
+      DATABASE_USERNAME: process.env.DATABASE_USERNAME ? `设置(${process.env.DATABASE_USERNAME?.length}字符)` : '未设置', 
+      DATABASE_PASSWORD: process.env.DATABASE_PASSWORD ? `设置(${process.env.DATABASE_PASSWORD?.length}字符)` : '未设置',
+      DATABASE_NAME: process.env.DATABASE_NAME ? `设置(${process.env.DATABASE_NAME?.length}字符)` : '未设置'
+    },
+    computed: {
+      hasDbConfig: !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME),
+      isProduction: process.env.NODE_ENV === 'production',
+      currentSystem: '统一使用 DB_* 变量（server端）'
+    }
+  };
+  
+  res.json(envStatus);
 });
 
 // 根路径健康检查（备用）

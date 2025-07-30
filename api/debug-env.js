@@ -18,20 +18,21 @@ module.exports = (req, res) => {
     NODE_ENV: process.env.NODE_ENV,
     VERCEL_ENV: process.env.VERCEL_ENV,
     database_vars: {
-      DATABASE_HOST: process.env.DATABASE_HOST ? `设置(${process.env.DATABASE_HOST?.length}字符)` : '未设置',
-      DATABASE_USERNAME: process.env.DATABASE_USERNAME ? `设置(${process.env.DATABASE_USERNAME?.length}字符)` : '未设置', 
-      DATABASE_PASSWORD: process.env.DATABASE_PASSWORD ? `设置(${process.env.DATABASE_PASSWORD?.length}字符)` : '未设置',
-      DATABASE_NAME: process.env.DATABASE_NAME ? `设置(${process.env.DATABASE_NAME?.length}字符)` : '未设置'
-    },
-    sequelize_vars: {
       DB_HOST: process.env.DB_HOST ? `设置(${process.env.DB_HOST?.length}字符)` : '未设置',
       DB_USER: process.env.DB_USER ? `设置(${process.env.DB_USER?.length}字符)` : '未设置',
       DB_PASSWORD: process.env.DB_PASSWORD ? `设置(${process.env.DB_PASSWORD?.length}字符)` : '未设置', 
       DB_NAME: process.env.DB_NAME ? `设置(${process.env.DB_NAME?.length}字符)` : '未设置'
     },
+    legacy_vars: {
+      DATABASE_HOST: process.env.DATABASE_HOST ? `设置(${process.env.DATABASE_HOST?.length}字符)` : '未设置',
+      DATABASE_USERNAME: process.env.DATABASE_USERNAME ? `设置(${process.env.DATABASE_USERNAME?.length}字符)` : '未设置', 
+      DATABASE_PASSWORD: process.env.DATABASE_PASSWORD ? `设置(${process.env.DATABASE_PASSWORD?.length}字符)` : '未设置',
+      DATABASE_NAME: process.env.DATABASE_NAME ? `设置(${process.env.DATABASE_NAME?.length}字符)` : '未设置'
+    },
     computed: {
-      hasDbConfig: !!(process.env.DATABASE_HOST && process.env.DATABASE_USERNAME && process.env.DATABASE_PASSWORD && process.env.DATABASE_NAME),
-      isProduction: process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+      hasDbConfig: !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME),
+      isProduction: process.env.NODE_ENV === 'production',
+      currentSystem: '使用 DB_* 变量（与 server/config/database.js 一致）'
     }
   };
 
