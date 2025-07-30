@@ -3,6 +3,7 @@
   "outputDirectory": "client/build",
   "env": {
     "NODE_ENV": "production",
+    "JWT_SECRET": "zhixing-jwt-secret-key-2025",
     "JWT_EXPIRES_IN": "24h",
     "CORS_ORIGIN": "https://zhixing-seven.vercel.app"
   }
