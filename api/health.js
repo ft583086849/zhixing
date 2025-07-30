@@ -1,5 +1,7 @@
-// Vercel Serverless Function - 健康检查
-module.exports = (req, res) => {
+// Vercel Serverless Function - 健康检查 (带数据库连接测试)
+const mysql = require('mysql2/promise');
+
+module.exports = async (req, res) => {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,12 +22,53 @@ module.exports = (req, res) => {
     });
   }
 
-  // 返回健康检查信息
-  res.status(200).json({
+  // 健康检查信息
+  const healthStatus = {
     status: 'OK',
     message: '知行财库服务运行正常',
     timestamp: new Date().toISOString(),
     platform: 'Vercel Serverless',
-    version: '2.0.0'
-  });
+    version: '2.1.0',
+    database: {
+      connected: false,
+      error: null
+    }
+  };
+  
+  // 测试数据库连接（使用 DB_* 环境变量）
+  try {
+    const hasDbConfig = !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME);
+    
+    if (hasDbConfig && process.env.NODE_ENV === 'production') {
+      const dbConfig = {
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+        port: process.env.DB_PORT || 3306,
+        ssl: {
+          rejectUnauthorized: false
+        }
+      };
+      
+      // 测试连接
+      const connection = await mysql.createConnection(dbConfig);
+      await connection.execute('SELECT 1 as test');
+      await connection.end();
+      
+      healthStatus.database.connected = true;
+      healthStatus.database.message = '数据库连接正常';
+    } else {
+      healthStatus.database.connected = false;
+      healthStatus.database.message = hasDbConfig ? '非生产环境' : '数据库配置缺失';
+    }
+  } catch (error) {
+    console.error('健康检查 - 数据库连接失败:', error.message);
+    healthStatus.database.connected = false;
+    healthStatus.database.error = error.message;
+    healthStatus.status = 'WARNING';
+    healthStatus.message = '服务运行但数据库连接异常';
+  }
+
+  res.status(200).json(healthStatus);
 }; 
