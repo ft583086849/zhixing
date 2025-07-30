@@ -105,8 +105,8 @@ api.interceptors.response.use(
 
 // 认证API
 export const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  verifyToken: () => api.get('/auth/verify'),
+  login: (credentials) => api.post('/auth?path=login', credentials),
+  verifyToken: () => api.get('/auth?path=verify'),
 };
 
 // 销售API
