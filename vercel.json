@@ -5,6 +5,6 @@
   "env": {
     "NODE_ENV": "production",
     "JWT_EXPIRES_IN": "24h",
-    "CORS_ORIGIN": "https://zhixing-new.vercel.app"
+    "CORS_ORIGIN": "https://zhixing-zeta.vercel.app"
   }
 } 
