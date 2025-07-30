@@ -1,32 +1,9 @@
 {
-  "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/build",
-  "installCommand": "npm install && cd client && npm install && cd ../server && npm install",
-  "functions": {
-    "server/index.js": {
-      "runtime": "@vercel/node@18.x"
-    }
-  },
-  "builds": [
-    {
-      "src": "server/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/server/index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/client/build/index.html"
-    }
-  ],
   "env": {
     "NODE_ENV": "production",
     "JWT_EXPIRES_IN": "24h",
     "CORS_ORIGIN": "https://zhixing-seven.vercel.app"
   }
-} 
+}
