@@ -39,14 +39,14 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // 验证管理员权限
-    await authenticateAdmin(req);
-
     const connection = await mysql.createConnection(dbConfig);
 
     if (req.method === 'GET') {
+      // GET请求：公开访问，不需要认证
       await handleGetPaymentConfig(req, res, connection);
     } else if (req.method === 'POST') {
+      // POST请求：需要管理员认证
+      await authenticateAdmin(req);
       await handleSavePaymentConfig(req, res, connection);
     } else {
       res.status(404).json({
@@ -59,10 +59,19 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('支付配置API错误:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || '服务器内部错误'
-    });
+    
+    // 根据错误类型返回不同的状态码
+    if (error.message === '未提供认证token' || error.message.includes('jwt')) {
+      res.status(401).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '服务器内部错误'
+      });
+    }
   }
 };
 
@@ -104,9 +113,9 @@ async function handleSavePaymentConfig(req, res, connection) {
     crypto_qr_code
   } = req.body;
 
-  // 检查是否已有配置
+  // 检查是否已存在配置
   const [existingRows] = await connection.execute(
-    'SELECT id FROM payment_config LIMIT 1'
+    'SELECT id FROM payment_config ORDER BY id DESC LIMIT 1'
   );
 
   if (existingRows.length > 0) {
@@ -118,14 +127,16 @@ async function handleSavePaymentConfig(req, res, connection) {
        updated_at = NOW()
        WHERE id = ?`,
       [alipay_account, alipay_surname, alipay_qr_code, 
-       crypto_chain_name, crypto_address, crypto_qr_code, existingRows[0].id]
+       crypto_chain_name, crypto_address, crypto_qr_code, 
+       existingRows[0].id]
     );
   } else {
     // 创建新配置
     await connection.execute(
-      `INSERT INTO payment_config 
-       (alipay_account, alipay_surname, alipay_qr_code, crypto_chain_name, crypto_address, crypto_qr_code)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO payment_config (
+        alipay_account, alipay_surname, alipay_qr_code,
+        crypto_chain_name, crypto_address, crypto_qr_code
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
       [alipay_account, alipay_surname, alipay_qr_code, 
        crypto_chain_name, crypto_address, crypto_qr_code]
     );
