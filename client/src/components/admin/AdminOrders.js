@@ -46,8 +46,8 @@ const AdminOrders = () => {
   const fetchOrders = (params = {}) => {
     const searchValues = searchForm.getFieldsValue();
     const queryParams = {
-      page: pagination.page,
-      limit: pagination.limit,
+      page: pagination?.page || 1,
+      limit: pagination?.limit || 20,
       ...searchValues,
       ...params
     };
@@ -448,9 +448,9 @@ const AdminOrders = () => {
           rowKey="id"
           scroll={{ x: 1500 }}
           pagination={{
-            current: pagination.page,
-            pageSize: pagination.limit,
-            total: pagination.total,
+            current: pagination?.page || 1,
+            pageSize: pagination?.limit || 20,
+            total: pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
