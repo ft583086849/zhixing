@@ -59,16 +59,10 @@ async function handleCreateAdmin(req, res, connection) {
   try {
     console.log('🔧 开始创建管理员账号...');
     
-    const { username, password } = req.body;
-    
-    // 如果没有提供用户名和密码，使用默认值
-    const targetUsername = username || 'admin';
-    const targetPassword = password || 'admin123';
-    
-    // 检查是否已存在该管理员账号
+    // 检查是否已存在管理员账号
     const [existingAdmins] = await connection.execute(
       'SELECT * FROM admins WHERE username = ?',
-      [targetUsername]
+      ['admin']
     );
     
     if (existingAdmins.length > 0) {
@@ -76,26 +70,28 @@ async function handleCreateAdmin(req, res, connection) {
         success: true,
         message: '管理员账号已存在',
         data: {
-          username: targetUsername,
+          username: 'admin',
           exists: true
         }
       });
     }
     
     // 创建管理员账号
-    const hashedPassword = await bcrypt.hash(targetPassword, 10);
+    const username = 'admin';
+    const password = 'admin123';
+    const hashedPassword = await bcrypt.hash(password, 10);
     
     await connection.execute(
       'INSERT INTO admins (username, password_hash, created_at) VALUES (?, ?, NOW())',
-      [targetUsername, hashedPassword]
+      [username, hashedPassword]
     );
     
     res.json({
       success: true,
       message: '管理员账号创建成功！',
       data: {
-        username: targetUsername,
-        password: targetPassword,
+        username: 'admin',
+        password: 'admin123',
         created: true
       }
     });

@@ -214,11 +214,32 @@ const AdminOrders = () => {
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
-      title: '金额',
+      title: '应付金额',
       dataIndex: 'amount',
       key: 'amount',
       width: 100,
       render: (amount) => `$${amount}`,
+    },
+    {
+      title: '实付金额',
+      dataIndex: 'alipay_amount',
+      key: 'alipay_amount',
+      width: 120,
+      render: (alipayAmount, record) => {
+        if (record.payment_method === 'alipay' && alipayAmount) {
+          return `¥${alipayAmount}`;
+        } else if (record.payment_method === 'crypto' && record.crypto_amount) {
+          return `$${record.crypto_amount}`;
+        }
+        return `$${record.amount}`;
+      }
+    },
+    {
+      title: '佣金',
+      dataIndex: 'commission_amount',
+      key: 'commission_amount',
+      width: 100,
+      render: (amount) => `¥${amount || 0}`,
     },
     {
       title: '付款方式',
@@ -267,6 +288,19 @@ const AdminOrders = () => {
             />
           </Tooltip>
         );
+      }
+    },
+    {
+      title: '购买类型',
+      dataIndex: 'purchase_type',
+      key: 'purchase_type',
+      width: 100,
+      render: (type) => {
+        const typeMap = {
+          'immediate': '即时购买',
+          'advance': '提前购买'
+        };
+        return typeMap[type] || type;
       }
     },
     {

@@ -142,13 +142,16 @@ const PurchasePage = () => {
         message.error('请选择生效时间');
         return;
       }
-      if (paymentMethod === 'alipay' && !alipayAmount) {
-        message.error('请输入支付宝付款金额');
-        return;
-      }
-      if (paymentMethod === 'crypto' && !cryptoAmount) {
-        message.error('请输入线上地址码付款金额');
-        return;
+      // 免费订单不需要验证付款金额
+      if (selectedDuration !== '7days') {
+        if (paymentMethod === 'alipay' && !alipayAmount) {
+          message.error('请输入支付宝付款金额');
+          return;
+        }
+        if (paymentMethod === 'crypto' && !cryptoAmount) {
+          message.error('请输入线上地址码付款金额');
+          return;
+        }
       }
 
       // 处理截图上传
@@ -164,7 +167,7 @@ const PurchasePage = () => {
         duration: selectedDuration,
         amount: getSelectedPrice(), // 添加金额字段
         payment_method: paymentMethod,
-        payment_time: values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
+        payment_time: selectedDuration === '7days' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
         purchase_type: purchaseType,
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
         screenshot_data: screenshotData,
@@ -213,7 +216,7 @@ const PurchasePage = () => {
 
   // 显示收款信息
   const renderPaymentInfo = () => {
-    if (!currentSales || !paymentMethod || !paymentConfig) return null;
+    if (!currentSales || !paymentMethod || !paymentConfig || selectedDuration === '7days') return null;
 
     if (paymentMethod === 'alipay') {
       return (
@@ -507,10 +510,10 @@ const PurchasePage = () => {
                 <Radio.Button value="alipay">支付宝</Radio.Button>
                 <Radio.Button value="crypto">线上地址码</Radio.Button>
               </Radio.Group>
-              {paymentMethod === 'alipay' && selectedDuration && (
+              {paymentMethod === 'alipay' && selectedDuration && selectedDuration !== '7days' && (
                 <div style={{ marginTop: 8 }}>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    默认汇率按照1.5计算，建议付款金额：¥{(getSelectedPrice() * 1.5).toFixed(2)}
+                    默认汇率按照7.15计算，建议付款金额：¥{(getSelectedPrice() * 7.15).toFixed(2)}
                   </Text>
                 </div>
               )}
@@ -519,31 +522,35 @@ const PurchasePage = () => {
             {/* 收款信息 - 根据付款方式动态显示 */}
             {renderPaymentInfo()}
 
-            {/* 付款时间 */}
-            <Form.Item
-              name="payment_time"
-              label="付款时间"
-              rules={[{ required: true, message: '请选择付款时间' }]}>
-              <DatePicker 
-                showTime 
-                format="YYYY-MM-DD HH:mm:ss"
-                placeholder="请选择付款时间"
-                size="large"
-                style={{ width: '100%' }}
-                disabledDate={(current) => current && current > dayjs().endOf('day')}
-              />
-            </Form.Item>
+            {/* 付款时间 - 免费订单不显示 */}
+            {selectedDuration !== '7days' && (
+              <Form.Item
+                name="payment_time"
+                label="付款时间"
+                rules={[{ required: true, message: '请选择付款时间' }]}>
+                <DatePicker 
+                  showTime 
+                  format="YYYY-MM-DD HH:mm:ss"
+                  placeholder="请选择付款时间"
+                  size="large"
+                  style={{ width: '100%' }}
+                  disabledDate={(current) => current && current > dayjs().endOf('day')}
+                />
+              </Form.Item>
+            )}
 
-            {/* 付款截图 */}
-            <Form.Item
-              label="付款截图">
-              <Upload {...uploadProps} listType="picture">
-                <Button icon={<UploadOutlined />} size="large" tabIndex={0}>
-                  上传截图
-                </Button>
-              </Upload>
-              <Text type="secondary">支持 JPG、PNG、GIF、WebP 格式，最大 10MB</Text>
-            </Form.Item>
+            {/* 付款截图 - 免费订单不显示 */}
+            {selectedDuration !== '7days' && (
+              <Form.Item
+                label="付款截图">
+                <Upload {...uploadProps} listType="picture">
+                  <Button icon={<UploadOutlined />} size="large" tabIndex={0}>
+                    上传截图
+                  </Button>
+                </Upload>
+                <Text type="secondary">支持 JPG、PNG、GIF、WebP 格式，最大 10MB</Text>
+              </Form.Item>
+            )}
 
             {/* 价格和到期时间显示 */}
             {selectedDuration && (
@@ -624,23 +631,7 @@ const PurchasePage = () => {
                tabIndex={0}>
                 提交订单
               </Button>
-              {(
-                !selectedDuration || 
-                !paymentMethod || 
-                (paymentMethod === 'alipay' && !alipayAmount) ||
-                (paymentMethod === 'crypto' && !cryptoAmount) ||
-                (purchaseType === 'advance' && !effectiveTime)
-              ) && (
-                <div style={{ marginTop: 8, textAlign: 'center' }}>
-                  <Text type="secondary">
-                    {!selectedDuration && '请选择购买时长'}
-                    {!paymentMethod && '请选择付款方式'}
-                    {paymentMethod === 'alipay' && !alipayAmount && '请输入支付宝付款金额'}
-                    {paymentMethod === 'crypto' && !cryptoAmount && '请输入线上地址码付款金额'}
-                    {purchaseType === 'advance' && !effectiveTime && '请选择生效时间'}
-                  </Text>
-                </div>
-              )}
+
             </Form.Item>
           </Form>
         </Card>
@@ -667,17 +658,7 @@ const PurchasePage = () => {
             }}
            role="region">
             <Space direction="vertical" style={{ width: '100%' }}>
-              <div>
-                <Text strong>实付金额：</Text>
-                <Text>
-                  {paymentMethod === 'alipay' 
-                    ? `¥${createdOrder.alipay_amount || alipayAmount} (人民币)`
-                    : paymentMethod === 'crypto'
-                    ? `$${createdOrder.crypto_amount || cryptoAmount} (美元)`
-                    : `$${createdOrder.amount} (美元)`
-                  }
-                </Text>
-              </div>
+
               <div>
                 <Text strong>订单状态：</Text>
                 <Text>{createdOrder.status === 'pending_review' ? '待确认' : createdOrder.status}</Text>
