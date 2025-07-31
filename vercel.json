@@ -1,6 +1,12 @@
 {
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/build",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
   "env": {
     "NODE_ENV": "production",
     "JWT_SECRET": "zhixing-jwt-secret-key-2025",
