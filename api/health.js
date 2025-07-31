@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
   // 处理OPTIONS预检请求
@@ -26,13 +26,30 @@ module.exports = async (req, res) => {
     return;
   }
 
-  // 只允许GET请求
-  if (req.method !== 'GET') {
-    return res.status(405).json({
+  try {
+    // 根据HTTP方法和查询参数处理不同请求
+    const { path } = req.query;
+    
+    if (req.method === 'GET' && (!path || path === 'check')) {
+      await handleHealthCheck(req, res);
+    } else {
+      res.status(404).json({
+        success: false,
+        message: `路径不存在: ${req.method} ${path || 'default'}`
+      });
+    }
+
+  } catch (error) {
+    console.error('健康检查API错误:', error);
+    res.status(500).json({
       success: false,
-      message: '方法不允许'
+      message: '服务器内部错误'
     });
   }
+};
+
+// 处理健康检查
+async function handleHealthCheck(req, res) {
 
   // 健康检查信息
   const healthStatus = {
@@ -82,5 +99,9 @@ module.exports = async (req, res) => {
     healthStatus.message = '服务运行但数据库连接异常';
   }
 
-  res.status(200).json(healthStatus);
+  res.json({
+    success: true,
+    message: '健康检查完成',
+    data: healthStatus
+  });
 }; 
