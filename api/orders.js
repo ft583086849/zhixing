@@ -139,9 +139,20 @@ async function handleCreateOrder(req, res, connection) {
       alipay_amount, commission_rate, commission_amount, status
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      link_code, tradingview_username, customer_wechat, duration, amount,
-      payment_method, payment_time, purchase_type, effectiveTime, expiryTime,
-      alipay_amount, commissionRate, commissionAmount, 'pending_review'
+      link_code, 
+      tradingview_username, 
+      customer_wechat || null, 
+      duration, 
+      amount,
+      payment_method, 
+      payment_time, 
+      purchase_type, 
+      effectiveTime, 
+      expiryTime,
+      alipay_amount || null, 
+      commissionRate, 
+      commissionAmount, 
+      'pending_review'
     ]
   );
 
