@@ -421,6 +421,11 @@ const PurchasePage = () => {
                           <div style={{ fontSize: '12px', color: '#666' }}>
                             {option.price === 0 ? '免费' : `$${option.price}`}
                           </div>
+                          {paymentMethod === 'alipay' && option.price > 0 && (
+                            <div style={{ fontSize: '10px', color: '#1890ff' }}>
+                              ≈¥{(option.price * 7.15).toFixed(0)}
+                            </div>
+                          )}
                           {option.disabled && (
                             <div style={{ fontSize: '10px', color: '#ff4d4f' }}>
                               已售罄
@@ -484,6 +489,13 @@ const PurchasePage = () => {
                 <Radio.Button value="alipay">支付宝</Radio.Button>
                 <Radio.Button value="crypto">线上地址码</Radio.Button>
               </Radio.Group>
+              {paymentMethod === 'alipay' && selectedDuration && (
+                <div style={{ marginTop: 8 }}>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    汇率按7.15计算，建议付款金额：¥{(getSelectedPrice() * 7.15).toFixed(2)}
+                  </Text>
+                </div>
+              )}
             </Form.Item>
 
             {/* 收款信息 - 根据付款方式动态显示 */}
@@ -623,17 +635,25 @@ const PurchasePage = () => {
            role="region">
             <Space direction="vertical" style={{ width: '100%' }}>
               <div>
-                <Text strong>订单ID：</Text>
-                <Text>{createdOrder.order_id}</Text>
-              </div>
-              <div>
-                <Text strong>应付金额：</Text>
-                <Text>${createdOrder.amount}</Text>
+                <Text strong>实付金额：</Text>
+                <Text>
+                  {paymentMethod === 'alipay' 
+                    ? `¥${(createdOrder.amount * 7.15).toFixed(2)} (人民币)`
+                    : `$${createdOrder.amount} (美元)`
+                  }
+                </Text>
               </div>
               <div>
                 <Text strong>订单状态：</Text>
-                <Text>{createdOrder.status === 'pending' ? '待确认' : createdOrder.status}</Text>
+                <Text>{createdOrder.status === 'pending_review' ? '待确认' : createdOrder.status}</Text>
               </div>
+              {paymentMethod === 'alipay' && (
+                <div>
+                  <Text type="secondary">
+                    汇率按7.15计算，建议付款金额：¥{(createdOrder.amount * 7.15).toFixed(2)}
+                  </Text>
+                </div>
+              )}
               <Text type="secondary">
                 请等待管理员确认您的付款，确认后即可使用服务。
               </Text>
