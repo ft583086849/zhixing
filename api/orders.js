@@ -108,7 +108,8 @@ async function handleCreateOrder(req, res, connection) {
       payment_method,
       payment_time,
       purchase_type = 'immediate',
-      alipay_amount
+      alipay_amount,
+      crypto_amount
     } = req.body;
 
     console.log('接收到的数据:', req.body);
@@ -140,6 +141,21 @@ async function handleCreateOrder(req, res, connection) {
     }
 
     const sales = salesRows[0];
+
+    // 验证TradingView用户名是否已被绑定
+    const [existingOrders] = await connection.execute(
+      'SELECT * FROM orders WHERE tradingview_username = ? AND status != "cancelled"',
+      [tradingview_username]
+    );
+
+    if (existingOrders.length > 0) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        message: '您的tradingview已通过销售绑定，不支持二次销售绑定',
+        tradingview_username
+      });
+    }
 
     // 计算生效时间和过期时间
     let effectiveTime = new Date();
@@ -198,8 +214,8 @@ async function handleCreateOrder(req, res, connection) {
         `INSERT INTO orders (
           link_code, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
-          alipay_amount, commission_rate, commission_amount, status, screenshot_data, screenshot_expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          alipay_amount, crypto_amount, commission_rate, commission_amount, status, screenshot_data, screenshot_expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           link_code, 
           tradingview_username, 
@@ -212,6 +228,7 @@ async function handleCreateOrder(req, res, connection) {
           formatDateForMySQL(effectiveTime), 
           formatDateForMySQL(expiryTime),
           alipay_amount || null, 
+          crypto_amount || null,
           commissionRate, 
           commissionAmount, 
           'pending_review',

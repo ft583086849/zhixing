@@ -33,8 +33,9 @@ module.exports = async (req, res) => {
 
   try {
     const connection = await mysql.createConnection(dbConfig);
+    const { path } = req.query;
     
-    if (req.method === 'POST') {
+    if (req.method === 'POST' && (path === 'cleanup' || !path)) {
       console.log('开始清理过期截图...');
       
       // 清理一周前的截图数据
@@ -54,7 +55,7 @@ module.exports = async (req, res) => {
         message: '截图清理完成',
         cleanedCount: result.affectedRows
       });
-    } else {
+    } else if (req.method === 'GET' && (path === 'stats' || !path)) {
       // GET请求显示清理统计
       const [expiredCount] = await connection.execute(
         `SELECT COUNT(*) as count 
@@ -76,6 +77,11 @@ module.exports = async (req, res) => {
         message: '截图清理统计',
         totalScreenshots: totalCount[0].count,
         expiredScreenshots: expiredCount[0].count
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: `路径不存在: ${req.method} ${path || 'default'}`
       });
     }
 

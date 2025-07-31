@@ -45,7 +45,8 @@ module.exports = async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
     const { path, id } = req.query;
 
-    if (req.method === 'GET' && path === 'stats') {
+    if (req.method === 'GET' && (path === 'stats' || !path)) {
+      // 默认GET请求返回统计信息
       await handleGetStats(req, res, connection);
     } else if (req.method === 'GET' && path === 'orders') {
       await handleGetOrders(req, res, connection);

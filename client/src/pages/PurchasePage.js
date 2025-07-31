@@ -56,6 +56,7 @@ const PurchasePage = () => {
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [alipayAmount, setAlipayAmount] = useState('');
+  const [cryptoAmount, setCryptoAmount] = useState('');
 
   // 时长选项和价格
   const durationOptions = [
@@ -145,6 +146,10 @@ const PurchasePage = () => {
         message.error('请输入支付宝付款金额');
         return;
       }
+      if (paymentMethod === 'crypto' && !cryptoAmount) {
+        message.error('请输入线上地址码付款金额');
+        return;
+      }
 
       // 处理截图上传
       let screenshotData = null;
@@ -163,7 +168,8 @@ const PurchasePage = () => {
         purchase_type: purchaseType,
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
         screenshot_data: screenshotData,
-        alipay_amount: paymentMethod === 'alipay' ? alipayAmount : null
+        alipay_amount: paymentMethod === 'alipay' ? alipayAmount : null,
+        crypto_amount: paymentMethod === 'crypto' ? cryptoAmount : null
       };
 
       await dispatch(createOrder(formData)).unwrap();
@@ -171,6 +177,7 @@ const PurchasePage = () => {
       form.resetFields();
       setFileList([]);
       setAlipayAmount('');
+      setCryptoAmount('');
       setPurchaseType('immediate');
       setEffectiveTime(null);
     } catch (error) {
@@ -304,6 +311,22 @@ const PurchasePage = () => {
               )}
             </Space>
           </Card>
+          
+          {/* 线上地址码付款金额输入 */}
+          <Form.Item
+            label="付款金额（美元）"
+            required>
+            <Input
+              type="number"
+              placeholder="请输入付款金额"
+              value={cryptoAmount}
+              onChange={(e) => setCryptoAmount(e.target.value)}
+              aria-label="请输入付款金额"
+              addonAfter="美元"
+              size="large"
+            />
+          </Form.Item>
+          
           <Alert
             message="请考虑手续费，保障到账金额"
             type="warning"
@@ -487,7 +510,7 @@ const PurchasePage = () => {
               {paymentMethod === 'alipay' && selectedDuration && (
                 <div style={{ marginTop: 8 }}>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    汇率按7.15计算，建议付款金额：¥{(getSelectedPrice() * 7.15).toFixed(2)}
+                    默认汇率按照1.5计算，建议付款金额：¥{(getSelectedPrice() * 1.5).toFixed(2)}
                   </Text>
                 </div>
               )}
@@ -584,7 +607,13 @@ const PurchasePage = () => {
                 loading={orderLoading}
                 size="large"
                 block
-                disabled={!selectedDuration || !paymentMethod}
+                disabled={
+                  !selectedDuration || 
+                  !paymentMethod || 
+                  (paymentMethod === 'alipay' && !alipayAmount) ||
+                  (paymentMethod === 'crypto' && !cryptoAmount) ||
+                  (purchaseType === 'advance' && !effectiveTime)
+                }
                 style={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   border: 'none',
@@ -595,11 +624,20 @@ const PurchasePage = () => {
                tabIndex={0}>
                 提交订单
               </Button>
-              {(!selectedDuration || !paymentMethod) && (
+              {(
+                !selectedDuration || 
+                !paymentMethod || 
+                (paymentMethod === 'alipay' && !alipayAmount) ||
+                (paymentMethod === 'crypto' && !cryptoAmount) ||
+                (purchaseType === 'advance' && !effectiveTime)
+              ) && (
                 <div style={{ marginTop: 8, textAlign: 'center' }}>
                   <Text type="secondary">
                     {!selectedDuration && '请选择购买时长'}
                     {!paymentMethod && '请选择付款方式'}
+                    {paymentMethod === 'alipay' && !alipayAmount && '请输入支付宝付款金额'}
+                    {paymentMethod === 'crypto' && !cryptoAmount && '请输入线上地址码付款金额'}
+                    {purchaseType === 'advance' && !effectiveTime && '请选择生效时间'}
                   </Text>
                 </div>
               )}
@@ -634,6 +672,8 @@ const PurchasePage = () => {
                 <Text>
                   {paymentMethod === 'alipay' 
                     ? `¥${alipayAmount} (人民币)`
+                    : paymentMethod === 'crypto'
+                    ? `$${cryptoAmount} (美元)`
                     : `$${createdOrder.amount} (美元)`
                   }
                 </Text>
@@ -642,13 +682,6 @@ const PurchasePage = () => {
                 <Text strong>订单状态：</Text>
                 <Text>{createdOrder.status === 'pending_review' ? '待确认' : createdOrder.status}</Text>
               </div>
-              {paymentMethod === 'alipay' && (
-                <div>
-                  <Text type="secondary">
-                    汇率按7.15计算，建议付款金额：¥{(createdOrder.amount * 7.15).toFixed(2)}
-                  </Text>
-                </div>
-              )}
               <Text type="secondary">
                 请等待管理员确认您的付款，确认后即可使用服务。
               </Text>
