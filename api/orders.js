@@ -1,7 +1,23 @@
 // Vercel Serverless Function - 订单API
 const mysql = require('mysql2/promise');
 const multer = require('multer');
-const path = require('path');
+
+// 配置multer用于文件上传 - 针对Vercel Serverless优化
+const upload = multer({
+  storage: multer.memoryStorage(), // 使用内存存储，适合Serverless
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 限制5MB
+    files: 1 // 只允许1个文件
+  },
+  fileFilter: (req, file, cb) => {
+    // 只允许图片文件
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只允许上传图片文件'), false);
+    }
+  }
+}).single('screenshot'); // 直接指定字段名
 
 // 数据库连接配置
 const dbConfig = {
@@ -33,150 +49,205 @@ module.exports = async (req, res) => {
     const { path, id } = req.query;
 
     if (req.method === 'POST' && path === 'create') {
-      await handleCreateOrder(req, res, connection);
+      // 使用multer处理文件上传
+      upload(req, res, async (err) => {
+        if (err) {
+          console.error('文件上传错误:', err);
+          await connection.end();
+          return res.status(400).json({
+            success: false,
+            message: err.message || '文件上传失败'
+          });
+        }
+        
+        try {
+          await handleCreateOrder(req, res, connection);
+        } catch (error) {
+          console.error('创建订单错误:', error);
+          await connection.end();
+          res.status(500).json({
+            success: false,
+            message: '服务器内部错误',
+            error: error.message
+          });
+        }
+      });
     } else if (req.method === 'GET' && !path) {
       await handleGetOrdersList(req, res, connection);
+      await connection.end();
     } else if (req.method === 'PUT' && path === 'update' && id) {
       await handleUpdateOrderStatus(req, res, connection, id);
+      await connection.end();
     } else {
+      await connection.end();
       res.status(404).json({
         success: false,
         message: `路径不存在: ${req.method} ${path || 'default'}`
       });
     }
 
-    await connection.end();
-
   } catch (error) {
     console.error('订单API错误:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: '服务器内部错误',
+      error: error.message
     });
   }
 };
 
 // 创建订单
 async function handleCreateOrder(req, res, connection) {
-  const {
-    link_code,
-    tradingview_username,
-    customer_wechat,
-    duration,
-    amount,
-    payment_method,
-    payment_time,
-    purchase_type = 'immediate',
-    alipay_amount
-  } = req.body;
-
-  // 验证必填字段
-  if (!link_code || !tradingview_username || !duration || !amount || !payment_method || !payment_time) {
-    return res.status(400).json({
-      success: false,
-      message: '缺少必填字段'
-    });
-  }
-
-  // 验证链接代码是否存在
-  const [salesRows] = await connection.execute(
-    'SELECT * FROM sales WHERE link_code = ?',
-    [link_code]
-  );
-
-  if (salesRows.length === 0) {
-    return res.status(404).json({
-      success: false,
-      message: '销售链接不存在'
-    });
-  }
-
-  const sales = salesRows[0];
-
-  // 计算生效时间和过期时间
-  let effectiveTime = new Date();
-  let expiryTime = new Date();
-  
-  if (purchase_type === 'advance') {
-    effectiveTime = new Date(req.body.effective_time);
-  }
-
-  // 计算过期时间
-  switch (duration) {
-    case '7days':
-      expiryTime = new Date(effectiveTime.getTime() + 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '1month':
-      expiryTime = new Date(effectiveTime);
-      expiryTime.setMonth(expiryTime.getMonth() + 1);
-      break;
-    case '3months':
-      expiryTime = new Date(effectiveTime);
-      expiryTime.setMonth(expiryTime.getMonth() + 3);
-      break;
-    case '6months':
-      expiryTime = new Date(effectiveTime);
-      expiryTime.setMonth(expiryTime.getMonth() + 6);
-      break;
-    case '1year':
-      expiryTime = new Date(effectiveTime);
-      expiryTime.setFullYear(expiryTime.getFullYear() + 1);
-      break;
-    case 'lifetime':
-      expiryTime = new Date('2099-12-31');
-      break;
-  }
-
-  // 计算佣金
-  const commissionRate = sales.commission_rate || 0.15;
-  const commissionAmount = parseFloat(amount) * commissionRate;
-
-  // 格式化日期为MySQL兼容格式
-  const formatDateForMySQL = (date) => {
-    return date.toISOString().slice(0, 19).replace('T', ' ');
-  };
-
-  // 创建订单
-  const [result] = await connection.execute(
-    `INSERT INTO orders (
-      link_code, tradingview_username, customer_wechat, duration, amount, 
-      payment_method, payment_time, purchase_type, effective_time, expiry_time,
-      alipay_amount, commission_rate, commission_amount, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      link_code, 
-      tradingview_username, 
-      customer_wechat || null, 
-      duration, 
+  try {
+    const {
+      link_code,
+      tradingview_username,
+      customer_wechat,
+      duration,
       amount,
-      payment_method, 
-      formatDateForMySQL(new Date(payment_time)), 
-      purchase_type, 
-      formatDateForMySQL(effectiveTime), 
-      formatDateForMySQL(expiryTime),
-      alipay_amount || null, 
-      commissionRate, 
-      commissionAmount, 
-      'pending_review'
-    ]
-  );
+      payment_method,
+      payment_time,
+      purchase_type = 'immediate',
+      alipay_amount
+    } = req.body;
 
-  // 更新销售统计
-  await connection.execute(
-    'UPDATE sales SET total_orders = total_orders + 1, total_revenue = total_revenue + ? WHERE link_code = ?',
-    [amount, link_code]
-  );
+    console.log('接收到的数据:', req.body);
+    console.log('文件信息:', req.file);
 
-  res.json({
-    success: true,
-    message: '订单创建成功',
-    data: {
-      order_id: result.insertId,
-      effective_time: effectiveTime,
-      expiry_time: expiryTime,
-      commission_amount: commissionAmount
+    // 验证必填字段
+    if (!link_code || !tradingview_username || !duration || !amount || !payment_method || !payment_time) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        message: '缺少必填字段',
+        received: { link_code, tradingview_username, duration, amount, payment_method, payment_time }
+      });
     }
-  });
+
+    // 验证链接代码是否存在
+    const [salesRows] = await connection.execute(
+      'SELECT * FROM sales WHERE link_code = ?',
+      [link_code]
+    );
+
+    if (salesRows.length === 0) {
+      await connection.end();
+      return res.status(404).json({
+        success: false,
+        message: '销售链接不存在',
+        link_code
+      });
+    }
+
+    const sales = salesRows[0];
+
+    // 计算生效时间和过期时间
+    let effectiveTime = new Date();
+    let expiryTime = new Date();
+    
+    if (purchase_type === 'advance') {
+      effectiveTime = new Date(req.body.effective_time);
+    }
+
+    // 计算过期时间
+    switch (duration) {
+      case '7days':
+        expiryTime = new Date(effectiveTime.getTime() + 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '1month':
+        expiryTime = new Date(effectiveTime);
+        expiryTime.setMonth(expiryTime.getMonth() + 1);
+        break;
+      case '3months':
+        expiryTime = new Date(effectiveTime);
+        expiryTime.setMonth(expiryTime.getMonth() + 3);
+        break;
+      case '6months':
+        expiryTime = new Date(effectiveTime);
+        expiryTime.setMonth(expiryTime.getMonth() + 6);
+        break;
+      case '1year':
+        expiryTime = new Date(effectiveTime);
+        expiryTime.setFullYear(expiryTime.getFullYear() + 1);
+        break;
+      case 'lifetime':
+        expiryTime = new Date('2099-12-31');
+        break;
+    }
+
+    // 计算佣金
+    const commissionRate = sales.commission_rate || 0.15;
+    const commissionAmount = parseFloat(amount) * commissionRate;
+
+    // 格式化日期为MySQL兼容格式
+    const formatDateForMySQL = (date) => {
+      return date.toISOString().slice(0, 19).replace('T', ' ');
+    };
+
+    // 处理截图数据（Base64格式）
+    let screenshotData = null;
+    if (req.body.screenshot_data) {
+      // 将Base64字符串转换为Buffer存储
+      const base64Data = req.body.screenshot_data.replace(/^data:image\/[a-z]+;base64,/, '');
+      screenshotData = Buffer.from(base64Data, 'base64');
+      console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
+    }
+
+          // 创建订单
+      const [result] = await connection.execute(
+        `INSERT INTO orders (
+          link_code, tradingview_username, customer_wechat, duration, amount, 
+          payment_method, payment_time, purchase_type, effective_time, expiry_time,
+          alipay_amount, commission_rate, commission_amount, status, screenshot_data, screenshot_expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          link_code, 
+          tradingview_username, 
+          customer_wechat || null, 
+          duration, 
+          amount,
+          payment_method, 
+          formatDateForMySQL(new Date(payment_time)), 
+          purchase_type, 
+          formatDateForMySQL(effectiveTime), 
+          formatDateForMySQL(expiryTime),
+          alipay_amount || null, 
+          commissionRate, 
+          commissionAmount, 
+          'pending_review',
+          screenshotData,
+          formatDateForMySQL(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 7天后过期
+        ]
+      );
+
+    // 更新销售统计
+    await connection.execute(
+      'UPDATE sales SET total_orders = total_orders + 1, total_revenue = total_revenue + ? WHERE link_code = ?',
+      [amount, link_code]
+    );
+
+    await connection.end();
+
+    res.json({
+      success: true,
+      message: '订单创建成功',
+      data: {
+        order_id: result.insertId,
+        effective_time: effectiveTime,
+        expiry_time: expiryTime,
+        commission_amount: commissionAmount,
+        has_screenshot: !!req.body.screenshot_data
+      }
+    });
+  } catch (error) {
+    console.error('创建订单详细错误:', error);
+    await connection.end();
+    res.status(500).json({
+      success: false,
+      message: '服务器内部错误',
+      error: error.message
+    });
+  }
 }
 
 // 获取订单列表

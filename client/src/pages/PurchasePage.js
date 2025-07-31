@@ -117,8 +117,41 @@ const PurchasePage = () => {
   };
 
   // 处理表单提交
+  // 将文件转换为Base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSubmit = async (values) => {
     try {
+      // 验证必填项
+      if (!selectedDuration) {
+        message.error('请选择购买时长');
+        return;
+      }
+      if (!paymentMethod) {
+        message.error('请选择付款方式');
+        return;
+      }
+      if (purchaseType === 'advance' && !effectiveTime) {
+        message.error('请选择生效时间');
+        return;
+      }
+      if (paymentMethod === 'alipay' && !alipayAmount) {
+        message.error('请输入支付宝付款金额');
+        return;
+      }
+
+      // 处理截图上传
+      let screenshotData = null;
+      if (fileList.length > 0) {
+        screenshotData = await fileToBase64(fileList[0]);
+      }
+
       const formData = {
         link_code: linkCode,
         tradingview_username: values.tradingview_username,
@@ -128,7 +161,7 @@ const PurchasePage = () => {
         payment_time: values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
         purchase_type: purchaseType,
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
-        screenshot: fileList[0]?.originFileObj,
+        screenshot_data: screenshotData,
         alipay_amount: paymentMethod === 'alipay' ? alipayAmount : null
       };
 
@@ -472,8 +505,7 @@ const PurchasePage = () => {
 
             {/* 付款截图 */}
             <Form.Item
-              label="付款截图"
-              required>
+              label="付款截图">
               <Upload {...uploadProps} listType="picture">
                 <Button icon={<UploadOutlined />} size="large" tabIndex={0}>
                   上传截图
@@ -555,6 +587,14 @@ const PurchasePage = () => {
                tabIndex={0}>
                 提交订单
               </Button>
+              {(!selectedDuration || !paymentMethod) && (
+                <div style={{ marginTop: 8, textAlign: 'center' }}>
+                  <Text type="secondary">
+                    {!selectedDuration && '请选择购买时长'}
+                    {!paymentMethod && '请选择付款方式'}
+                  </Text>
+                </div>
+              )}
             </Form.Item>
           </Form>
         </Card>

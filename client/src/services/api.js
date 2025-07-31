@@ -119,15 +119,10 @@ export const salesAPI = {
 // 订单API
 export const ordersAPI = {
   createOrder: (data) => {
-    const formData = new FormData();
-    Object.keys(data).forEach(key => {
-      if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key]);
-      }
-    });
-    return api.post('/orders?path=create', formData, {
+    // 使用JSON格式发送数据，包括Base64图片
+    return api.post('/orders?path=create', data, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/json',
       },
     });
   },
