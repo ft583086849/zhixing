@@ -16,7 +16,7 @@ CORS_ORIGIN=https://zhixing-zeta.vercel.app  ✅ 保留 - 跨域配置
 DB_HOST=[你的PlanetScale主机]      🆕 新增
 DB_USER=[你的PlanetScale用户名]    🆕 新增  
 DB_PASSWORD=[你的PlanetScale密码]  🆕 新增
-DB_NAME=zhixing-treasury          🆕 新增
+DB_NAME=zhixing          🆕 新增
 ```
 
 ### ❌ **可能需要删除的旧变量**（如果存在）
@@ -66,7 +66,7 @@ MYSQL_*          ❌ 删除 - 如果有MySQL相关的旧变量
 ✅ DB_HOST=[PlanetScale主机]
 ✅ DB_USER=[PlanetScale用户名]
 ✅ DB_PASSWORD=[PlanetScale密码] 
-✅ DB_NAME=zhixing-treasury
+✅ DB_NAME=zhixing
 ```
 
 ## ⚠️ **特别注意**

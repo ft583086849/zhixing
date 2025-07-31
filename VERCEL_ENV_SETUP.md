@@ -19,7 +19,7 @@
 | 1 | `DB_HOST` | `xxxxx.connect.psdb.cloud` | PlanetScale主机地址 |
 | 2 | `DB_USER` | `xxxxx` | 数据库用户名 |
 | 3 | `DB_PASSWORD` | `pscale_pw_xxxxx` | 数据库密码 |
-| 4 | `DB_NAME` | `zhixing-treasury` | 数据库名称 |
+| 4 | `DB_NAME` | `zhixing` | 数据库名称 |
 
 ### 4. **获取 PlanetScale 连接信息**
 
