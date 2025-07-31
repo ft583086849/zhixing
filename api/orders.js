@@ -131,6 +131,11 @@ async function handleCreateOrder(req, res, connection) {
   const commissionRate = sales.commission_rate || 0.15;
   const commissionAmount = parseFloat(amount) * commissionRate;
 
+  // 格式化日期为MySQL兼容格式
+  const formatDateForMySQL = (date) => {
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+  };
+
   // 创建订单
   const [result] = await connection.execute(
     `INSERT INTO orders (
@@ -145,10 +150,10 @@ async function handleCreateOrder(req, res, connection) {
       duration, 
       amount,
       payment_method, 
-      payment_time, 
+      formatDateForMySQL(new Date(payment_time)), 
       purchase_type, 
-      effectiveTime, 
-      expiryTime,
+      formatDateForMySQL(effectiveTime), 
+      formatDateForMySQL(expiryTime),
       alipay_amount || null, 
       commissionRate, 
       commissionAmount, 
