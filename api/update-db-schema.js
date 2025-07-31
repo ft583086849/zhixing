@@ -1,4 +1,4 @@
-// 临时API：修改数据库表结构
+// Vercel Serverless Function - 数据库表结构更新API
 const mysql = require('mysql2/promise');
 
 // 数据库连接配置
@@ -14,10 +14,13 @@ const dbConfig = {
 };
 
 module.exports = async (req, res) => {
+  // 设置CORS头部
+  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
+  // 处理OPTIONS预检请求
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
