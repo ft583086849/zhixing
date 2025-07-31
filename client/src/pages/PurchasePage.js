@@ -671,9 +671,9 @@ const PurchasePage = () => {
                 <Text strong>实付金额：</Text>
                 <Text>
                   {paymentMethod === 'alipay' 
-                    ? `¥${alipayAmount} (人民币)`
+                    ? `¥${createdOrder.alipay_amount || alipayAmount} (人民币)`
                     : paymentMethod === 'crypto'
-                    ? `$${cryptoAmount} (美元)`
+                    ? `$${createdOrder.crypto_amount || cryptoAmount} (美元)`
                     : `$${createdOrder.amount} (美元)`
                   }
                 </Text>
