@@ -91,95 +91,107 @@ const AdminDashboardPage = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider 
-        trigger={null} 
-        collapsible 
-        collapsed={collapsed}
-        theme="dark"
-        style={{
-          background: 'linear-gradient(180deg, #2c3e50 0%, #34495e 100%)',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.15)'
-        }}
-      >
-        <div style={{ 
-          height: 64, 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          color: 'white',
-          fontSize: collapsed ? '16px' : '18px',
-          fontWeight: 'bold',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          margin: '8px',
-          borderRadius: '8px'
-        }}>
-          {collapsed ? 'ZXCK' : '知行财库'}
-        </div>
-        <Menu
+    <div>
+      <div style={{ 
+        background: 'red', 
+        color: 'white', 
+        padding: '10px', 
+        textAlign: 'center',
+        fontSize: '18px',
+        fontWeight: 'bold'
+      }}>
+        测试：AdminDashboardPage 组件已加载 - 时间: {new Date().toLocaleString()}
+      </div>
+      <Layout style={{ minHeight: '100vh' }}>
+        <Sider 
+          trigger={null} 
+          collapsible 
+          collapsed={collapsed}
           theme="dark"
-          mode="inline"
-          defaultSelectedKeys={['/admin/dashboard']}
-          items={menuItems}
-          onClick={handleMenuClick}
-        />
-      </Sider>
-      
-      <Layout>
-        <Header style={{ 
-          padding: '0 24px', 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          color: 'white'
-        }}>
-          <Button
-            type="text"
-            icon={collapsed ? '☰' : '✕'}
-            onClick={() => setCollapsed(!collapsed)}
-            tabIndex={0}
-            style={{
-              fontSize: '16px',
-              width: 64,
-              height: 64,
-            }}
+          style={{
+            background: 'linear-gradient(180deg, #2c3e50 0%, #34495e 100%)',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.15)'
+          }}
+        >
+          <div style={{ 
+            height: 64, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: collapsed ? '16px' : '18px',
+            fontWeight: 'bold',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            margin: '8px',
+            borderRadius: '8px'
+          }}>
+            {collapsed ? 'ZXCK' : '知行财库'}
+          </div>
+          <Menu
+            theme="dark"
+            mode="inline"
+            defaultSelectedKeys={['/admin/dashboard']}
+            items={menuItems}
+            onClick={handleMenuClick}
           />
-          
-          <Space>
-            <span style={{ color: 'white', fontWeight: 'bold' }}>欢迎，{admin?.username}</span>
-            <Dropdown overlay={userMenu} placement="bottomRight">
-              <Avatar 
-                icon={<UserOutlined />} 
-                style={{ cursor: 'pointer', backgroundColor: 'rgba(255,255,255,0.2)' }}
-              />
-            </Dropdown>
-          </Space>
-        </Header>
+        </Sider>
         
-        <Content style={{ 
-          margin: '16px', 
-          padding: '24px', 
-          background: 'white',
-          borderRadius: '16px',
-          minHeight: 'calc(100vh - 96px)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          border: '1px solid #f0f0f0'
-        }}>
-          <ErrorBoundary>
-            <Routes>
-              <Route path="dashboard" element={<AdminOverview />} />
-              <Route path="" element={<AdminOverview />} />
-              <Route path="orders" element={<AdminOrders />} />
-              <Route path="sales" element={<AdminSales />} />
-              <Route path="customers" element={<AdminCustomers />} />
-              <Route path="payment-config" element={<AdminPaymentConfig />} />
-            </Routes>
-          </ErrorBoundary>
-        </Content>
+        <Layout>
+          <Header style={{ 
+            padding: '0 24px', 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            color: 'white'
+          }}>
+            <Button
+              type="text"
+              icon={collapsed ? '☰' : '✕'}
+              onClick={() => setCollapsed(!collapsed)}
+              tabIndex={0}
+              style={{
+                fontSize: '16px',
+                width: 64,
+                height: 64,
+              }}
+            />
+            
+            <Space>
+              <span style={{ color: 'white', fontWeight: 'bold' }}>欢迎，{admin?.username}</span>
+              <Dropdown overlay={userMenu} placement="bottomRight">
+                <Avatar 
+                  icon={<UserOutlined />} 
+                  style={{ cursor: 'pointer', backgroundColor: 'rgba(255,255,255,0.2)' }}
+                />
+              </Dropdown>
+            </Space>
+          </Header>
+          
+          <Content style={{ 
+            margin: '16px', 
+            padding: '24px', 
+            background: 'white',
+            borderRadius: '16px',
+            minHeight: 'calc(100vh - 96px)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            border: '1px solid #f0f0f0'
+          }}>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="dashboard" element={<AdminOverview />} />
+                <Route path="" element={<AdminOverview />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="sales" element={<AdminSales />} />
+                <Route path="customers" element={<AdminCustomers />} />
+                <Route path="payment-config" element={<AdminPaymentConfig />} />
+              </Routes>
+            </ErrorBoundary>
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </div>
   );
 };
 
