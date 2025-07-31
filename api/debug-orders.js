@@ -56,6 +56,15 @@ module.exports = async (req, res) => {
     
     if (req.method === 'POST' && path === 'create') {
       debugInfo.steps.push('处理创建订单请求');
+    } else if (req.method === 'GET' && (!path || path === 'test')) {
+      // 默认GET请求返回调试信息
+      debugInfo.steps.push('处理调试信息请求');
+      await connection.end();
+      return res.json({
+        success: true,
+        message: '调试API正常工作',
+        debug: debugInfo
+      });
       
       // 步骤3: 提取请求体数据
       const {

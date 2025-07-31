@@ -157,6 +157,7 @@ const PurchasePage = () => {
         tradingview_username: values.tradingview_username,
         customer_wechat: values.customer_wechat,
         duration: selectedDuration,
+        amount: getSelectedPrice(), // 添加金额字段
         payment_method: paymentMethod,
         payment_time: values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
         purchase_type: purchaseType,

@@ -35,7 +35,8 @@ module.exports = async (req, res) => {
       await handleCreateSales(req, res, connection);
     } else if (req.method === 'GET' && link_code) {
       await handleGetSalesByLink(req, res, connection, link_code);
-    } else if (req.method === 'GET' && path === 'list') {
+    } else if (req.method === 'GET' && (path === 'list' || !path)) {
+      // 默认GET请求返回销售列表
       await handleGetAllSales(req, res, connection);
     } else {
       res.status(404).json({
