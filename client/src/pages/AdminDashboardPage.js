@@ -29,10 +29,14 @@ import AdminPaymentConfig from '../components/admin/AdminPaymentConfig';
 const { Header, Sider, Content } = Layout;
 
 const AdminDashboardPage = () => {
+  console.log('AdminDashboardPage 组件开始加载');
+  
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { admin } = useSelector((state) => state.auth);
   const [collapsed, setCollapsed] = useState(false);
+
+  console.log('AdminDashboardPage 状态:', { admin, collapsed });
 
   const handleLogout = () => {
     dispatch(logout());
