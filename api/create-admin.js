@@ -62,7 +62,7 @@ async function handleCreateAdmin(req, res, connection) {
     // 检查是否已存在管理员账号
     const [existingAdmins] = await connection.execute(
       'SELECT * FROM admins WHERE username = ?',
-      ['admin']
+      ['知行']
     );
     
     if (existingAdmins.length > 0) {
@@ -70,15 +70,15 @@ async function handleCreateAdmin(req, res, connection) {
         success: true,
         message: '管理员账号已存在',
         data: {
-          username: 'admin',
+          username: '知行',
           exists: true
         }
       });
     }
     
     // 创建管理员账号
-    const username = 'admin';
-    const password = 'admin123';
+    const username = '知行';
+    const password = 'Zhixing Universal Trading Signal';
     const hashedPassword = await bcrypt.hash(password, 10);
     
     await connection.execute(
@@ -90,8 +90,8 @@ async function handleCreateAdmin(req, res, connection) {
       success: true,
       message: '管理员账号创建成功！',
       data: {
-        username: 'admin',
-        password: 'admin123',
+        username: '知行',
+        password: 'Zhixing Universal Trading Signal',
         created: true
       }
     });
