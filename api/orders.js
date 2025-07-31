@@ -116,11 +116,20 @@ async function handleCreateOrder(req, res, connection) {
     console.log('文件信息:', req.file);
 
     // 验证必填字段
-    if (!link_code || !tradingview_username || !duration || !amount || !payment_method || !payment_time) {
+    const missingFields = [];
+    if (!link_code) missingFields.push('link_code');
+    if (!tradingview_username) missingFields.push('tradingview_username');
+    if (!duration) missingFields.push('duration');
+    if (!amount) missingFields.push('amount');
+    if (!payment_method) missingFields.push('payment_method');
+    if (!payment_time) missingFields.push('payment_time');
+    
+    if (missingFields.length > 0) {
       await connection.end();
       return res.status(400).json({
         success: false,
-        message: '缺少必填字段',
+        message: `缺少必填字段: ${missingFields.join(', ')}`,
+        missingFields: missingFields,
         received: { link_code, tradingview_username, duration, amount, payment_method, payment_time }
       });
     }
