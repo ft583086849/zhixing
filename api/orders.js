@@ -114,13 +114,14 @@ async function handleCreateOrder(req, res, connection) {
 
     console.log('接收到的数据:', req.body);
     console.log('文件信息:', req.file);
+    console.log('amount类型:', typeof amount, '值:', amount);
 
     // 验证必填字段
     const missingFields = [];
     if (!link_code) missingFields.push('link_code');
     if (!tradingview_username) missingFields.push('tradingview_username');
     if (!duration) missingFields.push('duration');
-    if (!amount) missingFields.push('amount');
+    if (amount === undefined || amount === null || amount === '' || (typeof amount === 'string' && amount.trim() === '')) missingFields.push('amount');
     if (!payment_method) missingFields.push('payment_method');
     if (!payment_time) missingFields.push('payment_time');
     
