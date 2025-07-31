@@ -156,12 +156,6 @@ export const adminAPI = {
   }),
 };
 
-// 永久授权限量API
-export const lifetimeLimitAPI = {
-  getLimitInfo: () => api.get('/lifetime-limit'),
-  updateConfig: (data) => api.put('/lifetime-limit', data),
-  incrementSold: () => api.post('/lifetime-limit?action=increment'),
-  decrementSold: () => api.post('/lifetime-limit?action=decrement'),
-};
+// 永久授权限量API已移除
 
 export default api; 

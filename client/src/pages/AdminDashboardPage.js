@@ -24,7 +24,7 @@ import AdminOrders from '../components/admin/AdminOrders';
 import AdminSales from '../components/admin/AdminSales';
 import AdminCustomers from '../components/admin/AdminCustomers';
 import AdminPaymentConfig from '../components/admin/AdminPaymentConfig';
-import AdminLifetimeLimit from '../components/admin/AdminLifetimeLimit';
+
 
 const { Header, Sider, Content } = Layout;
 
@@ -74,11 +74,6 @@ const AdminDashboardPage = () => {
       key: '/admin/customers',
       icon: <UserOutlined />,
       label: '客户管理',
-    },
-    {
-      key: '/admin/lifetime-limit',
-      icon: <CrownOutlined />,
-      label: '永久授权限量',
     },
     {
       key: '/admin/payment-config',
@@ -175,7 +170,6 @@ const AdminDashboardPage = () => {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="sales" element={<AdminSales />} />
               <Route path="customers" element={<AdminCustomers />} />
-              <Route path="lifetime-limit" element={<AdminLifetimeLimit />} />
               <Route path="payment-config" element={<AdminPaymentConfig />} />
             </Routes>
           </ErrorBoundary>

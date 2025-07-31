@@ -31,7 +31,7 @@ import {
 import dayjs from 'dayjs';
 import { getSalesByLink, clearCurrentSales } from '../store/slices/salesSlice';
 import { createOrder, clearCreatedOrder } from '../store/slices/ordersSlice';
-import { getLifetimeLimitInfo } from '../store/slices/lifetimeLimitSlice';
+
 import { getPaymentConfig } from '../store/slices/paymentConfigSlice';
 import QRCodeDisplay from '../components/QRCodeDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -44,7 +44,7 @@ const PurchasePage = () => {
   const dispatch = useDispatch();
   const { currentSales, loading: salesLoading, error: salesError } = useSelector((state) => state.sales);
   const { loading: orderLoading, error: orderError, createdOrder } = useSelector((state) => state.orders);
-  const { totalLimit, soldCount, remainingCount, isAvailable, loading: limitLoading } = useSelector((state) => state.lifetimeLimit);
+
   const { config: paymentConfig, loading: configLoading, error: configError } = useSelector((state) => state.paymentConfig);
   const [form] = Form.useForm();
 
@@ -63,15 +63,13 @@ const PurchasePage = () => {
     { value: '1month', label: '1个月', price: 188 },
     { value: '3months', label: '3个月', price: 488 },
     { value: '6months', label: '6个月', price: 688 },
-    { value: '1year', label: '1年', price: 1588 },
-    { value: 'lifetime', label: `永久授权 (剩余${remainingCount}个)`, price: 1888, disabled: !isAvailable }
-  ].filter(option => !option.disabled); // 过滤掉禁用的选项
+    { value: '1year', label: '1年', price: 1588 }
+  ];
 
-  // 获取销售信息和永久授权限量信息
+  // 获取销售信息和支付配置
   useEffect(() => {
     if (linkCode) {
       dispatch(getSalesByLink(linkCode));
-      dispatch(getLifetimeLimitInfo());
       dispatch(getPaymentConfig());
     }
     return () => {
