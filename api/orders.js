@@ -148,7 +148,26 @@ async function handleCreateOrder(req, res, connection) {
       [tradingview_username]
     );
 
-    if (existingOrders.length > 0) {
+    // 如果是七天免费订单，检查是否已经使用过免费期
+    if (duration === '7days' && existingOrders.length > 0) {
+      // 检查是否有七天免费订单记录
+      const [freeOrders] = await connection.execute(
+        'SELECT * FROM orders WHERE tradingview_username = ? AND duration = "7days" AND status != "cancelled"',
+        [tradingview_username]
+      );
+      
+      if (freeOrders.length > 0) {
+        await connection.end();
+        return res.status(400).json({
+          success: false,
+          message: '您已享受过免费期，请续费使用',
+          tradingview_username
+        });
+      }
+    }
+    
+    // 如果不是七天免费订单，但该账号已有其他订单，则不允许
+    if (duration !== '7days' && existingOrders.length > 0) {
       await connection.end();
       return res.status(400).json({
         success: false,
