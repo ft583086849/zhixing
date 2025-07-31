@@ -1,10 +1,10 @@
 {
-  "buildCommand": "npm install && cd client && npm install && npm run build",
-  "outputDirectory": ".",
+  "buildCommand": "cd client && npm install && npm run build",
+  "outputDirectory": "client/build",
   "rewrites": [
     {
       "source": "/((?!api/).*)",
-      "destination": "/client/build/index.html"
+      "destination": "/index.html"
     }
   ],
   "env": {
