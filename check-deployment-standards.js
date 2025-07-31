@@ -181,7 +181,8 @@ class DeploymentChecker {
     console.log('  - 结构完整 (头部注释、导入、配置、CORS、错误处理等)');
     console.log('  - 文件权限正确 (644)');
     console.log('  - 数据库连接管理正确');
-    console.log('  - 响应格式统一\n');
+    console.log('  - 响应格式统一');
+    console.log('  - Vercel函数数量限制 (Hobby计划最多12个)\n');
 
     const files = this.getApiFiles();
     if (files.length === 0) {
@@ -189,7 +190,25 @@ class DeploymentChecker {
       return false;
     }
 
-    console.log(`📁 找到 ${files.length} 个API文件:`);
+    // 检查Vercel函数数量限制
+    const maxFunctions = 12; // Hobby计划限制
+    if (files.length > maxFunctions) {
+      console.log(`❌ API文件数量超出Vercel Hobby计划限制:`);
+      console.log(`   当前: ${files.length} 个文件`);
+      console.log(`   限制: ${maxFunctions} 个文件`);
+      console.log(`   超出: ${files.length - maxFunctions} 个文件`);
+      console.log('\n💡 建议:');
+      console.log('   - 删除不必要的API文件');
+      console.log('   - 或升级到Pro计划');
+      console.log('');
+      return false;
+    } else if (files.length === maxFunctions) {
+      console.log(`⚠️  API文件数量已达到Vercel Hobby计划限制 (${maxFunctions}个)`);
+    } else {
+      console.log(`✅ API文件数量符合Vercel Hobby计划限制 (${files.length}/${maxFunctions})`);
+    }
+
+    console.log(`\n📁 找到 ${files.length} 个API文件:`);
     files.forEach(file => console.log(`  - ${file}`));
 
     const results = files.map(file => this.checkFile(file));
@@ -211,9 +230,19 @@ class DeploymentChecker {
     }
 
     const allPassed = this.results.failed.length === 0;
-    console.log(`\n${allPassed ? '🎉 所有文件都符合部署标准！可以安全推送。' : '⚠️  有文件不符合标准，请修复后再推送。'}`);
+    const functionCountOk = files.length <= maxFunctions;
+    
+    if (allPassed && functionCountOk) {
+      console.log(`\n🎉 所有检查都通过！可以安全推送。`);
+      console.log(`   ✅ 文件结构: 12/12 个文件符合标准`);
+      console.log(`   ✅ 函数数量: ${files.length}/${maxFunctions} 个文件`);
+    } else if (!functionCountOk) {
+      console.log(`\n❌ 函数数量超出限制，无法部署！`);
+    } else {
+      console.log(`\n⚠️  有文件不符合标准，请修复后再推送。`);
+    }
 
-    return allPassed;
+    return allPassed && functionCountOk;
   }
 }
 
