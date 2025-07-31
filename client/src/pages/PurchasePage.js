@@ -421,11 +421,6 @@ const PurchasePage = () => {
                           <div style={{ fontSize: '12px', color: '#666' }}>
                             {option.price === 0 ? '免费' : `$${option.price}`}
                           </div>
-                          {paymentMethod === 'alipay' && option.price > 0 && (
-                            <div style={{ fontSize: '10px', color: '#1890ff' }}>
-                              ≈¥{(option.price * 7.15).toFixed(0)}
-                            </div>
-                          )}
                           {option.disabled && (
                             <div style={{ fontSize: '10px', color: '#ff4d4f' }}>
                               已售罄
@@ -638,7 +633,7 @@ const PurchasePage = () => {
                 <Text strong>实付金额：</Text>
                 <Text>
                   {paymentMethod === 'alipay' 
-                    ? `¥${(createdOrder.amount * 7.15).toFixed(2)} (人民币)`
+                    ? `¥${alipayAmount} (人民币)`
                     : `$${createdOrder.amount} (美元)`
                   }
                 </Text>
