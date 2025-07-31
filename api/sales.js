@@ -100,11 +100,21 @@ async function handleCreateSales(req, res, connection) {
   // 生成唯一链接代码
   const linkCode = uuidv4().replace(/-/g, '').substring(0, 16);
 
+  // 确保所有参数都不是undefined，转换为null
+  const params = [
+    wechat_name,
+    payment_method,
+    payment_address,
+    alipay_surname || null,
+    chain_name || null,
+    linkCode
+  ];
+
   // 创建销售记录
   const [result] = await connection.execute(
     `INSERT INTO sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, link_code) 
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [wechat_name, payment_method, payment_address, alipay_surname, chain_name, linkCode]
+    params
   );
 
   res.json({
