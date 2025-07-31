@@ -201,15 +201,15 @@ node deployment-pre-check.js
 
 ## 🚨 常见问题及解决方案
 
-### 1. Railway后端部署问题
-- **问题**: Railway返回"Application not found"
-- **原因**: Railway项目未创建或配置错误
-- **解决**: 手动创建Railway项目并连接GitHub仓库
+### 1. Vercel Serverless Functions部署问题
+- **问题**: API函数返回"Function not found"
+- **原因**: API函数未正确部署或路径配置错误
+- **解决**: 检查api/目录结构和vercel.json配置
 
-### 2. Railway构建失败问题
-- **问题**: Railway构建失败，错误"react-scripts: 未找到"
-- **原因**: Railway试图构建前端代码，但这是前后端分离项目
-- **解决**: 确保railway.json配置正确指向server目录
+### 2. Vercel函数构建失败问题
+- **问题**: 函数构建失败，错误"Module not found"
+- **原因**: 依赖包缺失或函数格式不正确
+- **解决**: 确保所有依赖在package.json中，函数格式正确
 
 ### 3. Vercel前端部署问题
 - **问题**: 前端显示Hexo博客而不是React应用
@@ -261,11 +261,12 @@ node deployment-pre-check.js
 
 ## 📝 部署后验证清单
 
-### 后端验证 (Railway)
+### 后端验证 (Vercel Serverless Functions)
 - [ ] 健康检查: `GET /api/health` 返回200
 - [ ] 数据库连接: 健康检查显示数据库连接成功
 - [ ] API端点: 所有API端点响应正常
 - [ ] 错误处理: 错误响应格式正确
+- [ ] 函数部署: 所有API函数正确部署到Vercel
 
 ### 前端验证 (Vercel)
 - [ ] 页面加载: 首页正常加载
@@ -342,19 +343,20 @@ node deployment-pre-check.js
 1. ✅ 修复了Vercel Runtime格式错误
 2. ✅ 修复了API函数配置冲突
 3. ✅ 修复了构建失败问题
-4. ❌ 前端仍显示Hexo博客 (待解决)
-5. ❌ API仍返回NOT_FOUND (待解决)
+4. ✅ 修复了API路径不匹配问题
+5. ✅ 统一了前端API调用格式
+6. ⚠️ 前端显示Hexo博客 (需要强制重新部署)
+7. ⚠️ API返回NOT_FOUND (需要强制重新部署)
 
-📊 已尝试的解决方案：
-- 简化vercel.json配置
-- 修复runtime格式
-- 移除functions配置冲突
-- 让Vercel自动处理API函数
+📊 已修复的问题：
+- 修复了前端API调用格式不一致
+- 统一了API函数查询参数格式
+- 确保所有API路径正确匹配
 
 🎯 下一步计划：
-- 检查Vercel项目设置
-- 验证环境变量配置
-- 确认API函数是否正确部署
+- 强制清除Vercel缓存
+- 强制重新部署项目
+- 验证前端和API功能
 ```
 
 ---
