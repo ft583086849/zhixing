@@ -182,14 +182,15 @@ node deployment-pre-check.js
 
 ### 第一步：后端部署 (Railway)
 1. 访问 https://railway.app
-2. 导入GitHub仓库
-3. 配置环境变量
-4. 部署并获取URL
+2. 创建新项目，选择"Deploy from GitHub repo"
+3. 选择仓库 `ft583086849/zhixing`
+4. 配置环境变量（数据库连接信息）
+5. 部署并获取URL
 
 ### 第二步：前端部署 (Vercel)
 1. 访问 https://vercel.com
 2. 导入GitHub仓库
-3. 配置环境变量 (REACT_APP_API_URL)
+3. 配置环境变量 (REACT_APP_API_URL = Railway后端URL)
 4. 部署
 
 ### 第三步：验证部署
@@ -197,6 +198,64 @@ node deployment-pre-check.js
 2. 检查前端页面加载
 3. 测试API功能
 4. 验证数据库连接
+
+## 🚨 常见问题及解决方案
+
+### 1. Railway后端部署问题
+- **问题**: Railway返回"Application not found"
+- **原因**: Railway项目未创建或配置错误
+- **解决**: 手动创建Railway项目并连接GitHub仓库
+
+### 2. Railway构建失败问题
+- **问题**: Railway构建失败，错误"react-scripts: 未找到"
+- **原因**: Railway试图构建前端代码，但这是前后端分离项目
+- **解决**: 确保railway.json配置正确指向server目录
+
+### 3. Vercel前端部署问题
+- **问题**: 前端显示Hexo博客而不是React应用
+- **原因**: Vercel配置混乱或缓存问题
+- **解决**: 简化vercel.json配置，清除缓存重新部署
+
+### 4. Vercel API函数部署问题
+- **问题**: API返回NOT_FOUND，Runtime格式错误
+- **原因**: vercel.json中functions配置格式错误
+- **解决**: 
+  1. 使用正确的runtime格式：`"runtime": "nodejs18.x"`
+  2. 使用正确的函数路径：`"api/**/*.js"`
+  3. 避免配置冲突，让Vercel自动处理
+
+### 5. Vercel构建失败问题
+- **问题**: 构建日志显示"Function Runtimes must have a valid version"
+- **原因**: Vercel不认可runtime配置格式
+- **解决**: 
+  1. 检查vercel.json中的functions配置
+  2. 确保runtime格式正确
+  3. 避免functions和builds配置冲突
+
+### 6. Vercel配置最佳实践 (已验证成功)
+- **成功配置格式**：
+  ```json
+  {
+    "functions": {
+      "api/*.js": {
+        "runtime": "nodejs@18.x"
+      }
+    },
+    "buildCommand": "cd client && npm run build",
+    "outputDirectory": "client/build",
+    "rewrites": [
+      {
+        "source": "/(.*)",
+        "destination": "/index.html"
+      }
+    ]
+  }
+  ```
+- **关键要点**：
+  1. Runtime格式：`"runtime": "nodejs@18.x"` (必须带@符号)
+  2. 函数路径：`"api/*.js"` (不是`api/**/*.js`)
+  3. 避免使用builds属性，防止冲突
+  4. 使用rewrites而不是routes
 
 ---
 
@@ -257,6 +316,17 @@ node deployment-pre-check.js
 5. 完善自动化检查
 ```
 
+### 最新问题记录 (2025-07-31)
+```
+✅ 已记录的问题：
+1. Vercel Runtime格式错误 - 已解决
+2. API函数配置冲突 - 已解决
+3. 构建失败问题 - 已解决
+4. 前端显示Hexo问题 - 待解决
+
+📝 解决方案已更新到文档中
+```
+
 ### 持续改进
 ```
 - 每次部署后总结经验
@@ -264,6 +334,27 @@ node deployment-pre-check.js
 - 定期更新检查项目
 - 优化自动化检查逻辑
 - 提高部署成功率
+```
+
+### 当前部署状态记录 (2025-07-31)
+```
+🔄 部署进展：
+1. ✅ 修复了Vercel Runtime格式错误
+2. ✅ 修复了API函数配置冲突
+3. ✅ 修复了构建失败问题
+4. ❌ 前端仍显示Hexo博客 (待解决)
+5. ❌ API仍返回NOT_FOUND (待解决)
+
+📊 已尝试的解决方案：
+- 简化vercel.json配置
+- 修复runtime格式
+- 移除functions配置冲突
+- 让Vercel自动处理API函数
+
+🎯 下一步计划：
+- 检查Vercel项目设置
+- 验证环境变量配置
+- 确认API函数是否正确部署
 ```
 
 ---
