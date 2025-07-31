@@ -2,29 +2,13 @@
   "version": 2,
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/build",
-  "functions": {
-    "api/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
   "env": {
-    "NODE_ENV": "production",
-    "JWT_SECRET": "zhixing-jwt-secret-key-2025",
-    "JWT_EXPIRES_IN": "24h",
-    "CORS_ORIGIN": "https://zhixing.vercel.app",
-    "DB_HOST": "aws.connect.psdb.cloud",
-    "DB_USER": "zhixing_user",
-    "DB_PASSWORD": "pscale_pw_zhixing_2025",
-    "DB_NAME": "zhixing"
+    "NODE_ENV": "production"
   }
 }
