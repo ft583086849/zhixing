@@ -1,5 +1,17 @@
-// Vercel Serverless Function - 健康检查 (带数据库连接测试)
+// Vercel Serverless Function - 健康检查API
 const mysql = require('mysql2/promise');
+
+// 数据库连接配置
+const dbConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 3306,
+  ssl: {
+    rejectUnauthorized: false
+  }
+};
 
 module.exports = async (req, res) => {
   // 设置CORS头部

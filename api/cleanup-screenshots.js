@@ -1,4 +1,4 @@
-// 清理过期截图的API
+// Vercel Serverless Function - 截图清理API
 const mysql = require('mysql2/promise');
 
 // 数据库连接配置
@@ -14,10 +14,17 @@ const dbConfig = {
 };
 
 module.exports = async (req, res) => {
-  // 设置CORS
+  // 设置CORS头部
+  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+
+  // 处理OPTIONS预检请求
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
