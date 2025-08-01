@@ -92,6 +92,19 @@ export const getSales = createAsyncThunk(
   }
 );
 
+// 异步action：获取销售层级统计
+export const getSalesHierarchyStats = createAsyncThunk(
+  'admin/getSalesHierarchyStats',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await adminAPI.getSalesHierarchyStats(params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || '获取销售层级统计失败');
+    }
+  }
+);
+
 // 异步action：更新佣金比率
 export const updateCommissionRate = createAsyncThunk(
   'admin/updateCommissionRate',

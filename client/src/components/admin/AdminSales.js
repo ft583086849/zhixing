@@ -12,7 +12,11 @@ import {
   InputNumber,
   Modal,
   Form,
-  Input
+  Input,
+  Select,
+  Row,
+  Col,
+  Divider
 } from 'antd';
 import { 
   CopyOutlined,
@@ -20,12 +24,16 @@ import {
   ExportOutlined,
   EditOutlined,
   CheckOutlined,
-  CloseOutlined
+  CloseOutlined,
+  CrownOutlined,
+  TeamOutlined,
+  FilterOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getSales, updateCommissionRate, downloadCommissionData } from '../../store/slices/adminSlice';
 
 const { Title } = Typography;
+const { Option } = Select;
 
 const AdminSales = () => {
   const dispatch = useDispatch();
@@ -33,6 +41,7 @@ const AdminSales = () => {
   const [form] = Form.useForm();
   const [editingCommissionRates, setEditingCommissionRates] = useState({});
   const [paidCommissionData, setPaidCommissionData] = useState({});
+  const [salesTypeFilter, setSalesTypeFilter] = useState('all'); // 新增：销售类型筛选
 
   useEffect(() => {
     dispatch(getSales());
@@ -80,6 +89,39 @@ const AdminSales = () => {
   // 导出数据
   const handleExport = () => {
     console.log('导出销售数据');
+    // 实现导出逻辑
+    const exportData = sales.map(sale => ({
+      '销售ID': sale.sales?.id,
+      '销售类型': sale.sales?.sales_type === 'primary' ? '一级销售' : '二级销售',
+      '微信名称': sale.sales?.wechat_name,
+      '链接代码': sale.link_code,
+      '层级关系': getHierarchyInfo(sale),
+      '总订单数': sale.total_orders,
+      '有效订单数': sale.valid_orders,
+      '总金额': sale.total_amount,
+      '佣金率': `${sale.sales?.commission_rate || 0}%`,
+      '创建时间': sale.sales?.created_at
+    }));
+
+    // 创建CSV内容
+    const headers = Object.keys(exportData[0] || {});
+    const csvContent = [
+      headers.join(','),
+      ...exportData.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+    ].join('\n');
+
+    // 下载文件
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `销售数据_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    message.success('销售数据导出成功');
   };
 
   // 复制链接
@@ -166,6 +208,33 @@ const AdminSales = () => {
     dispatch(downloadCommissionData());
   };
 
+  // 处理销售类型筛选
+  const handleSalesTypeFilter = (value) => {
+    setSalesTypeFilter(value);
+    // 这里可以调用API重新获取数据，或者在前端过滤
+    console.log('销售类型筛选:', value);
+  };
+
+  // 获取销售类型标签
+  const getSalesTypeTag = (salesType) => {
+    if (salesType === 'primary') {
+      return <Tag color="red" icon={<CrownOutlined />}>一级销售</Tag>;
+    } else if (salesType === 'secondary') {
+      return <Tag color="green" icon={<TeamOutlined />}>二级销售</Tag>;
+    }
+    return <Tag color="default">未知</Tag>;
+  };
+
+  // 获取层级关系信息
+  const getHierarchyInfo = (record) => {
+    if (record.sales_type === 'primary') {
+      return `管理 ${record.secondary_sales_count || 0} 个二级销售`;
+    } else if (record.sales_type === 'secondary') {
+      return `隶属于: ${record.primary_sales_name || '未知'}`;
+    }
+    return '';
+  };
+
   // 表格列定义
   const columns = [
     {
@@ -175,10 +244,28 @@ const AdminSales = () => {
       width: 80,
     },
     {
+      title: '销售类型',
+      key: 'sales_type',
+      width: 120,
+      render: (_, record) => getSalesTypeTag(record.sales?.sales_type || 'secondary'),
+    },
+    {
       title: '销售微信',
       dataIndex: ['sales', 'wechat_name'],
       key: 'wechat_name',
       width: 120,
+    },
+    {
+      title: '层级关系',
+      key: 'hierarchy',
+      width: 150,
+      render: (_, record) => (
+        <Tooltip title={getHierarchyInfo(record)}>
+          <span style={{ color: '#666', fontSize: '12px' }}>
+            {getHierarchyInfo(record)}
+          </span>
+        </Tooltip>
+      ),
     },
     {
       title: '链接代码',
@@ -351,6 +438,18 @@ const AdminSales = () => {
       }
     },
     {
+      title: '层级关系',
+      key: 'hierarchy',
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          {getSalesTypeTag(record.sales_type)}
+          <Divider type="vertical" />
+          <span>{getHierarchyInfo(record)}</span>
+        </Space>
+      )
+    },
+    {
       title: '创建时间',
       dataIndex: ['sales', 'created_at'],
       key: 'created_at',
@@ -363,30 +462,50 @@ const AdminSales = () => {
     <div>
       <Title level={2}>销售管理</Title>
 
-      {/* 搜索表单 */}
+      {/* 搜索和筛选区域 */}
       <Card style={{ marginBottom: 16 }}>
-        <Form form={form} layout="inline">
-          <Form.Item name="wechat_name" label="销售微信">
-            <Input placeholder="请输入销售微信" />
-          </Form.Item>
-          <Form.Item name="link_code" label="链接代码">
-            <Input placeholder="请输入链接代码" />
-          </Form.Item>
-          <Form.Item>
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} sm={12} md={6}>
+            <span>销售类型：</span>
+            <Select
+              value={salesTypeFilter}
+              onChange={handleSalesTypeFilter}
+              style={{ width: '100%', marginTop: 8 }}
+              placeholder="选择销售类型"
+            >
+              <Option value="all">全部销售</Option>
+              <Option value="primary">一级销售</Option>
+              <Option value="secondary">二级销售</Option>
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item name="search" style={{ marginBottom: 0 }}>
+              <Input
+                placeholder="搜索微信名或链接代码"
+                prefix={<SearchOutlined />}
+                allowClear
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
             <Space>
-              <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+              <Button type="primary" onClick={handleSearch} icon={<SearchOutlined />}>
                 搜索
               </Button>
               <Button onClick={handleReset}>重置</Button>
-              <Button icon={<ExportOutlined />} onClick={handleExport}>
-                导出
-              </Button>
-              <Button onClick={handleDownloadCommissionData}>
-                下载佣金数据
-              </Button>
             </Space>
-          </Form.Item>
-        </Form>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Button 
+              type="primary" 
+              onClick={handleExport} 
+              icon={<ExportOutlined />}
+              style={{ float: 'right' }}
+            >
+              导出数据
+            </Button>
+          </Col>
+        </Row>
       </Card>
 
       {/* 销售列表 */}

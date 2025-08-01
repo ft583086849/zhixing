@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography } from 'antd';
+import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider } from 'antd';
 import { 
   ShoppingCartOutlined, 
   DollarOutlined, 
   UserOutlined, 
   CheckCircleOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  CrownOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { getStats } from '../../store/slices/adminSlice';
 
@@ -102,32 +104,45 @@ const AdminOverview = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="待配置确认"
-                  value={stats?.pending_config_orders || 0}
-                  prefix={<ExclamationCircleOutlined />}
+                  title="总销售额"
+                  value={stats?.total_amount || 0}
+                  prefix={<DollarOutlined />}
                   valueStyle={{ color: '#1890ff' }}
+                  suffix="美元"
                 />
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="已确认付款"
-                  value={stats?.confirmed_payment_orders || 0}
-                  prefix={<CheckCircleOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
+                  title="总客户数"
+                  value={stats?.total_customers || 0}
+                  prefix={<UserOutlined />}
+                  valueStyle={{ color: '#722ed1' }}
                 />
               </Card>
             </Col>
           </Row>
 
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          {/* 销售层级统计 */}
+          <Divider orientation="left">销售层级统计</Divider>
+          <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="已确认配置"
-                  value={stats?.confirmed_config_orders || 0}
-                  prefix={<CheckCircleOutlined />}
+                  title="一级销售总数"
+                  value={stats?.primary_sales_count || 0}
+                  prefix={<CrownOutlined />}
+                  valueStyle={{ color: '#f5222d' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="二级销售总数"
+                  value={stats?.secondary_sales_count || 0}
+                  prefix={<TeamOutlined />}
                   valueStyle={{ color: '#52c41a' }}
                 />
               </Card>
@@ -135,26 +150,61 @@ const AdminOverview = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="总收入"
-                  value={stats?.total_amount || 0}
+                  title="一级销售业绩"
+                  value={stats?.primary_sales_amount || 0}
                   prefix={<DollarOutlined />}
-                  valueStyle={{ color: '#cf1322' }}
-                  precision={2}
+                  valueStyle={{ color: '#fa8c16' }}
+                  suffix="美元"
                 />
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="总佣金"
-                  value={stats?.total_commission || 0}
+                  title="二级销售业绩"
+                  value={stats?.secondary_sales_amount || 0}
                   prefix={<DollarOutlined />}
-                  valueStyle={{ color: '#722ed1' }}
-                  precision={2}
+                  valueStyle={{ color: '#13c2c2' }}
+                  suffix="美元"
                 />
               </Card>
             </Col>
+          </Row>
 
+          {/* 层级关系统计 */}
+          <Divider orientation="left">层级关系统计</Divider>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} lg={8}>
+              <Card role="region">
+                <Statistic
+                  title="平均二级销售数"
+                  value={stats?.avg_secondary_per_primary || 0}
+                  prefix={<TeamOutlined />}
+                  valueStyle={{ color: '#eb2f96' }}
+                  precision={1}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card role="region">
+                <Statistic
+                  title="最高二级销售数"
+                  value={stats?.max_secondary_per_primary || 0}
+                  prefix={<TeamOutlined />}
+                  valueStyle={{ color: '#722ed1' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card role="region">
+                <Statistic
+                  title="活跃层级关系"
+                  value={stats?.active_hierarchies || 0}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
           </Row>
 
           {/* 订单类型分布 */}

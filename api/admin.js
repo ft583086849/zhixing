@@ -98,6 +98,53 @@ async function handleGetStats(req, res, connection) {
     'SELECT SUM(amount) as total FROM orders WHERE status = "active" AND DATE(created_at) = CURDATE()'
   );
 
+  // 销售层级统计
+  const [primarySalesResult] = await connection.execute(
+    'SELECT COUNT(*) as count FROM sales WHERE sales_type = "primary"'
+  );
+
+  const [secondarySalesResult] = await connection.execute(
+    'SELECT COUNT(*) as count FROM sales WHERE sales_type = "secondary"'
+  );
+
+  // 一级销售业绩统计
+  const [primarySalesAmountResult] = await connection.execute(`
+    SELECT COALESCE(SUM(o.amount), 0) as total 
+    FROM orders o 
+    JOIN sales s ON o.sales_id = s.id 
+    WHERE s.sales_type = "primary" AND o.status = "active"
+  `);
+
+  // 二级销售业绩统计
+  const [secondarySalesAmountResult] = await connection.execute(`
+    SELECT COALESCE(SUM(o.amount), 0) as total 
+    FROM orders o 
+    JOIN sales s ON o.sales_id = s.id 
+    WHERE s.sales_type = "secondary" AND o.status = "active"
+  `);
+
+  // 层级关系统计
+  const [hierarchyStatsResult] = await connection.execute(`
+    SELECT 
+      AVG(secondary_count) as avg_secondary_per_primary,
+      MAX(secondary_count) as max_secondary_per_primary,
+      COUNT(*) as active_hierarchies
+    FROM (
+      SELECT 
+        ps.id,
+        COUNT(sh.secondary_sales_id) as secondary_count
+      FROM sales ps
+      LEFT JOIN sales_hierarchy sh ON ps.id = sh.primary_sales_id
+      WHERE ps.sales_type = "primary"
+      GROUP BY ps.id
+    ) as hierarchy_stats
+  `);
+
+  // 总客户数
+  const [totalCustomersResult] = await connection.execute(
+    'SELECT COUNT(DISTINCT tradingview_username) as count FROM orders'
+  );
+
   // 销售员数量
   const [salesCountResult] = await connection.execute(
     'SELECT COUNT(*) as count FROM sales'
@@ -111,12 +158,21 @@ async function handleGetStats(req, res, connection) {
   res.json({
     success: true,
     data: {
-      totalOrders: totalOrdersResult[0].count,
-      todayOrders: todayOrdersResult[0].count,
-      totalRevenue: totalRevenueResult[0].total || 0,
-      todayRevenue: todayRevenueResult[0].total || 0,
-      salesCount: salesCountResult[0].count,
-      pendingOrders: pendingOrdersResult[0].count
+      total_orders: totalOrdersResult[0].count,
+      today_orders: todayOrdersResult[0].count,
+      total_amount: totalRevenueResult[0].total || 0,
+      today_amount: todayRevenueResult[0].total || 0,
+      total_customers: totalCustomersResult[0].count,
+      pending_payment_orders: pendingOrdersResult[0].count,
+      // 销售层级统计
+      primary_sales_count: primarySalesResult[0].count,
+      secondary_sales_count: secondarySalesResult[0].count,
+      primary_sales_amount: primarySalesAmountResult[0].total || 0,
+      secondary_sales_amount: secondarySalesAmountResult[0].total || 0,
+      // 层级关系统计
+      avg_secondary_per_primary: hierarchyStatsResult[0]?.avg_secondary_per_primary || 0,
+      max_secondary_per_primary: hierarchyStatsResult[0]?.max_secondary_per_primary || 0,
+      active_hierarchies: hierarchyStatsResult[0]?.active_hierarchies || 0
     }
   });
 }
@@ -192,14 +248,45 @@ async function handleGetCustomers(req, res, connection) {
 
 // 获取销售信息
 async function handleGetSales(req, res, connection) {
+  const { sales_type } = req.query;
+  
+  let whereClause = '';
+  let params = [];
+  
+  if (sales_type && sales_type !== 'all') {
+    whereClause = 'WHERE s.sales_type = ?';
+    params.push(sales_type);
+  }
+
   const [rows] = await connection.execute(
     `SELECT 
       s.*,
       COUNT(o.id) as order_count,
       SUM(o.amount) as total_revenue,
-      SUM(o.commission_amount) as total_commission
+      SUM(o.commission_amount) as total_commission,
+      -- 层级关系信息
+      CASE 
+        WHEN s.sales_type = 'primary' THEN (
+          SELECT COUNT(*) FROM sales_hierarchy sh WHERE sh.primary_sales_id = s.id
+        )
+        ELSE 0
+      END as secondary_sales_count,
+      CASE 
+        WHEN s.sales_type = 'secondary' THEN (
+          SELECT ps.wechat_name 
+          FROM sales_hierarchy sh 
+          JOIN sales ps ON sh.primary_sales_id = ps.id 
+          WHERE sh.secondary_sales_id = s.id
+        )
+        ELSE NULL
+      END as primary_sales_name
      FROM sales s
      LEFT JOIN orders o ON s.link_code = o.link_code
+     ${whereClause}
+     GROUP BY s.id
+     ORDER BY s.created_at DESC`,
+    params
+  );
      GROUP BY s.id
      ORDER BY total_revenue DESC`
   );
