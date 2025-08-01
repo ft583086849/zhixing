@@ -216,11 +216,8 @@ async function handleGetSales(req, res, connection) {
      LEFT JOIN orders o ON s.link_code = o.link_code
      ${whereClause}
      GROUP BY s.id
-     ORDER BY s.created_at DESC`,
+     ORDER BY total_revenue DESC`,
     params
-  );
-     GROUP BY s.id
-     ORDER BY total_revenue DESC`
   );
 
   res.json({
