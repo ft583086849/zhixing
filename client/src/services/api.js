@@ -118,6 +118,11 @@ export const salesAPI = {
   getPrimarySalesSettlement: (primarySalesId) => api.get(`/sales?path=primary-settlement&id=${primarySalesId}`),
   updateSecondaryCommissionRate: (secondarySalesId, commissionRate) => api.put(`/sales?path=update-secondary-commission&id=${secondarySalesId}`, { commissionRate }),
   removeSecondarySales: (secondarySalesId, reason) => api.put(`/sales?path=remove-secondary&id=${secondarySalesId}`, { reason }),
+  // 一级销售订单结算相关API
+  getPrimarySalesStats: () => api.get('/primary-sales?path=stats'),
+  getPrimarySalesOrders: (params) => api.get('/primary-sales?path=orders', { params }),
+  updateSecondarySalesCommission: (secondarySalesId, commissionRate) => api.put(`/primary-sales?path=update-commission&id=${secondarySalesId}`, { commissionRate }),
+  urgeOrder: (orderId) => api.post(`/primary-sales?path=urge-order&id=${orderId}`),
 };
 
 // 订单API

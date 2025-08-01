@@ -10,6 +10,8 @@ const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const SalesReconciliationPage = lazy(() => import('./pages/SalesReconciliationPage'));
 const AuthTestPage = lazy(() => import('./pages/AuthTestPage'));
+const PrimarySalesPage = lazy(() => import('./pages/PrimarySalesPage'));
+const PrimarySalesSettlementPage = lazy(() => import('./pages/PrimarySalesSettlementPage'));
 
 // 组件
 import LoadingSpinner from './components/LoadingSpinner';
@@ -78,6 +80,12 @@ function App() {
           
           {/* 销售专用页面 */}
           <Route path="/sales-reconciliation" element={<Suspense fallback={<div>加载中...</div>}><SalesReconciliationPage /></Suspense>} />
+          
+          {/* 一级销售页面 */}
+          <Route path="/primary-sales" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesPage /></Suspense>} />
+          
+          {/* 一级销售订单结算页面 */}
+          <Route path="/primary-sales-settlement" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesSettlementPage /></Suspense>} />
           
           {/* 认证测试页面 */}
           <Route path="/auth-test" element={<Suspense fallback={<div>加载中...</div>}><AuthTestPage /></Suspense>} />

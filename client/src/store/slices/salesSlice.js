@@ -92,12 +92,66 @@ export const removeSecondarySales = createAsyncThunk(
   }
 );
 
+// 异步action：获取一级销售统计数据
+export const fetchPrimarySalesStats = createAsyncThunk(
+  'sales/fetchPrimarySalesStats',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await salesAPI.getPrimarySalesStats();
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || '获取统计数据失败');
+    }
+  }
+);
+
+// 异步action：获取一级销售订单列表
+export const fetchPrimarySalesOrders = createAsyncThunk(
+  'sales/fetchPrimarySalesOrders',
+  async ({ page = 1, limit = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await salesAPI.getPrimarySalesOrders({ page, limit });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || '获取订单列表失败');
+    }
+  }
+);
+
+// 异步action：更新二级销售佣金率
+export const updateSecondarySalesCommission = createAsyncThunk(
+  'sales/updateSecondarySalesCommission',
+  async ({ secondarySalesId, commissionRate }, { rejectWithValue }) => {
+    try {
+      const response = await salesAPI.updateSecondarySalesCommission(secondarySalesId, commissionRate);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || '更新佣金率失败');
+    }
+  }
+);
+
+// 异步action：催单
+export const urgeOrder = createAsyncThunk(
+  'sales/urgeOrder',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await salesAPI.urgeOrder(orderId);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || '催单失败');
+    }
+  }
+);
+
 const initialState = {
   currentSales: null,
   allSales: [],
   createdLink: null,
   createdLinks: null, // 一级销售的双链接
   primarySalesSettlement: null, // 一级销售订单结算信息
+  primarySalesStats: null, // 一级销售统计数据
+  primarySalesOrders: null, // 一级销售订单列表
   loading: false,
   error: null,
 };
@@ -226,6 +280,65 @@ const salesSlice = createSlice({
         }
       })
       .addCase(removeSecondarySales.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // 获取一级销售统计数据
+      .addCase(fetchPrimarySalesStats.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPrimarySalesStats.fulfilled, (state, action) => {
+        state.loading = false;
+        state.primarySalesStats = action.payload.data;
+      })
+      .addCase(fetchPrimarySalesStats.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // 获取一级销售订单列表
+      .addCase(fetchPrimarySalesOrders.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPrimarySalesOrders.fulfilled, (state, action) => {
+        state.loading = false;
+        state.primarySalesOrders = action.payload.data;
+      })
+      .addCase(fetchPrimarySalesOrders.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // 更新二级销售佣金率
+      .addCase(updateSecondarySalesCommission.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateSecondarySalesCommission.fulfilled, (state, action) => {
+        state.loading = false;
+        // 更新本地状态
+        if (state.primarySalesStats && state.primarySalesStats.secondarySales) {
+          const secondarySales = state.primarySalesStats.secondarySales;
+          const updatedIndex = secondarySales.findIndex(s => s.id === action.payload.data.id);
+          if (updatedIndex !== -1) {
+            secondarySales[updatedIndex] = action.payload.data;
+          }
+        }
+      })
+      .addCase(updateSecondarySalesCommission.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // 催单
+      .addCase(urgeOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(urgeOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        // 催单成功，可以更新订单状态
+      })
+      .addCase(urgeOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

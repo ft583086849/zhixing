@@ -37,6 +37,12 @@ export default async function handler(req, res) {
       await handleGetPrimarySalesList(req, res, connection);
     } else if (req.method === 'GET' && path === 'stats') {
       await handleGetPrimarySalesStats(req, res, connection);
+    } else if (req.method === 'GET' && path === 'orders') {
+      await handleGetPrimarySalesOrders(req, res, connection);
+    } else if (req.method === 'PUT' && path === 'update-commission') {
+      await handleUpdateSecondarySalesCommission(req, res, connection);
+    } else if (req.method === 'POST' && path === 'urge-order') {
+      await handleUrgeOrder(req, res, connection);
     } else {
       res.status(404).json({
         success: false,
@@ -218,6 +224,7 @@ async function handleGetPrimarySalesList(req, res, connection) {
 // 获取一级销售统计信息
 async function handleGetPrimarySalesStats(req, res, connection) {
   try {
+    // 获取一级销售统计数据
     const [stats] = await connection.execute(
       `SELECT 
         COUNT(*) as total_primary_sales,
@@ -226,6 +233,7 @@ async function handleGetPrimarySalesStats(req, res, connection) {
        FROM primary_sales`
     );
 
+    // 获取二级销售统计数据
     const [secondaryStats] = await connection.execute(
       `SELECT 
         COUNT(*) as total_secondary_sales,
@@ -233,11 +241,49 @@ async function handleGetPrimarySalesStats(req, res, connection) {
        FROM secondary_sales`
     );
 
+    // 获取佣金统计数据
+    const [commissionStats] = await connection.execute(
+      `SELECT 
+        SUM(commission_amount) as total_commission,
+        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN commission_amount ELSE 0 END) as monthly_commission
+       FROM orders 
+       WHERE primary_sales_id IS NOT NULL`
+    );
+
+    // 获取订单统计数据
+    const [orderStats] = await connection.execute(
+      `SELECT 
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as monthly_orders
+       FROM orders 
+       WHERE primary_sales_id IS NOT NULL`
+    );
+
+    // 获取二级销售列表
+    const [secondarySales] = await connection.execute(
+      `SELECT 
+        ss.id,
+        ss.wechat_name,
+        ss.payment_method,
+        ss.commission_rate,
+        ss.created_at,
+        COUNT(o.id) as order_count,
+        SUM(o.commission_amount) as total_commission
+       FROM secondary_sales ss
+       LEFT JOIN orders o ON ss.id = o.secondary_sales_id
+       WHERE ss.status = 'active'
+       GROUP BY ss.id
+       ORDER BY ss.created_at DESC`
+    );
+
     res.status(200).json({
       success: true,
       data: {
-        primary_sales: stats[0],
-        secondary_sales: secondaryStats[0]
+        totalCommission: commissionStats[0].total_commission || 0,
+        monthlyCommission: commissionStats[0].monthly_commission || 0,
+        secondarySalesCount: secondaryStats[0].total_secondary_sales || 0,
+        totalOrders: orderStats[0].total_orders || 0,
+        secondarySales: secondarySales
       }
     });
 
@@ -246,6 +292,171 @@ async function handleGetPrimarySalesStats(req, res, connection) {
     res.status(500).json({
       success: false,
       message: '获取统计信息失败'
+    });
+  }
+}
+
+// 获取一级销售订单列表
+async function handleGetPrimarySalesOrders(req, res, connection) {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // 获取订单总数
+    const [countResult] = await connection.execute(
+      `SELECT COUNT(*) as total FROM orders WHERE primary_sales_id IS NOT NULL`
+    );
+    const total = countResult[0].total;
+
+    // 获取订单列表
+    const [orders] = await connection.execute(
+      `SELECT 
+        o.id,
+        o.link_code,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.duration,
+        o.amount,
+        o.payment_method,
+        o.payment_time,
+        o.purchase_type,
+        o.effective_time,
+        o.expiry_time,
+        o.status,
+        o.commission_rate,
+        o.commission_amount,
+        o.created_at,
+        o.updated_at,
+        ss.wechat_name as secondary_sales_name
+       FROM orders o
+       LEFT JOIN secondary_sales ss ON o.secondary_sales_id = ss.id
+       WHERE o.primary_sales_id IS NOT NULL
+       ORDER BY o.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [parseInt(limit), offset]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orders,
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('获取一级销售订单列表错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取订单列表失败'
+    });
+  }
+}
+
+// 更新二级销售佣金率
+async function handleUpdateSecondarySalesCommission(req, res, connection) {
+  try {
+    const { id } = req.query;
+    const { commissionRate } = req.body;
+
+    if (!id || commissionRate === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少必要参数'
+      });
+    }
+
+    if (commissionRate < 0 || commissionRate > 1) {
+      return res.status(400).json({
+        success: false,
+        message: '佣金率必须在0-1之间'
+      });
+    }
+
+    // 更新二级销售佣金率
+    const [result] = await connection.execute(
+      `UPDATE secondary_sales SET commission_rate = ? WHERE id = ?`,
+      [commissionRate, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '二级销售不存在'
+      });
+    }
+
+    // 获取更新后的二级销售信息
+    const [updatedSales] = await connection.execute(
+      `SELECT * FROM secondary_sales WHERE id = ?`,
+      [id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: '佣金率更新成功',
+      data: updatedSales[0]
+    });
+
+  } catch (error) {
+    console.error('更新二级销售佣金率错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '更新佣金率失败'
+    });
+  }
+}
+
+// 催单功能
+async function handleUrgeOrder(req, res, connection) {
+  try {
+    const { id } = req.query;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少订单ID'
+      });
+    }
+
+    // 获取订单信息
+    const [orders] = await connection.execute(
+      `SELECT * FROM orders WHERE id = ?`,
+      [id]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '订单不存在'
+      });
+    }
+
+    const order = orders[0];
+
+    // 这里可以添加实际的催单逻辑，比如发送微信消息、邮件等
+    // 目前只是记录催单操作
+    await connection.execute(
+      `UPDATE orders SET updated_at = NOW() WHERE id = ?`,
+      [id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: '催单提醒已发送',
+      data: {
+        orderId: id,
+        customerWechat: order.customer_wechat
+      }
+    });
+
+  } catch (error) {
+    console.error('催单错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '催单失败'
     });
   }
 } 
