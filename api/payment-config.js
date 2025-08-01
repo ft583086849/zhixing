@@ -25,7 +25,7 @@ async function authenticateAdmin(req) {
   return decoded;
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');

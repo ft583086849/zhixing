@@ -13,7 +13,7 @@ const dbConfig = {
   }
 };
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
       message: '服务器内部错误'
     });
   }
-};
+}
 
 // 处理健康检查
 async function handleHealthCheck(req, res) {
@@ -104,4 +104,4 @@ async function handleHealthCheck(req, res) {
     message: '健康检查完成',
     data: healthStatus
   });
-}; 
+} 
