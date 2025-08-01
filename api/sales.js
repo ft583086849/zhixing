@@ -98,6 +98,9 @@ async function handleCreateSales(req, res, connection) {
     });
   }
 
+  // 生成唯一链接代码
+  const linkCode = uuidv4().replace(/-/g, '').substring(0, 16);
+
   try {
     // 检查微信名是否已存在（包括一级销售和二级销售）
     const [existingSales] = await connection.execute(
@@ -105,15 +108,12 @@ async function handleCreateSales(req, res, connection) {
       [wechat_name, wechat_name, wechat_name]
     );
 
-        if (existingSales.length > 0) {
+    if (existingSales.length > 0) {
       return res.status(400).json({
         success: false,
         message: '这个微信名已经被人使用了，请换一个'
       });
     }
-
-    // 生成唯一链接代码
-    const linkCode = uuidv4().replace(/-/g, '').substring(0, 16);
   } catch (error) {
     console.error('微信名去重校验错误:', error);
     return res.status(500).json({
