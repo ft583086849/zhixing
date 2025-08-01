@@ -27,9 +27,10 @@ export default async function handler(req, res) {
 
   try {
     const { path } = req.query;
+    const bodyPath = req.body?.path;
 
     // 处理数据库结构调整
-    if (req.method === 'POST' && path === 'update-schema') {
+    if (req.method === 'POST' && (path === 'update-schema' || bodyPath === 'update-schema')) {
       await handleUpdateSchema(req, res);
       return;
     }
@@ -42,7 +43,7 @@ export default async function handler(req, res) {
 
     res.status(404).json({
       success: false,
-      message: `路径不存在: ${req.method} ${path || 'default'}`
+      message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
     });
 
   } catch (error) {
@@ -132,13 +133,51 @@ async function handleUpdateSchema(req, res) {
     
     // 4. 更新现有销售表结构
     try {
-      await connection.execute(`
-        ALTER TABLE sales 
-        ADD COLUMN IF NOT EXISTS sales_type ENUM('primary', 'secondary') DEFAULT 'primary',
-        ADD COLUMN IF NOT EXISTS primary_sales_id INT NULL,
-        ADD COLUMN IF NOT EXISTS commission_rate DECIMAL(5,2) DEFAULT 40.00,
-        ADD FOREIGN KEY IF NOT EXISTS (primary_sales_id) REFERENCES primary_sales(id) ON DELETE SET NULL
-      `);
+      // 检查sales_type列是否存在
+      const [salesColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'sales' AND COLUMN_NAME = 'sales_type'
+      `, [process.env.DB_NAME]);
+      
+      if (salesColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE sales 
+          ADD COLUMN sales_type ENUM('primary', 'secondary') DEFAULT 'primary'
+        `);
+        console.log('✅ 添加sales_type列成功');
+      }
+      
+      // 检查primary_sales_id列是否存在
+      const [primarySalesColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'sales' AND COLUMN_NAME = 'primary_sales_id'
+      `, [process.env.DB_NAME]);
+      
+      if (primarySalesColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE sales 
+          ADD COLUMN primary_sales_id INT NULL
+        `);
+        console.log('✅ 添加primary_sales_id列成功');
+      }
+      
+      // 检查commission_rate列是否存在
+      const [commissionColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'sales' AND COLUMN_NAME = 'commission_rate'
+      `, [process.env.DB_NAME]);
+      
+      if (commissionColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE sales 
+          ADD COLUMN commission_rate DECIMAL(5,2) DEFAULT 40.00
+        `);
+        console.log('✅ 添加commission_rate列成功');
+      }
+      
       tablesUpdated.push('sales');
       console.log('✅ 销售表结构更新成功');
     } catch (error) {
@@ -147,15 +186,66 @@ async function handleUpdateSchema(req, res) {
     
     // 5. 更新订单表结构
     try {
-      await connection.execute(`
-        ALTER TABLE orders 
-        ADD COLUMN IF NOT EXISTS primary_sales_id INT NULL,
-        ADD COLUMN IF NOT EXISTS secondary_sales_id INT NULL,
-        ADD COLUMN IF NOT EXISTS primary_commission DECIMAL(10,2) DEFAULT 0.00,
-        ADD COLUMN IF NOT EXISTS secondary_commission DECIMAL(10,2) DEFAULT 0.00,
-        ADD FOREIGN KEY IF NOT EXISTS (primary_sales_id) REFERENCES primary_sales(id) ON DELETE SET NULL,
-        ADD FOREIGN KEY IF NOT EXISTS (secondary_sales_id) REFERENCES secondary_sales(id) ON DELETE SET NULL
-      `);
+      // 检查primary_sales_id列是否存在
+      const [orderPrimaryColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'primary_sales_id'
+      `, [process.env.DB_NAME]);
+      
+      if (orderPrimaryColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE orders 
+          ADD COLUMN primary_sales_id INT NULL
+        `);
+        console.log('✅ 添加orders.primary_sales_id列成功');
+      }
+      
+      // 检查secondary_sales_id列是否存在
+      const [orderSecondaryColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'secondary_sales_id'
+      `, [process.env.DB_NAME]);
+      
+      if (orderSecondaryColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE orders 
+          ADD COLUMN secondary_sales_id INT NULL
+        `);
+        console.log('✅ 添加orders.secondary_sales_id列成功');
+      }
+      
+      // 检查primary_commission列是否存在
+      const [primaryCommissionColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'primary_commission'
+      `, [process.env.DB_NAME]);
+      
+      if (primaryCommissionColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE orders 
+          ADD COLUMN primary_commission DECIMAL(10,2) DEFAULT 0.00
+        `);
+        console.log('✅ 添加primary_commission列成功');
+      }
+      
+      // 检查secondary_commission列是否存在
+      const [secondaryCommissionColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'secondary_commission'
+      `, [process.env.DB_NAME]);
+      
+      if (secondaryCommissionColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE orders 
+          ADD COLUMN secondary_commission DECIMAL(10,2) DEFAULT 0.00
+        `);
+        console.log('✅ 添加secondary_commission列成功');
+      }
+      
       tablesUpdated.push('orders');
       console.log('✅ 订单表结构更新成功');
     } catch (error) {
@@ -211,11 +301,52 @@ async function handleUpdateSchema(req, res) {
     
     // 8. 创建索引优化
     try {
-      await connection.execute(`CREATE INDEX IF NOT EXISTS idx_primary_sales_wechat ON primary_sales(wechat_name)`);
-      await connection.execute(`CREATE INDEX IF NOT EXISTS idx_secondary_sales_wechat ON secondary_sales(wechat_name)`);
-      await connection.execute(`CREATE INDEX IF NOT EXISTS idx_orders_primary_sales ON orders(primary_sales_id)`);
-      await connection.execute(`CREATE INDEX IF NOT EXISTS idx_orders_secondary_sales ON orders(secondary_sales_id)`);
-      console.log('✅ 索引创建成功');
+      // 检查并创建索引
+      const [indexes] = await connection.execute(`
+        SELECT INDEX_NAME 
+        FROM INFORMATION_SCHEMA.STATISTICS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'primary_sales' AND INDEX_NAME = 'idx_primary_sales_wechat'
+      `, [process.env.DB_NAME]);
+      
+      if (indexes.length === 0) {
+        await connection.execute(`CREATE INDEX idx_primary_sales_wechat ON primary_sales(wechat_name)`);
+        console.log('✅ 创建primary_sales索引成功');
+      }
+      
+      const [secondaryIndexes] = await connection.execute(`
+        SELECT INDEX_NAME 
+        FROM INFORMATION_SCHEMA.STATISTICS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'secondary_sales' AND INDEX_NAME = 'idx_secondary_sales_wechat'
+      `, [process.env.DB_NAME]);
+      
+      if (secondaryIndexes.length === 0) {
+        await connection.execute(`CREATE INDEX idx_secondary_sales_wechat ON secondary_sales(wechat_name)`);
+        console.log('✅ 创建secondary_sales索引成功');
+      }
+      
+      const [ordersPrimaryIndexes] = await connection.execute(`
+        SELECT INDEX_NAME 
+        FROM INFORMATION_SCHEMA.STATISTICS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND INDEX_NAME = 'idx_orders_primary_sales'
+      `, [process.env.DB_NAME]);
+      
+      if (ordersPrimaryIndexes.length === 0) {
+        await connection.execute(`CREATE INDEX idx_orders_primary_sales ON orders(primary_sales_id)`);
+        console.log('✅ 创建orders primary_sales索引成功');
+      }
+      
+      const [ordersSecondaryIndexes] = await connection.execute(`
+        SELECT INDEX_NAME 
+        FROM INFORMATION_SCHEMA.STATISTICS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND INDEX_NAME = 'idx_orders_secondary_sales'
+      `, [process.env.DB_NAME]);
+      
+      if (ordersSecondaryIndexes.length === 0) {
+        await connection.execute(`CREATE INDEX idx_orders_secondary_sales ON orders(secondary_sales_id)`);
+        console.log('✅ 创建orders secondary_sales索引成功');
+      }
+      
+      console.log('✅ 索引创建完成');
     } catch (error) {
       errors.push(`创建索引失败: ${error.message}`);
     }

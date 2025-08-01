@@ -36,6 +36,8 @@ export default async function handler(req, res) {
       await handleGetCommissionHistory(req, res, connection);
     } else if (req.method === 'GET' && path === 'commission-stats') {
       await handleGetCommissionStats(req, res, connection);
+    } else if (req.method === 'GET' && (path === 'list' || !path)) {
+      await handleGetCommissionList(req, res, connection);
     } else if (req.method === 'POST' && path === 'settle-commission') {
       await handleSettleCommission(req, res, connection);
     } else if (req.method === 'GET' && path === 'pending-commissions') {
@@ -57,6 +59,40 @@ export default async function handler(req, res) {
     });
   }
 };
+
+// 获取佣金列表
+async function handleGetCommissionList(req, res, connection) {
+  try {
+    const [rows] = await connection.execute(`
+      SELECT 
+        o.id,
+        o.customer_name,
+        o.customer_phone,
+        o.amount,
+        o.primary_commission,
+        o.secondary_commission,
+        o.created_at,
+        ps.wechat_name as primary_sales_name,
+        ss.wechat_name as secondary_sales_name
+      FROM orders o
+      LEFT JOIN primary_sales ps ON o.primary_sales_id = ps.id
+      LEFT JOIN secondary_sales ss ON o.secondary_sales_id = ss.id
+      WHERE o.primary_commission > 0 OR o.secondary_commission > 0
+      ORDER BY o.created_at DESC
+    `);
+
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('获取佣金列表错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取佣金列表失败'
+    });
+  }
+}
 
 // 创建带佣金的订单
 async function handleCreateOrderWithCommission(req, res, connection) {

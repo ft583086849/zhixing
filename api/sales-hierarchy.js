@@ -34,6 +34,8 @@ export default async function handler(req, res) {
       await handleGetHierarchyTree(req, res, connection);
     } else if (req.method === 'GET' && path === 'stats') {
       await handleGetHierarchyStats(req, res, connection);
+    } else if (req.method === 'GET' && (path === 'list' || !path)) {
+      await handleGetHierarchyList(req, res, connection);
     } else if (req.method === 'POST' && path === 'create') {
       await handleCreateHierarchy(req, res, connection);
     } else if (req.method === 'PUT' && path === 'update') {
@@ -59,6 +61,37 @@ export default async function handler(req, res) {
     });
   }
 };
+
+// 获取层级列表
+async function handleGetHierarchyList(req, res, connection) {
+  try {
+    const [rows] = await connection.execute(`
+      SELECT 
+        sh.id,
+        sh.primary_sales_id,
+        sh.secondary_sales_id,
+        sh.created_at,
+        ps.wechat_name as primary_sales_name,
+        ss.wechat_name as secondary_sales_name,
+        ss.commission_rate
+      FROM sales_hierarchy sh
+      LEFT JOIN primary_sales ps ON sh.primary_sales_id = ps.id
+      LEFT JOIN secondary_sales ss ON sh.secondary_sales_id = ss.id
+      ORDER BY sh.created_at DESC
+    `);
+
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('获取层级列表错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取层级列表失败'
+    });
+  }
+}
 
 // 获取层级树结构
 async function handleGetHierarchyTree(req, res, connection) {

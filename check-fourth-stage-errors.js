@@ -10,13 +10,13 @@ function checkFourthStageErrors() {
   // 1. 检查API文件语法
   console.log('\n📝 检查API文件语法...');
   const apiFiles = [
-    'api/update-sales-schema.js',
     'api/sales.js',
     'api/admin.js',
     'api/primary-sales.js',
     'api/secondary-sales.js',
     'api/sales-hierarchy.js',
-    'api/orders-commission.js'
+    'api/orders-commission.js',
+    'api/data-cleanup.js'
   ];
   
   apiFiles.forEach(file => {
@@ -99,7 +99,8 @@ function checkFourthStageErrors() {
   const testFiles = [
     'test-fourth-stage-complete.js',
     'test-fourth-stage-features.js',
-    'test-sales-schema-api.js'
+    'test-sales-schema-api.js',
+    'test-data-cleanup.js'
   ];
   
   testFiles.forEach(file => {
