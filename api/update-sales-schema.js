@@ -1,4 +1,3 @@
-// Vercel Serverless Function - 数据库Schema更新
 const mysql = require('mysql2/promise');
 
 // 数据库配置
@@ -32,7 +31,7 @@ export default async function handler(req, res) {
   let connection;
   
   try {
-    console.log('🔍 开始执行数据库结构调整...');
+    console.log('🔍 开始执行销售分佣系统数据库结构调整...');
     
     // 连接数据库
     connection = await mysql.createConnection(dbConfig);
@@ -269,7 +268,7 @@ export default async function handler(req, res) {
     
     res.status(success ? 200 : 207).json({
       success,
-      message: success ? '数据库结构调整完成' : '数据库结构调整部分完成，存在错误',
+      message: success ? '销售分佣系统数据库结构调整完成' : '销售分佣系统数据库结构调整部分完成，存在错误',
       data: {
         tables_created: results.tables_created,
         tables_updated: results.tables_updated,
@@ -282,10 +281,10 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ 数据库结构调整失败:', error);
+    console.error('❌ 销售分佣系统数据库结构调整失败:', error);
     res.status(500).json({
       success: false,
-      message: '数据库结构调整失败',
+      message: '销售分佣系统数据库结构调整失败',
       error: error.message,
       timestamp: new Date().toISOString()
     });

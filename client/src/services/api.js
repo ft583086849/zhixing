@@ -112,8 +112,12 @@ export const authAPI = {
 // 销售API
 export const salesAPI = {
   createSales: (data) => api.post('/sales?path=create', data),
+  createPrimarySales: (data) => api.post('/sales?path=create-primary', data),
   getSalesByLink: (linkCode) => api.get(`/sales?link_code=${linkCode}`),
   getAllSales: () => api.get('/sales?path=list'),
+  getPrimarySalesSettlement: (primarySalesId) => api.get(`/sales?path=primary-settlement&id=${primarySalesId}`),
+  updateSecondaryCommissionRate: (secondarySalesId, commissionRate) => api.put(`/sales?path=update-secondary-commission&id=${secondarySalesId}`, { commissionRate }),
+  removeSecondarySales: (secondarySalesId, reason) => api.put(`/sales?path=remove-secondary&id=${secondarySalesId}`, { reason }),
 };
 
 // 订单API
