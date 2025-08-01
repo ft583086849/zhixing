@@ -102,8 +102,7 @@ async function handleUpdateSchema(req, res) {
           payment_method ENUM('wechat', 'alipay', 'bank') DEFAULT 'wechat',
           bank_info TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (primary_sales_id) REFERENCES primary_sales(id) ON DELETE SET NULL
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
       tablesCreated.push('secondary_sales');
@@ -120,8 +119,6 @@ async function handleUpdateSchema(req, res) {
           primary_sales_id INT NOT NULL,
           secondary_sales_id INT NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (primary_sales_id) REFERENCES primary_sales(id) ON DELETE CASCADE,
-          FOREIGN KEY (secondary_sales_id) REFERENCES secondary_sales(id) ON DELETE CASCADE,
           UNIQUE KEY unique_hierarchy (primary_sales_id, secondary_sales_id)
         )
       `);
@@ -259,10 +256,8 @@ async function handleUpdateSchema(req, res) {
         SELECT 
           ps.id as primary_sales_id,
           ps.wechat_name as primary_wechat_name,
-          ps.phone as primary_phone,
           ss.id as secondary_sales_id,
           ss.wechat_name as secondary_wechat_name,
-          ss.phone as secondary_phone,
           ss.commission_rate,
           sh.created_at as hierarchy_created_at
         FROM primary_sales ps

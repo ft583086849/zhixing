@@ -63,33 +63,41 @@ export default async function handler(req, res) {
 // 获取佣金列表
 async function handleGetCommissionList(req, res, connection) {
   try {
+    // 先检查表结构
+    const [columns] = await connection.execute(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders'
+      ORDER BY ORDINAL_POSITION
+    `, [process.env.DB_NAME]);
+    
+    console.log('订单表字段:', columns.map(c => c.COLUMN_NAME));
+    
+    // 简化查询，只查询基本字段
     const [rows] = await connection.execute(`
       SELECT 
         o.id,
         o.customer_name,
         o.customer_phone,
         o.amount,
-        o.primary_commission,
-        o.secondary_commission,
         o.created_at,
-        ps.wechat_name as primary_sales_name,
-        ss.wechat_name as secondary_sales_name
+        o.sales_link_code
       FROM orders o
-      LEFT JOIN primary_sales ps ON o.primary_sales_id = ps.id
-      LEFT JOIN secondary_sales ss ON o.secondary_sales_id = ss.id
-      WHERE o.primary_commission > 0 OR o.secondary_commission > 0
       ORDER BY o.created_at DESC
+      LIMIT 50
     `);
 
     res.json({
       success: true,
-      data: rows
+      data: rows,
+      message: '佣金列表查询成功（简化版）'
     });
   } catch (error) {
     console.error('获取佣金列表错误:', error);
     res.status(500).json({
       success: false,
-      message: '获取佣金列表失败'
+      message: '获取佣金列表失败',
+      error: error.message
     });
   }
 }

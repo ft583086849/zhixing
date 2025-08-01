@@ -72,7 +72,7 @@ export default async function handler(req, res) {
           });
         }
       });
-    } else if (req.method === 'GET' && !path) {
+    } else if (req.method === 'GET' && (path === 'list' || !path)) {
       await handleGetOrdersList(req, res, connection);
       await connection.end();
     } else if (req.method === 'PUT' && path === 'update' && id) {

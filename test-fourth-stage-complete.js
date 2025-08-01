@@ -26,7 +26,7 @@ async function testFourthStageComplete() {
     const loginResponse = await axios.post(`${baseURL}/auth`, {
       path: 'login',
       username: '知行',
-      password: '123456'
+      password: 'Zhixing Universal Trading Signal'
     });
     
     const adminToken = loginResponse.data.data.token;
