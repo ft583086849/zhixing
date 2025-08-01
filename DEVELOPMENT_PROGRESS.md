@@ -33,8 +33,8 @@
 - [x] 实现双链接生成功能
 - [x] 更新Redux Store (salesSlice.js)
 - [x] 更新API服务 (api.js)
-- [ ] 实现微信名去重校验
-- [ ] 后端API开发
+- [x] 实现微信名去重校验
+- [x] 后端API开发
 - [ ] 测试和调试
 - **预计完成**：2025年8月2日
 - **状态**：🔄 进行中
@@ -91,6 +91,7 @@
 
 ### API服务
 - `client/src/services/api.js` - 更新API服务
+- `api/primary-sales.js` - 一级销售专用API（新增）
 
 ### 文档
 - `支付管理系统需求文档.md` - 更新需求文档
