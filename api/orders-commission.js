@@ -77,8 +77,8 @@ async function handleGetCommissionList(req, res, connection) {
     const [rows] = await connection.execute(`
       SELECT 
         o.id,
-        o.customer_name,
-        o.customer_phone,
+        o.tradingview_username,
+        o.customer_wechat,
         o.amount,
         o.created_at,
         o.sales_link_code
@@ -105,19 +105,19 @@ async function handleGetCommissionList(req, res, connection) {
 // 创建带佣金的订单
 async function handleCreateOrderWithCommission(req, res, connection) {
   const { 
-    customer_name, 
-    customer_phone, 
+    tradingview_username, 
+    customer_wechat, 
     sales_link_code, 
     payment_screenshot,
     secondary_sales_id,
     amount,
-    duration_type
+    duration
   } = req.body;
 
-  if (!customer_name || !customer_phone || !sales_link_code || !amount) {
+  if (!tradingview_username || !customer_wechat || !sales_link_code || !amount) {
     return res.status(400).json({
       success: false,
-      message: '客户姓名、电话、销售链接和金额为必填项'
+      message: 'TradingView用户名、客户微信、销售链接和金额为必填项'
     });
   }
 
@@ -127,9 +127,9 @@ async function handleCreateOrderWithCommission(req, res, connection) {
 
     // 1. 创建订单记录
     const [orderResult] = await connection.execute(
-      `INSERT INTO orders (customer_name, customer_phone, sales_link_code, payment_screenshot, amount, duration_type, secondary_sales_id) 
+      `INSERT INTO orders (tradingview_username, customer_wechat, sales_link_code, payment_screenshot, amount, duration, secondary_sales_id) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [customer_name, customer_phone, sales_link_code, payment_screenshot, amount, duration_type, secondary_sales_id]
+      [tradingview_username, customer_wechat, sales_link_code, payment_screenshot, amount, duration, secondary_sales_id]
     );
 
     const orderId = orderResult.insertId;
@@ -249,9 +249,9 @@ async function handleGetCommissionHistory(req, res, connection) {
     const [commissions] = await connection.execute(
       `SELECT 
         sc.*,
-        o.customer_name,
-        o.customer_phone,
-        o.duration_type,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.duration,
         ps.wechat_name as primary_sales_name,
         ss.wechat_name as secondary_sales_name
        FROM sales_commissions sc
@@ -408,9 +408,9 @@ async function handleGetPendingCommissions(req, res, connection) {
     const [pendingCommissions] = await connection.execute(
       `SELECT 
         sc.*,
-        o.customer_name,
-        o.customer_phone,
-        o.duration_type,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.duration,
         ps.wechat_name as primary_sales_name,
         ss.wechat_name as secondary_sales_name
        FROM sales_commissions sc
