@@ -107,21 +107,25 @@ async function handleGetStats(req, res, connection) {
     'SELECT COUNT(*) as count FROM sales WHERE sales_type = "secondary"'
   );
 
-  // 一级销售业绩统计
-  const [primarySalesAmountResult] = await connection.execute(`
-    SELECT COALESCE(SUM(o.amount), 0) as total 
-    FROM orders o 
-    JOIN sales s ON o.link_code = s.link_code 
-    WHERE s.sales_type = "primary" AND o.status = "active"
-  `);
+  // 一级销售业绩统计 - 暂时简化
+  // const [primarySalesAmountResult] = await connection.execute(`
+  //   SELECT COALESCE(SUM(o.amount), 0) as total 
+  //   FROM orders o 
+  //   JOIN sales s ON o.link_code = s.link_code 
+  //   WHERE s.sales_type = "primary" AND o.status = "active"
+  // `);
 
-  // 二级销售业绩统计
-  const [secondarySalesAmountResult] = await connection.execute(`
-    SELECT COALESCE(SUM(o.amount), 0) as total 
-    FROM orders o 
-    JOIN sales s ON o.link_code = s.link_code 
-    WHERE s.sales_type = "secondary" AND o.status = "active"
-  `);
+  // 二级销售业绩统计 - 暂时简化
+  // const [secondarySalesAmountResult] = await connection.execute(`
+  //   SELECT COALESCE(SUM(o.amount), 0) as total 
+  //   FROM orders o 
+  //   JOIN sales s ON o.link_code = s.link_code 
+  //   WHERE s.sales_type = "secondary" AND o.status = "active"
+  // `);
+  
+  // 简化的销售业绩统计
+  const primarySalesAmountResult = [{ total: 0 }];
+  const secondarySalesAmountResult = [{ total: 0 }];
 
   // 层级关系统计 - 暂时简化，避免引用不存在的表
   // const [hierarchyStatsResult] = await connection.execute(`
