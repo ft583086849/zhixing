@@ -1,6 +1,7 @@
 // Vercel Serverless Function - 订单API
 const mysql = require('mysql2/promise');
 const multer = require('multer');
+const jwt = require('jsonwebtoken');
 
 // 配置multer用于文件上传 - 针对Vercel Serverless优化
 const upload = multer({
@@ -31,6 +32,37 @@ const dbConfig = {
   }
 };
 
+// 权限验证中间件
+async function verifyAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { success: false, status: 401, message: '未提供有效的认证Token' };
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+    
+    // 验证管理员是否存在
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT id, username, role FROM admins WHERE id = ?',
+      [decoded.id]
+    );
+    await connection.end();
+    
+    if (rows.length === 0) {
+      return { success: false, status: 401, message: '管理员账户不存在' };
+    }
+    
+    return { success: true, admin: rows[0] };
+  } catch (error) {
+    return { success: false, status: 401, message: 'Token无效或已过期' };
+  }
+}
+
 export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -47,6 +79,20 @@ export default async function handler(req, res) {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const { path, id } = req.query;
+
+    // 需要权限验证的端点
+    const protectedEndpoints = ['list', 'update'];
+    
+    if (req.method === 'GET' && protectedEndpoints.includes(path)) {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        await connection.end();
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
+    }
 
     if (req.method === 'POST' && path === 'create') {
       // 使用multer处理文件上传

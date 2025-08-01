@@ -1,5 +1,6 @@
 // Vercel Serverless Function - 销售层级管理API
 const mysql = require('mysql2/promise');
+const jwt = require('jsonwebtoken');
 
 // 数据库连接配置
 const dbConfig = {
@@ -13,11 +14,42 @@ const dbConfig = {
   }
 };
 
+// 权限验证中间件
+async function verifyAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { success: false, status: 401, message: '未提供有效的认证Token' };
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+    
+    // 验证管理员是否存在
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT id, username, role FROM admins WHERE id = ?',
+      [decoded.id]
+    );
+    await connection.end();
+    
+    if (rows.length === 0) {
+      return { success: false, status: 401, message: '管理员账户不存在' };
+    }
+    
+    return { success: true, admin: rows[0] };
+  } catch (error) {
+    return { success: false, status: 401, message: 'Token无效或已过期' };
+  }
+}
+
 export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
   // 处理OPTIONS预检请求
@@ -27,40 +59,103 @@ export default async function handler(req, res) {
   }
 
   try {
-    const connection = await mysql.createConnection(dbConfig);
     const { path } = req.query;
+    const bodyPath = req.body?.path;
 
-    if (req.method === 'GET' && path === 'tree') {
-      await handleGetHierarchyTree(req, res, connection);
-    } else if (req.method === 'GET' && path === 'stats') {
-      await handleGetHierarchyStats(req, res, connection);
-    } else if (req.method === 'GET' && (path === 'list' || !path)) {
-      await handleGetHierarchyList(req, res, connection);
-    } else if (req.method === 'POST' && path === 'create') {
-      await handleCreateHierarchy(req, res, connection);
-    } else if (req.method === 'PUT' && path === 'update') {
-      await handleUpdateHierarchy(req, res, connection);
-    } else if (req.method === 'DELETE' && path === 'remove') {
-      await handleRemoveHierarchy(req, res, connection);
-    } else if (req.method === 'GET' && path === 'commission-calc') {
-      await handleCalculateCommission(req, res, connection);
-    } else {
-      res.status(404).json({
-        success: false,
-        message: `路径不存在: ${req.method} ${path || 'default'}`
-      });
+    // 处理销售层级统计
+    if (req.method === 'GET' && (path === 'stats' || !path)) {
+      await handleStats(req, res);
+      return;
     }
 
-    await connection.end();
+    // 处理销售层级关系（需要管理员权限）
+    if (req.method === 'GET' && path === 'relationships') {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
+      await handleRelationships(req, res);
+      return;
+    }
+
+    // 如果没有匹配的路径，返回404
+    res.status(404).json({
+      success: false,
+      message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
+    });
 
   } catch (error) {
-    console.error('销售层级管理API错误:', error);
+    console.error('销售层级API错误:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: error.message || '服务器内部错误'
     });
   }
-};
+}
+
+// 销售层级关系功能
+async function handleRelationships(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取销售层级关系数据
+    const [relationships] = await connection.execute(`
+      SELECT 
+        ps.id as primary_sales_id,
+        ps.wechat_name as primary_sales_name,
+        ps.commission_rate as primary_commission_rate,
+        ps.created_at as primary_created_at,
+        ss.id as secondary_sales_id,
+        ss.wechat_name as secondary_sales_name,
+        ss.commission_rate as secondary_commission_rate,
+        ss.created_at as secondary_created_at,
+        COUNT(o.id) as total_orders,
+        SUM(o.amount) as total_amount,
+        SUM(o.commission_amount) as total_commission
+      FROM primary_sales ps
+      LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
+      LEFT JOIN orders o ON (ps.id = o.sales_id OR ss.id = o.sales_id)
+      GROUP BY ps.id, ss.id
+      ORDER BY ps.created_at DESC, ss.created_at DESC
+    `);
+    
+    // 获取层级统计
+    const [hierarchyStats] = await connection.execute(`
+      SELECT 
+        COUNT(DISTINCT ps.id) as primary_sales_count,
+        COUNT(DISTINCT ss.id) as secondary_sales_count,
+        COUNT(DISTINCT CASE WHEN ss.id IS NOT NULL THEN ps.id END) as active_primary_sales,
+        AVG(ps.commission_rate) as avg_primary_commission_rate,
+        AVG(ss.commission_rate) as avg_secondary_commission_rate
+      FROM primary_sales ps
+      LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
+    `);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        relationships,
+        stats: hierarchyStats[0] || {}
+      }
+    });
+    
+  } catch (error) {
+    console.error('销售层级关系错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取层级关系数据失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
 
 // 获取层级列表
 async function handleGetHierarchyList(req, res, connection) {

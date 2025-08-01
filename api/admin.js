@@ -1,5 +1,6 @@
 // Vercel Serverless Function - 管理员API
 const mysql = require('mysql2/promise');
+const jwt = require('jsonwebtoken');
 
 const dbConfig = {
   host: process.env.DB_HOST,
@@ -11,6 +12,37 @@ const dbConfig = {
     rejectUnauthorized: false
   }
 };
+
+// 权限验证中间件
+async function verifyAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { success: false, status: 401, message: '未提供有效的认证Token' };
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+    
+    // 验证管理员是否存在
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT id, username, role FROM admins WHERE id = ?',
+      [decoded.id]
+    );
+    await connection.end();
+    
+    if (rows.length === 0) {
+      return { success: false, status: 401, message: '管理员账户不存在' };
+    }
+    
+    return { success: true, admin: rows[0] };
+  } catch (error) {
+    return { success: false, status: 401, message: 'Token无效或已过期' };
+  }
+}
 
 export default async function handler(req, res) {
   // 设置CORS头部
@@ -26,8 +58,19 @@ export default async function handler(req, res) {
   }
 
   try {
+    // 验证管理员权限（除了数据库结构调整）
     const { path } = req.query;
     const bodyPath = req.body?.path;
+    
+    if (!(req.method === 'POST' && (path === 'update-schema' || bodyPath === 'update-schema'))) {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
+    }
 
     // 处理数据库结构调整
     if (req.method === 'POST' && (path === 'update-schema' || bodyPath === 'update-schema')) {
@@ -41,16 +84,35 @@ export default async function handler(req, res) {
       return;
     }
 
+    // 处理概览数据
+    if (req.method === 'GET' && path === 'overview') {
+      await handleOverview(req, res);
+      return;
+    }
+
+    // 处理订单管理
+    if (req.method === 'GET' && path === 'orders') {
+      await handleOrders(req, res);
+      return;
+    }
+
+    // 处理销售管理
+    if (req.method === 'GET' && path === 'sales') {
+      await handleSales(req, res);
+      return;
+    }
+
     // 处理数据导出
     if (req.method === 'GET' && path === 'export') {
       await handleDataExport(req, res);
       return;
     }
 
-      res.status(404).json({
-        success: false,
+    // 如果没有匹配的路径，返回404
+    res.status(404).json({
+      success: false,
       message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
-      });
+    });
 
   } catch (error) {
     console.error('管理员API错误:', error);
@@ -58,6 +120,220 @@ export default async function handler(req, res) {
       success: false,
       message: error.message || '服务器内部错误'
     });
+  }
+}
+
+// 概览数据功能
+async function handleOverview(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取总订单数
+    const [orderCount] = await connection.execute(`
+      SELECT COUNT(*) as total_orders FROM orders
+    `);
+    
+    // 获取总销售额
+    const [revenueData] = await connection.execute(`
+      SELECT SUM(amount) as total_revenue FROM orders WHERE status = 'paid'
+    `);
+    
+    // 获取总佣金
+    const [commissionData] = await connection.execute(`
+      SELECT SUM(commission_amount) as total_commission FROM orders WHERE status = 'paid'
+    `);
+    
+    // 获取销售统计
+    const [salesStats] = await connection.execute(`
+      SELECT 
+        COUNT(*) as total_sales,
+        COUNT(CASE WHEN sales_type = 'primary' THEN 1 END) as primary_sales,
+        COUNT(CASE WHEN sales_type = 'secondary' THEN 1 END) as secondary_sales
+      FROM sales
+    `);
+    
+    const overview = {
+      total_orders: orderCount[0]?.total_orders || 0,
+      total_revenue: revenueData[0]?.total_revenue || 0,
+      total_commission: commissionData[0]?.total_commission || 0,
+      total_sales: salesStats[0]?.total_sales || 0,
+      primary_sales: salesStats[0]?.primary_sales || 0,
+      secondary_sales: salesStats[0]?.secondary_sales || 0
+    };
+    
+    res.status(200).json({
+      success: true,
+      data: overview
+    });
+    
+  } catch (error) {
+    console.error('概览数据获取错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取概览数据失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
+
+// 订单管理功能
+async function handleOrders(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    const { page = 1, limit = 10, status, search } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereClause = '';
+    const params = [];
+    
+    if (status) {
+      whereClause += ' WHERE o.status = ?';
+      params.push(status);
+    }
+    
+    if (search) {
+      const searchClause = whereClause ? ' AND' : ' WHERE';
+      whereClause += `${searchClause} (o.tradingview_username LIKE ? OR o.customer_wechat LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    // 获取订单列表
+    const [orders] = await connection.execute(`
+      SELECT 
+        o.id,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.amount,
+        o.status,
+        o.created_at,
+        o.payment_time,
+        o.commission_amount,
+        s.wechat_name as sales_name
+      FROM orders o
+      LEFT JOIN sales s ON o.sales_id = s.id
+      ${whereClause}
+      ORDER BY o.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [...params, parseInt(limit), offset]);
+    
+    // 获取总数
+    const [countResult] = await connection.execute(`
+      SELECT COUNT(*) as total FROM orders o ${whereClause}
+    `, params);
+    
+    const total = countResult[0]?.total || 0;
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        orders,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('订单管理错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取订单数据失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
+
+// 销售管理功能
+async function handleSales(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    const { page = 1, limit = 10, sales_type, search } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereClause = '';
+    const params = [];
+    
+    if (sales_type && sales_type !== 'all') {
+      whereClause += ' WHERE s.sales_type = ?';
+      params.push(sales_type);
+    }
+    
+    if (search) {
+      const searchClause = whereClause ? ' AND' : ' WHERE';
+      whereClause += `${searchClause} s.wechat_name LIKE ?`;
+      params.push(`%${search}%`);
+    }
+    
+    // 获取销售列表
+    const [sales] = await connection.execute(`
+      SELECT 
+        s.id,
+        s.wechat_name,
+        s.phone,
+        s.email,
+        s.payment_method,
+        s.sales_type,
+        s.commission_rate,
+        s.created_at,
+        s.updated_at,
+        COUNT(o.id) as order_count,
+        SUM(o.amount) as total_amount,
+        SUM(o.commission_amount) as total_commission
+      FROM sales s
+      LEFT JOIN orders o ON s.id = o.sales_id
+      ${whereClause}
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [...params, parseInt(limit), offset]);
+    
+    // 获取总数
+    const [countResult] = await connection.execute(`
+      SELECT COUNT(*) as total FROM sales s ${whereClause}
+    `, params);
+    
+    const total = countResult[0]?.total || 0;
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        sales,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('销售管理错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取销售数据失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
 }
 
@@ -76,6 +352,8 @@ async function handleDataExport(req, res) {
         s.phone,
         s.email,
         s.payment_method,
+        s.sales_type,
+        s.commission_rate,
         s.created_at,
         s.updated_at
       FROM sales s
@@ -90,39 +368,49 @@ async function handleDataExport(req, res) {
         o.customer_wechat,
         o.amount,
         o.status,
+        o.commission_amount,
         o.created_at,
         o.payment_time
       FROM orders o
       ORDER BY o.created_at DESC
     `);
     
-    // 获取佣金数据
-    const [commissionData] = await connection.execute(`
+    // 获取一级销售数据
+    const [primarySalesData] = await connection.execute(`
       SELECT 
-        sc.id,
-        sc.order_id,
-        sc.primary_sales_id,
-        sc.secondary_sales_id,
-        sc.order_amount,
-        sc.primary_commission,
-        sc.secondary_commission,
-        sc.status,
-        sc.created_at
-      FROM sales_commissions sc
-      ORDER BY sc.created_at DESC
+        ps.id,
+        ps.wechat_name,
+        ps.commission_rate,
+        ps.created_at
+      FROM primary_sales ps
+      ORDER BY ps.created_at DESC
+    `);
+    
+    // 获取二级销售数据
+    const [secondarySalesData] = await connection.execute(`
+      SELECT 
+        ss.id,
+        ss.wechat_name,
+        ss.commission_rate,
+        ss.primary_sales_id,
+        ss.created_at
+      FROM secondary_sales ss
+      ORDER BY ss.created_at DESC
     `);
     
     const exportData = {
       export_time: new Date().toISOString(),
       sales_count: salesData.length,
       orders_count: ordersData.length,
-      commission_count: commissionData.length,
+      primary_sales_count: primarySalesData.length,
+      secondary_sales_count: secondarySalesData.length,
       sales: salesData,
       orders: ordersData,
-      commissions: commissionData
+      primary_sales: primarySalesData,
+      secondary_sales: secondarySalesData
     };
     
-    res.json({
+    res.status(200).json({
       success: true,
       message: '数据导出成功',
       data: exportData

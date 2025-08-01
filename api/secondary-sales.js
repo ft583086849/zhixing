@@ -1,6 +1,7 @@
 // Vercel Serverless Function - 二级销售API
 const mysql = require('mysql2/promise');
 const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
 
 // 数据库连接配置
 const dbConfig = {
@@ -14,11 +15,42 @@ const dbConfig = {
   }
 };
 
+// 权限验证中间件
+async function verifyAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { success: false, status: 401, message: '未提供有效的认证Token' };
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+    
+    // 验证管理员是否存在
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT id, username, role FROM admins WHERE id = ?',
+      [decoded.id]
+    );
+    await connection.end();
+    
+    if (rows.length === 0) {
+      return { success: false, status: 401, message: '管理员账户不存在' };
+    }
+    
+    return { success: true, admin: rows[0] };
+  } catch (error) {
+    return { success: false, status: 401, message: 'Token无效或已过期' };
+  }
+}
+
 export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
   // 处理OPTIONS预检请求
@@ -28,41 +60,51 @@ export default async function handler(req, res) {
   }
 
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    const { path, id } = req.query;
+    const { path } = req.query;
+    const bodyPath = req.body?.path;
 
-    if (req.method === 'POST' && path === 'register') {
-      await handleSecondarySalesRegistration(req, res, connection);
-    } else if (req.method === 'GET' && path === 'list') {
-      await handleGetSecondarySalesList(req, res, connection);
-    } else if (req.method === 'GET' && path === 'stats') {
-      await handleGetSecondarySalesStats(req, res, connection);
-    } else if (req.method === 'PUT' && path === 'update-commission') {
-      await handleUpdateCommission(req, res, connection);
-    } else if (req.method === 'DELETE' && path === 'remove') {
-      await handleRemoveSecondarySales(req, res, connection);
-    } else if (req.method === 'GET' && path === 'orders') {
-      await handleGetSecondarySalesOrders(req, res, connection);
-    } else {
-      res.status(404).json({
-        success: false,
-        message: `路径不存在: ${req.method} ${path || 'default'}`
-      });
+    // 需要权限验证的端点
+    const protectedEndpoints = ['list'];
+    
+    if (req.method === 'GET' && protectedEndpoints.includes(path)) {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
     }
 
-    await connection.end();
+    // 处理二级销售列表
+    if (req.method === 'GET' && (path === 'list' || !path)) {
+      await handleList(req, res);
+      return;
+    }
+
+    // 处理二级销售注册
+    if (req.method === 'POST' && (path === 'register' || bodyPath === 'register')) {
+      await handleRegister(req, res);
+      return;
+    }
+
+    // 如果没有匹配的路径，返回404
+    res.status(404).json({
+      success: false,
+      message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
+    });
 
   } catch (error) {
     console.error('二级销售API错误:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: error.message || '服务器内部错误'
     });
   }
-};
+}
 
 // 二级销售注册
-async function handleSecondarySalesRegistration(req, res, connection) {
+async function handleRegister(req, res) {
   const { 
     wechat_name, 
     primary_sales_id,
@@ -106,6 +148,8 @@ async function handleSecondarySalesRegistration(req, res, connection) {
   }
 
   try {
+    const connection = await mysql.createConnection(dbConfig);
+
     // 验证注册码是否有效
     const [registrationLink] = await connection.execute(
       'SELECT * FROM links WHERE link_code = ? AND link_type = "secondary_registration"',
@@ -113,6 +157,7 @@ async function handleSecondarySalesRegistration(req, res, connection) {
     );
 
     if (registrationLink.length === 0) {
+      await connection.end();
       return res.status(400).json({
         success: false,
         message: '注册码无效或已过期'
@@ -128,6 +173,7 @@ async function handleSecondarySalesRegistration(req, res, connection) {
     );
 
     if (existingSales.length > 0) {
+      await connection.end();
       return res.status(400).json({
         success: false,
         message: '这个微信名已经被人使用了，请换一个'
@@ -159,6 +205,8 @@ async function handleSecondarySalesRegistration(req, res, connection) {
        VALUES (?, ?, 'user_sales', NOW())`,
       [userSalesCode, secondarySalesId]
     );
+
+    await connection.end();
 
     // 返回成功响应
     res.status(201).json({
@@ -193,7 +241,7 @@ async function handleSecondarySalesRegistration(req, res, connection) {
 }
 
 // 获取二级销售列表
-async function handleGetSecondarySalesList(req, res, connection) {
+async function handleList(req, res) {
   try {
     const { primary_sales_id } = req.query;
     
@@ -216,7 +264,9 @@ async function handleGetSecondarySalesList(req, res, connection) {
     
     query += ' ORDER BY ss.created_at DESC';
     
+    const connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(query, params);
+    await connection.end();
 
     res.json({
       success: true,

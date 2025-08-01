@@ -1,6 +1,7 @@
 // Vercel Serverless Function - 一级销售API
 const mysql = require('mysql2/promise');
 const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
 
 // 数据库连接配置
 const dbConfig = {
@@ -14,11 +15,42 @@ const dbConfig = {
   }
 };
 
+// 权限验证中间件
+async function verifyAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { success: false, status: 401, message: '未提供有效的认证Token' };
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+    
+    // 验证管理员是否存在
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT id, username, role FROM admins WHERE id = ?',
+      [decoded.id]
+    );
+    await connection.end();
+    
+    if (rows.length === 0) {
+      return { success: false, status: 401, message: '管理员账户不存在' };
+    }
+    
+    return { success: true, admin: rows[0] };
+  } catch (error) {
+    return { success: false, status: 401, message: 'Token无效或已过期' };
+  }
+}
+
 export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
   // 处理OPTIONS预检请求
@@ -28,38 +60,112 @@ export default async function handler(req, res) {
   }
 
   try {
-    const connection = await mysql.createConnection(dbConfig);
     const { path } = req.query;
+    const bodyPath = req.body?.path;
 
-    if (req.method === 'POST' && path === 'create') {
-      await handleCreatePrimarySales(req, res, connection);
-    } else if (req.method === 'GET' && path === 'list') {
-      await handleGetPrimarySalesList(req, res, connection);
-    } else if (req.method === 'GET' && path === 'stats') {
-      await handleGetPrimarySalesStats(req, res, connection);
-    } else if (req.method === 'GET' && path === 'orders') {
-      await handleGetPrimarySalesOrders(req, res, connection);
-    } else if (req.method === 'PUT' && path === 'update-commission') {
-      await handleUpdateSecondarySalesCommission(req, res, connection);
-    } else if (req.method === 'POST' && path === 'urge-order') {
-      await handleUrgeOrder(req, res, connection);
-    } else {
-      res.status(404).json({
-        success: false,
-        message: `路径不存在: ${req.method} ${path || 'default'}`
-      });
+    // 处理一级销售列表
+    if (req.method === 'GET' && (path === 'list' || !path)) {
+      await handleList(req, res);
+      return;
     }
 
-    await connection.end();
+    // 处理一级销售创建
+    if (req.method === 'POST' && (path === 'create' || bodyPath === 'create')) {
+      await handleCreate(req, res);
+      return;
+    }
+
+    // 处理一级销售结算（需要管理员权限）
+    if (req.method === 'GET' && path === 'settlement') {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
+      await handleSettlement(req, res);
+      return;
+    }
+
+    // 如果没有匹配的路径，返回404
+    res.status(404).json({
+      success: false,
+      message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
+    });
 
   } catch (error) {
     console.error('一级销售API错误:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: error.message || '服务器内部错误'
     });
   }
-};
+}
+
+// 一级销售结算功能
+async function handleSettlement(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取一级销售结算数据
+    const [settlementData] = await connection.execute(`
+      SELECT 
+        ps.id,
+        ps.wechat_name,
+        ps.commission_rate,
+        ps.created_at,
+        COUNT(ss.id) as secondary_sales_count,
+        COUNT(o.id) as order_count,
+        SUM(o.amount) as total_amount,
+        SUM(o.commission_amount) as total_commission
+      FROM primary_sales ps
+      LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
+      LEFT JOIN orders o ON (ps.id = o.sales_id OR ss.id = o.sales_id)
+      GROUP BY ps.id
+      ORDER BY ps.created_at DESC
+    `);
+    
+    // 获取二级销售列表
+    const [secondarySales] = await connection.execute(`
+      SELECT 
+        ss.id,
+        ss.wechat_name,
+        ss.commission_rate,
+        ss.created_at,
+        ps.wechat_name as primary_sales_name,
+        COUNT(o.id) as order_count,
+        SUM(o.amount) as total_amount,
+        SUM(o.commission_amount) as total_commission
+      FROM secondary_sales ss
+      LEFT JOIN primary_sales ps ON ss.primary_sales_id = ps.id
+      LEFT JOIN orders o ON ss.id = o.sales_id
+      GROUP BY ss.id
+      ORDER BY ss.created_at DESC
+    `);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        settlement: settlementData,
+        secondary_sales: secondarySales
+      }
+    });
+    
+  } catch (error) {
+    console.error('一级销售结算错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取结算数据失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
 
 // 创建一级销售
 async function handleCreatePrimarySales(req, res, connection) {

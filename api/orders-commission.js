@@ -1,5 +1,6 @@
 // Vercel Serverless Function - 订单分佣API
 const mysql = require('mysql2/promise');
+const jwt = require('jsonwebtoken');
 
 // 数据库连接配置
 const dbConfig = {
@@ -13,11 +14,42 @@ const dbConfig = {
   }
 };
 
+// 权限验证中间件
+async function verifyAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { success: false, status: 401, message: '未提供有效的认证Token' };
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+    
+    // 验证管理员是否存在
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT id, username, role FROM admins WHERE id = ?',
+      [decoded.id]
+    );
+    await connection.end();
+    
+    if (rows.length === 0) {
+      return { success: false, status: 401, message: '管理员账户不存在' };
+    }
+    
+    return { success: true, admin: rows[0] };
+  } catch (error) {
+    return { success: false, status: 401, message: 'Token无效或已过期' };
+  }
+}
+
 export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
   // 处理OPTIONS预检请求
@@ -27,38 +59,108 @@ export default async function handler(req, res) {
   }
 
   try {
-    const connection = await mysql.createConnection(dbConfig);
     const { path } = req.query;
+    const bodyPath = req.body?.path;
 
-    if (req.method === 'POST' && path === 'create-with-commission') {
-      await handleCreateOrderWithCommission(req, res, connection);
-    } else if (req.method === 'GET' && path === 'commission-history') {
-      await handleGetCommissionHistory(req, res, connection);
-    } else if (req.method === 'GET' && path === 'commission-stats') {
-      await handleGetCommissionStats(req, res, connection);
-    } else if (req.method === 'GET' && (path === 'list' || !path)) {
-      await handleGetCommissionList(req, res, connection);
-    } else if (req.method === 'POST' && path === 'settle-commission') {
-      await handleSettleCommission(req, res, connection);
-    } else if (req.method === 'GET' && path === 'pending-commissions') {
-      await handleGetPendingCommissions(req, res, connection);
-    } else {
-      res.status(404).json({
-        success: false,
-        message: `路径不存在: ${req.method} ${path || 'default'}`
-      });
+    // 处理佣金计算
+    if (req.method === 'POST' && (path === 'calculate' || bodyPath === 'calculate')) {
+      await handleCalculate(req, res);
+      return;
     }
 
-    await connection.end();
+    // 处理佣金统计（需要管理员权限）
+    if (req.method === 'GET' && path === 'stats') {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
+      await handleStats(req, res);
+      return;
+    }
+
+    // 如果没有匹配的路径，返回404
+    res.status(404).json({
+      success: false,
+      message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
+    });
 
   } catch (error) {
-    console.error('订单分佣API错误:', error);
+    console.error('佣金管理API错误:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: error.message || '服务器内部错误'
     });
   }
-};
+}
+
+// 佣金统计功能
+async function handleStats(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取佣金统计数据
+    const [commissionStats] = await connection.execute(`
+      SELECT 
+        SUM(commission_amount) as total_commission,
+        COUNT(*) as total_orders,
+        AVG(commission_amount) as avg_commission,
+        SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END) as paid_commission,
+        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_orders
+      FROM orders
+    `);
+    
+    // 获取销售层级佣金统计
+    const [hierarchyStats] = await connection.execute(`
+      SELECT 
+        s.sales_type,
+        COUNT(o.id) as order_count,
+        SUM(o.commission_amount) as total_commission,
+        AVG(o.commission_amount) as avg_commission
+      FROM sales s
+      LEFT JOIN orders o ON s.id = o.sales_id
+      GROUP BY s.sales_type
+    `);
+    
+    // 获取时间维度统计
+    const [timeStats] = await connection.execute(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as order_count,
+        SUM(commission_amount) as daily_commission
+      FROM orders
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `);
+    
+    const stats = {
+      summary: commissionStats[0] || {},
+      hierarchy: hierarchyStats,
+      time_series: timeStats
+    };
+    
+    res.status(200).json({
+      success: true,
+      data: stats
+    });
+    
+  } catch (error) {
+    console.error('佣金统计错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取佣金统计数据失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
 
 // 获取佣金列表
 async function handleGetCommissionList(req, res, connection) {
