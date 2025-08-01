@@ -8,7 +8,7 @@ async function testFourthStageComplete() {
   try {
     // 1. 测试数据库结构调整API
     console.log('\n🔧 测试数据库结构调整API...');
-    const schemaResponse = await axios.post(`${baseURL}/update-sales-schema`, {}, {
+    const schemaResponse = await axios.post(`${baseURL}/admin?path=update-schema`, {}, {
       headers: {
         'Authorization': 'Bearer admin123',
         'Content-Type': 'application/json'
