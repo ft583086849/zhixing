@@ -135,22 +135,54 @@ async function handleCreateSales(req, res, connection) {
     linkCode
   ];
 
-  // 创建销售记录
-  const [result] = await connection.execute(
-    `INSERT INTO sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, link_code) 
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    params
-  );
+  try {
+    // 创建销售记录
+    console.log('🔧 尝试插入销售记录，参数:', params);
+    
+    const [result] = await connection.execute(
+      `INSERT INTO sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, link_code) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      params
+    );
 
-  res.json({
-    success: true,
-    message: '销售收款信息创建成功',
-    data: {
-      sales_id: result.insertId,
-      link_code: linkCode,
-      full_link: `${req.headers.origin || 'https://zhixing-seven.vercel.app'}/purchase/${linkCode}`
+    console.log('✅ 销售记录插入成功，ID:', result.insertId);
+
+    res.json({
+      success: true,
+      message: '销售收款信息创建成功',
+      data: {
+        sales_id: result.insertId,
+        link_code: linkCode,
+        full_link: `${req.headers.origin || 'https://zhixing-seven.vercel.app'}/purchase/${linkCode}`
+      }
+    });
+  } catch (dbError) {
+    console.error('❌ 数据库插入错误:', dbError);
+    console.error('❌ 错误代码:', dbError.code);
+    console.error('❌ 错误消息:', dbError.message);
+    
+    // 检查是否是唯一约束错误
+    if (dbError.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        message: '这个微信名或链接代码已经存在，请重试'
+      });
     }
-  });
+    
+    // 检查是否是字段不匹配错误
+    if (dbError.code === 'ER_WRONG_VALUE_COUNT_ON_ROW') {
+      return res.status(500).json({
+        success: false,
+        message: '数据库表结构不匹配，请联系管理员'
+      });
+    }
+    
+    return res.status(500).json({
+      success: false,
+      message: '创建销售记录失败，请稍后重试',
+      error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+    });
+  }
 }
 
 // 根据链接代码获取销售信息

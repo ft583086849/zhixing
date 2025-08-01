@@ -9,13 +9,13 @@ const config = {
     { name: '健康检查', path: '/health?path=check', method: 'GET' },
     { name: '管理员统计', path: '/admin?path=stats', method: 'GET' },
     { name: '销售创建', path: '/sales?path=create', method: 'POST', data: {
-      wechat_name: `monitor_test_${Date.now()}`,
+      wechat_name: `monitor_sales_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       payment_method: 'alipay',
       payment_address: 'monitor@test.com',
       alipay_surname: '监'
     }},
     { name: '一级销售创建', path: '/primary-sales?path=create', method: 'POST', data: {
-      wechat_name: `monitor_primary_${Date.now()}`,
+      wechat_name: `monitor_primary_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       payment_method: 'alipay',
       payment_address: 'monitor@test.com',
       alipay_surname: '监'
