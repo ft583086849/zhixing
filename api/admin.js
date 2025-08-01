@@ -558,6 +558,21 @@ async function handleUpdateSchema(req, res) {
     
     // 5. 更新订单表结构
     try {
+      // 检查sales_id列是否存在
+      const [orderSalesColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'sales_id'
+      `, [process.env.DB_NAME]);
+      
+      if (orderSalesColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE orders 
+          ADD COLUMN sales_id INT NULL
+        `);
+        console.log('✅ 添加orders.sales_id列成功');
+      }
+      
       // 检查primary_sales_id列是否存在
       const [orderPrimaryColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
