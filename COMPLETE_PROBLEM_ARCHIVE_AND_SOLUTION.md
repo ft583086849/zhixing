@@ -365,3 +365,63 @@ Serverless需要格式: /api/auth?path=login
 ---
 
 **📝 备注**: 本文档是重写参考的关键资料，无论测试结果如何都应该保留和维护。
+
+---
+
+## 🎉 **2025年8月1日 - 成功部署记录**
+
+### **问题描述**
+Vercel部署失败，错误信息：
+```
+Error: No more than 12 Serverless Functions can be added to a Deployment on the Hobby plan. 
+Create a team (Pro plan) to deploy more.
+```
+
+### **问题原因**
+- API目录中有14个Serverless函数文件
+- Vercel Hobby计划限制最多12个Serverless函数
+- 包含了一些临时测试文件和不必要的API文件
+
+### **解决方案**
+**清理不必要的API文件**：
+- 删除 `api/simple-test.js` - 简单测试文件
+- 删除 `api/test.js` - 测试文件  
+- 删除 `api/cleanup-screenshots.js` - 截图清理文件
+- 删除 `api/fix-missing-tables.js` - 数据库修复文件
+- 删除 `api/update-db-schema.js` - 数据库更新文件
+- 删除 `api/update-sales-schema.js` - 销售架构更新文件
+
+**保留核心API文件（8个）**：
+- `auth.js` - 认证API
+- `sales.js` - 销售API
+- `orders.js` - 订单API
+- `admin.js` - 管理API
+- `payment-config.js` - 支付配置API
+- `lifetime-limit.js` - 永久授权限量API
+- `create-admin.js` - 创建管理员API
+- `health.js` - 健康检查API
+
+### **正确的部署流程**
+1. **代码优化**：删除不必要的API文件，确保Serverless函数数量 ≤ 12
+2. **Git提交**：`git add . && git commit -m "清理API文件，减少Serverless函数数量以符合Vercel Hobby计划限制"`
+3. **Git推送**：`git push origin main`
+4. **自动部署**：Vercel检测到GitHub更新，自动开始部署
+5. **部署成功**：前端构建 + API部署完成
+
+### **经验总结**
+- ✅ **Vercel Hobby计划限制**：最多12个Serverless函数
+- ✅ **最佳实践**：只保留核心业务API，删除临时测试文件
+- ✅ **部署方式**：通过GitHub推送触发自动部署，比CLI更可靠
+- ✅ **代码管理**：定期清理不必要的文件，保持项目整洁
+
+### **成功指标**
+- 部署时间：几分钟内完成
+- API数量：从14个减少到8个
+- 代码质量：删除891行不必要的代码
+- 功能完整性：保留所有核心业务功能
+
+---
+
+**记录时间**：2025年8月1日  
+**记录人**：AI助手  
+**状态**：✅ 部署成功，问题已解决
