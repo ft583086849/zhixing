@@ -76,7 +76,7 @@ async function testFourthStageFeatures() {
     console.log('\n🔍 测试销售类型筛选API...');
     
     // 测试获取全部销售
-    const allSalesResponse = await axios.get(`${baseURL}/admin?path=sales&sales_type=all`, {
+    const allSalesResponse = await axios.get(`${baseURL}/sales?path=filter&sales_type=all`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json'
@@ -87,7 +87,7 @@ async function testFourthStageFeatures() {
     console.log(`📊 销售总数: ${allSalesResponse.data.data?.length || 0}`);
     
     // 测试获取一级销售
-    const primarySalesResponse = await axios.get(`${baseURL}/admin?path=sales&sales_type=primary`, {
+    const primarySalesResponse = await axios.get(`${baseURL}/sales?path=filter&sales_type=primary`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json'
@@ -98,7 +98,7 @@ async function testFourthStageFeatures() {
     console.log(`📊 一级销售数: ${primarySalesResponse.data.data?.length || 0}`);
     
     // 测试获取二级销售
-    const secondarySalesResponse = await axios.get(`${baseURL}/admin?path=sales&sales_type=secondary`, {
+    const secondarySalesResponse = await axios.get(`${baseURL}/sales?path=filter&sales_type=secondary`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json'

@@ -161,14 +161,43 @@ async function handleInitDatabase(req, res, connection) {
         payment_screenshot TEXT,
         status ENUM('pending', 'confirmed', 'rejected') DEFAULT 'pending',
         payment_time TIMESTAMP NULL,
+        amount DECIMAL(10,2) DEFAULT 0.00 COMMENT '订单金额',
+        duration_type VARCHAR(50) COMMENT '购买时长类型',
+        secondary_sales_id INT NULL COMMENT '二级销售ID',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_sales_link_code (sales_link_code),
         INDEX idx_status (status),
-        INDEX idx_created_at (created_at)
+        INDEX idx_created_at (created_at),
+        INDEX idx_secondary_sales_id (secondary_sales_id)
       )
     `);
     console.log('✅ 订单表创建/检查完成');
+
+    // 6. 创建销售佣金表
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS sales_commissions (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        order_id INT NOT NULL COMMENT '订单ID',
+        primary_sales_id INT NOT NULL COMMENT '一级销售ID',
+        secondary_sales_id INT NOT NULL COMMENT '二级销售ID',
+        order_amount DECIMAL(10,2) NOT NULL COMMENT '订单金额',
+        primary_commission DECIMAL(10,2) NOT NULL COMMENT '一级销售佣金',
+        secondary_commission DECIMAL(10,2) NOT NULL COMMENT '二级销售佣金',
+        net_primary_commission DECIMAL(10,2) NOT NULL COMMENT '一级销售净佣金',
+        status ENUM('pending', 'settled', 'cancelled') DEFAULT 'pending' COMMENT '佣金状态',
+        settled_at TIMESTAMP NULL COMMENT '结算时间',
+        settled_by INT NULL COMMENT '结算人ID',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_order_id (order_id),
+        INDEX idx_primary_sales_id (primary_sales_id),
+        INDEX idx_secondary_sales_id (secondary_sales_id),
+        INDEX idx_status (status),
+        INDEX idx_created_at (created_at)
+      )
+    `);
+    console.log('✅ 销售佣金表创建/检查完成');
 
     res.status(200).json({
       success: true,
@@ -180,7 +209,8 @@ async function handleInitDatabase(req, res, connection) {
           'sales_hierarchy',
           'links',
           'sales',
-          'orders'
+          'orders',
+          'sales_commissions'
         ]
       }
     });

@@ -1,5 +1,4 @@
 // Vercel Serverless Function - 简化管理员API
-
 export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -47,10 +46,10 @@ export default async function handler(req, res) {
     }
 
   } catch (error) {
-    console.error('管理员API错误:', error);
+    console.error('简化管理员API错误:', error);
     res.status(500).json({
       success: false,
       message: error.message || '服务器内部错误'
     });
   }
-}
+} 

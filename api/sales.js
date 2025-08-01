@@ -36,8 +36,11 @@ export default async function handler(req, res) {
     } else if (req.method === 'GET' && link_code) {
       await handleGetSalesByLink(req, res, connection, link_code);
     } else if (req.method === 'GET' && (path === 'list' || !path)) {
-      // 默认GET请求返回销售列表
+      // 默认GET请求返回销售列表，支持销售类型筛选
       await handleGetAllSales(req, res, connection);
+    } else if (req.method === 'GET' && path === 'filter') {
+      // 销售类型筛选
+      await handleFilterSales(req, res, connection);
     } else {
       res.status(404).json({
         success: false,
@@ -180,4 +183,72 @@ async function handleGetAllSales(req, res, connection) {
     success: true,
     data: rows
   });
+}
+
+// 销售类型筛选
+async function handleFilterSales(req, res, connection) {
+  const { sales_type } = req.query;
+  
+  let query = '';
+  let params = [];
+  
+  if (sales_type === 'primary') {
+    // 获取一级销售
+    query = `
+      SELECT s.*, 
+             COUNT(sh.secondary_sales_id) as secondary_sales_count,
+             ps.wechat_name as primary_sales_name
+      FROM sales s
+      LEFT JOIN primary_sales ps ON s.id = ps.id
+      LEFT JOIN sales_hierarchy sh ON ps.id = sh.primary_sales_id
+      WHERE s.sales_type = 'primary' OR s.sales_type IS NULL
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+    `;
+  } else if (sales_type === 'secondary') {
+    // 获取二级销售
+    query = `
+      SELECT s.*, 
+             ps.wechat_name as primary_sales_name,
+             ss.commission_rate
+      FROM sales s
+      LEFT JOIN secondary_sales ss ON s.id = ss.id
+      LEFT JOIN sales_hierarchy sh ON ss.id = sh.secondary_sales_id
+      LEFT JOIN primary_sales ps ON sh.primary_sales_id = ps.id
+      WHERE s.sales_type = 'secondary'
+      ORDER BY s.created_at DESC
+    `;
+  } else {
+    // 获取全部销售
+    query = `
+      SELECT s.*, 
+             CASE 
+               WHEN s.sales_type = 'primary' THEN '一级销售'
+               WHEN s.sales_type = 'secondary' THEN '二级销售'
+               ELSE '未知'
+             END as sales_type_name,
+             ps.wechat_name as primary_sales_name,
+             ss.commission_rate
+      FROM sales s
+      LEFT JOIN primary_sales ps ON s.id = ps.id
+      LEFT JOIN secondary_sales ss ON s.id = ss.id
+      LEFT JOIN sales_hierarchy sh ON ss.id = sh.secondary_sales_id
+      ORDER BY s.created_at DESC
+    `;
+  }
+  
+  try {
+    const [rows] = await connection.execute(query, params);
+    
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('销售类型筛选错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '销售类型筛选失败'
+    });
+  }
 }

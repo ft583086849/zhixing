@@ -201,13 +201,10 @@ async function handleGetSecondarySalesList(req, res, connection) {
       SELECT 
         ss.*,
         ps.wechat_name as primary_sales_name,
-        sh.commission_rate,
-        COUNT(o.id) as order_count,
-        SUM(o.amount) as total_revenue
+        sh.commission_rate
       FROM secondary_sales ss
       LEFT JOIN primary_sales ps ON ss.primary_sales_id = ps.id
       LEFT JOIN sales_hierarchy sh ON ss.id = sh.secondary_sales_id
-      LEFT JOIN orders o ON ss.id = o.secondary_sales_id
     `;
     
     let params = [];
@@ -217,7 +214,7 @@ async function handleGetSecondarySalesList(req, res, connection) {
       params.push(primary_sales_id);
     }
     
-    query += ' GROUP BY ss.id ORDER BY ss.created_at DESC';
+    query += ' ORDER BY ss.created_at DESC';
     
     const [rows] = await connection.execute(query, params);
 
@@ -252,12 +249,9 @@ async function handleGetSecondarySalesStats(req, res, connection) {
       `SELECT 
         COUNT(ss.id) as total_secondary_sales,
         COUNT(CASE WHEN ss.status = 'active' THEN 1 END) as active_secondary_sales,
-        AVG(sh.commission_rate) as avg_commission_rate,
-        SUM(o.amount) as total_revenue,
-        COUNT(o.id) as total_orders
+        AVG(sh.commission_rate) as avg_commission_rate
        FROM secondary_sales ss
        LEFT JOIN sales_hierarchy sh ON ss.id = sh.secondary_sales_id
-       LEFT JOIN orders o ON ss.id = o.secondary_sales_id
        ${whereClause}`,
       params
     );
