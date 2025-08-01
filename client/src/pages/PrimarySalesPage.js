@@ -35,6 +35,11 @@ const PrimarySalesPage = () => {
 
   const [paymentMethod, setPaymentMethod] = useState('');
 
+  // 设置页面标题
+  useEffect(() => {
+    document.title = '一级销售页面';
+  }, []);
+
   const handleSubmit = async (values) => {
     try {
       await dispatch(createPrimarySales(values)).unwrap();

@@ -41,6 +41,9 @@ export default async function handler(req, res) {
     } else if (req.method === 'GET' && path === 'filter') {
       // 销售类型筛选
       await handleFilterSales(req, res, connection);
+    } else if (req.method === 'GET' && path === 'export') {
+      // 导出销售数据
+      await handleExportSales(req, res, connection);
     } else {
       res.status(404).json({
         success: false,
@@ -215,6 +218,77 @@ async function handleGetAllSales(req, res, connection) {
     success: true,
     data: rows
   });
+}
+
+// 导出销售数据
+async function handleExportSales(req, res, connection) {
+  try {
+    // 获取所有销售数据，包含层级关系信息
+    const [rows] = await connection.execute(`
+      SELECT 
+        s.*,
+        CASE 
+          WHEN s.sales_type = 'primary' THEN (
+            SELECT COUNT(*) FROM sales_hierarchy sh WHERE sh.primary_sales_id = s.id
+          )
+          ELSE 0
+        END as secondary_sales_count,
+        CASE 
+          WHEN s.sales_type = 'secondary' THEN (
+            SELECT ps.wechat_name 
+            FROM sales_hierarchy sh 
+            JOIN sales ps ON sh.primary_sales_id = ps.id 
+            WHERE sh.secondary_sales_id = s.id
+          )
+          ELSE NULL
+        END as primary_sales_name,
+        COUNT(o.id) as total_orders,
+        SUM(CASE WHEN o.status = 'confirmed_configuration' THEN 1 ELSE 0 END) as valid_orders,
+        SUM(o.amount) as total_amount
+      FROM sales s
+      LEFT JOIN orders o ON s.link_code = o.sales_link_code
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+    `);
+
+    // 格式化导出数据
+    const exportData = rows.map(sale => ({
+      '销售ID': sale.id,
+      '销售类型': sale.sales_type === 'primary' ? '一级销售' : (sale.sales_type === 'secondary' ? '二级销售' : '普通销售'),
+      '微信名称': sale.wechat_name,
+      '链接代码': sale.link_code,
+      '层级关系': sale.sales_type === 'secondary' ? `隶属于: ${sale.primary_sales_name || '未知'}` : 
+                  sale.sales_type === 'primary' ? `管理 ${sale.secondary_sales_count} 个二级销售` : '独立销售',
+      '总订单数': sale.total_orders || 0,
+      '有效订单数': sale.valid_orders || 0,
+      '总金额': sale.total_amount || 0,
+      '佣金率': `${sale.commission_rate || 0}%`,
+      '收款方式': sale.payment_method,
+      '创建时间': sale.created_at
+    }));
+
+    // 设置响应头
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="销售数据_${new Date().toISOString().split('T')[0]}.csv"`);
+
+    // 生成CSV内容
+    const headers = Object.keys(exportData[0] || {});
+    const csvContent = [
+      headers.join(','),
+      ...exportData.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+    ].join('\n');
+
+    // 添加BOM以确保Excel正确显示中文
+    const bom = '\ufeff';
+    res.send(bom + csvContent);
+
+  } catch (error) {
+    console.error('导出销售数据错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '导出失败，请稍后重试'
+    });
+  }
 }
 
 // 销售类型筛选

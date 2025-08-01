@@ -30,6 +30,11 @@ const SalesPage = () => {
 
   const [paymentMethod, setPaymentMethod] = useState('');
 
+  // 设置页面标题
+  useEffect(() => {
+    document.title = '销售页面';
+  }, []);
+
   const handleSubmit = async (values) => {
     try {
       await dispatch(createSales(values)).unwrap();

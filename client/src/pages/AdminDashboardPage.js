@@ -36,6 +36,11 @@ const AdminDashboardPage = () => {
   const { admin } = useSelector((state) => state.auth);
   const [collapsed, setCollapsed] = useState(false);
 
+  // 设置页面标题
+  useEffect(() => {
+    document.title = '知行财库';
+  }, []);
+
   console.log('AdminDashboardPage 状态:', { admin, collapsed });
 
   const handleLogout = () => {

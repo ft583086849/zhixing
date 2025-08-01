@@ -41,10 +41,10 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(404).json({
-      success: false,
+      res.status(404).json({
+        success: false,
       message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
-    });
+      });
 
   } catch (error) {
     console.error('管理员API错误:', error);
@@ -391,24 +391,24 @@ async function handleUpdateSchema(req, res) {
 // 统计信息
 async function handleStats(req, res) {
   // 返回硬编码的统计信息
-  const stats = {
-    total_orders: 15,
-    today_orders: 0,
-    total_amount: 0,
-    today_amount: 0,
-    total_customers: 0,
-    pending_payment_orders: 15,
-    primary_sales_count: 0,
-    secondary_sales_count: 12,
-    primary_sales_amount: 0,
-    secondary_sales_amount: 0,
-    avg_secondary_per_primary: 0,
-    max_secondary_per_primary: 0,
-    active_hierarchies: 0
-  };
+    const stats = {
+      total_orders: 15,
+      today_orders: 0,
+      total_amount: 0,
+      today_amount: 0,
+      total_customers: 0,
+      pending_payment_orders: 15,
+      primary_sales_count: 0,
+      secondary_sales_count: 12,
+      primary_sales_amount: 0,
+      secondary_sales_amount: 0,
+      avg_secondary_per_primary: 0,
+      max_secondary_per_primary: 0,
+      active_hierarchies: 0
+    };
 
-  res.json({
-    success: true,
-    data: stats
+    res.json({
+      success: true,
+      data: stats
   });
 }
