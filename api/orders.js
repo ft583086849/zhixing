@@ -220,9 +220,10 @@ async function handleCreateOrder(req, res, connection) {
         break;
     }
 
-    // 计算佣金
-    const commissionRate = sales.commission_rate || 0.15;
-    const commissionAmount = parseFloat(amount) * commissionRate;
+    // 计算佣金 - 正确处理百分比到小数的转换
+    const rawCommissionRate = parseFloat(sales.commission_rate || 15); // sales表存储百分比，如40.00
+    const commissionRate = Math.min(Math.max((rawCommissionRate / 100), 0.0000), 0.9999); // 转换为小数，限制在DECIMAL(5,4)范围内
+    const commissionAmount = Math.round(parseFloat(amount) * commissionRate * 100) / 100; // 保留两位小数
 
     // 格式化日期为MySQL兼容格式
     const formatDateForMySQL = (date) => {
@@ -238,13 +239,13 @@ async function handleCreateOrder(req, res, connection) {
       console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
     }
 
-          // 创建订单
+          // 创建订单 - 暂时不插入commission_rate，使用数据库默认值
       const [result] = await connection.execute(
         `INSERT INTO orders (
           link_code, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
-          alipay_amount, crypto_amount, commission_rate, commission_amount, status, screenshot_data, screenshot_expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          alipay_amount, crypto_amount, commission_amount, status, screenshot_data, screenshot_expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           link_code, 
           tradingview_username, 
@@ -258,7 +259,6 @@ async function handleCreateOrder(req, res, connection) {
           formatDateForMySQL(expiryTime),
           alipay_amount || null, 
           crypto_amount || null,
-          commissionRate, 
           commissionAmount, 
           'pending_review',
           screenshotData,

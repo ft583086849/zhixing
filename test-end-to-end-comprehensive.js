@@ -188,17 +188,23 @@ class EndToEndTester {
     
     const orderData = [
       {
-        customer_name: '测试客户1',
-        customer_phone: '13800138001',
-        sales_link_code: secondarySales.link_code,
+        tradingview_username: 'test_user_1',
+        customer_wechat: 'test_customer_1',
+        link_code: secondarySales.link_code,
         amount: 1000,
+        duration: '30days',
+        payment_method: 'alipay',
+        payment_time: new Date().toISOString(),
         payment_screenshot: 'test_screenshot_1.jpg'
       },
       {
-        customer_name: '测试客户2',
-        customer_phone: '13800138002',
-        sales_link_code: secondarySales.link_code,
+        tradingview_username: 'test_user_2',
+        customer_wechat: 'test_customer_2',
+        link_code: secondarySales.link_code,
         amount: 2000,
+        duration: '60days',
+        payment_method: 'alipay',
+        payment_time: new Date().toISOString(),
         payment_screenshot: 'test_screenshot_2.jpg'
       }
     ];

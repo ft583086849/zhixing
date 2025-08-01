@@ -80,8 +80,7 @@ async function handleGetCommissionList(req, res, connection) {
         o.tradingview_username,
         o.customer_wechat,
         o.amount,
-        o.created_at,
-        o.sales_link_code
+        o.created_at
       FROM orders o
       ORDER BY o.created_at DESC
       LIMIT 50
@@ -107,14 +106,14 @@ async function handleCreateOrderWithCommission(req, res, connection) {
   const { 
     tradingview_username, 
     customer_wechat, 
-    sales_link_code, 
+    link_code, 
     payment_screenshot,
     secondary_sales_id,
     amount,
     duration
   } = req.body;
 
-  if (!tradingview_username || !customer_wechat || !sales_link_code || !amount) {
+  if (!tradingview_username || !customer_wechat || !link_code || !amount) {
     return res.status(400).json({
       success: false,
       message: 'TradingView用户名、客户微信、销售链接和金额为必填项'
@@ -127,9 +126,9 @@ async function handleCreateOrderWithCommission(req, res, connection) {
 
     // 1. 创建订单记录
     const [orderResult] = await connection.execute(
-      `INSERT INTO orders (tradingview_username, customer_wechat, sales_link_code, payment_screenshot, amount, duration, secondary_sales_id) 
+      `INSERT INTO orders (tradingview_username, customer_wechat, link_code, payment_screenshot, amount, duration, secondary_sales_id) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [tradingview_username, customer_wechat, sales_link_code, payment_screenshot, amount, duration, secondary_sales_id]
+      [tradingview_username, customer_wechat, link_code, payment_screenshot, amount, duration, secondary_sales_id]
     );
 
     const orderId = orderResult.insertId;

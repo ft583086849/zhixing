@@ -41,6 +41,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    // 处理数据导出
+    if (req.method === 'GET' && path === 'export') {
+      await handleDataExport(req, res);
+      return;
+    }
+
       res.status(404).json({
         success: false,
       message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
@@ -52,6 +58,87 @@ export default async function handler(req, res) {
       success: false,
       message: error.message || '服务器内部错误'
     });
+  }
+}
+
+// 数据导出功能
+async function handleDataExport(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取销售数据
+    const [salesData] = await connection.execute(`
+      SELECT 
+        s.id,
+        s.wechat_name,
+        s.phone,
+        s.email,
+        s.payment_method,
+        s.created_at,
+        s.updated_at
+      FROM sales s
+      ORDER BY s.created_at DESC
+    `);
+    
+    // 获取订单数据
+    const [ordersData] = await connection.execute(`
+      SELECT 
+        o.id,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.amount,
+        o.status,
+        o.created_at,
+        o.payment_time
+      FROM orders o
+      ORDER BY o.created_at DESC
+    `);
+    
+    // 获取佣金数据
+    const [commissionData] = await connection.execute(`
+      SELECT 
+        sc.id,
+        sc.order_id,
+        sc.primary_sales_id,
+        sc.secondary_sales_id,
+        sc.order_amount,
+        sc.primary_commission,
+        sc.secondary_commission,
+        sc.status,
+        sc.created_at
+      FROM sales_commissions sc
+      ORDER BY sc.created_at DESC
+    `);
+    
+    const exportData = {
+      export_time: new Date().toISOString(),
+      sales_count: salesData.length,
+      orders_count: ordersData.length,
+      commission_count: commissionData.length,
+      sales: salesData,
+      orders: ordersData,
+      commissions: commissionData
+    };
+    
+    res.json({
+      success: true,
+      message: '数据导出成功',
+      data: exportData
+    });
+    
+  } catch (error) {
+    console.error('数据导出错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '数据导出失败',
+      error: error.message
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
 }
 

@@ -14,7 +14,7 @@
 ### ✅ 正确的部署架构
 ```
 前端: Vercel (React.js)
-后端: Railway (Node.js + Express)
+后端: Vercel Serverless Functions (api/*.js)
 数据库: PlanetScale (MySQL)
 ```
 

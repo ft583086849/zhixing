@@ -425,3 +425,51 @@ Create a team (Pro plan) to deploy more.
 **记录时间**：2025年8月1日  
 **记录人**：AI助手  
 **状态**：✅ 部署成功，问题已解决
+
+## 2025-01-30 佣金比例字段修复进程
+
+### 问题描述
+订单创建时出现 `Out of range value for column 'commission_rate' at row 1` 错误。
+
+### 根本原因分析
+通过查看数据库文档 `database-schema.sql`，发现：
+- `orders.commission_rate` 字段类型：`DECIMAL(5,4) DEFAULT 0.15`
+- `sales.commission_rate` 存储格式：百分比值（如 40.00 表示 40%）
+- 字段类型不匹配：orders表需要小数格式（0.40），sales表提供百分比格式（40.00）
+
+### 修复方案
+将 sales.commission_rate 的百分比值转换为小数格式存入 orders.commission_rate：
+
+```javascript
+// 计算佣金 - commission_rate存储为小数格式（如0.40）
+const rawCommissionRate = parseFloat(sales.commission_rate || 15); // sales表是百分比
+const commissionRate = Math.round((rawCommissionRate / 100) * 10000) / 10000; // 转为0.15、0.40等，保留四位小数
+const commissionAmount = Math.round(parseFloat(amount) * commissionRate * 100) / 100; // 保留两位小数
+```
+
+### 修复状态
+- [x] 问题识别和根本原因分析
+- [x] 修复方案确定
+- [x] 代码修复应用（临时移除commission_rate字段进行测试）
+- [ ] 测试验证
+- [ ] 部署确认
+
+### 修复进展
+1. **问题确认**：`Out of range value for column 'commission_rate'` 错误持续出现
+2. **根本原因分析**：
+   - 发现现有用户购买流程应该可以工作
+   - 不应该重新开发订单流程，应该修复现有流程
+   - `commission_rate` 字段类型为 `DECIMAL(5,4)`，范围 0.0000-0.9999
+3. **修复尝试**：
+   - 尝试不同的commission_rate值（0.15, 0.40, 0.9999等）
+   - 添加调试信息查看计算过程
+   - 临时移除commission_rate字段进行测试
+   - 使用数据库默认值 0.1500 进行测试
+4. **当前状态**：暂时移除commission_rate字段，使用数据库默认值，等待Vercel部署更新
+5. **发现的问题**：
+   - 文档中仍有Railway引用，但实际使用Vercel Serverless
+   - sales表commission_rate存储百分比（40.00），orders表需要小数（0.40）
+   - 需要等待Vercel部署更新才能测试修复效果
+
+### 修复文件
+- `api/orders.js` - handleCreateOrder 函数中的佣金计算逻辑
