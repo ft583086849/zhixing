@@ -286,8 +286,6 @@ async function handleSales(req, res) {
       SELECT 
         s.id,
         s.wechat_name,
-        s.phone,
-        s.email,
         s.payment_method,
         s.sales_type,
         s.commission_rate,
@@ -349,8 +347,6 @@ async function handleDataExport(req, res) {
       SELECT 
         s.id,
         s.wechat_name,
-        s.phone,
-        s.email,
         s.payment_method,
         s.sales_type,
         s.commission_rate,
