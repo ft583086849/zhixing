@@ -1,0 +1,87 @@
+{
+  "timestamp": "2025-08-02T15:36:38.845Z",
+  "results": {
+    "startTime": "2025-08-02T15:35:48.350Z",
+    "endTime": "2025-08-02T15:36:38.795Z",
+    "totalTests": 35,
+    "passedTests": 35,
+    "failedTests": 0,
+    "bugs": [],
+    "performance": {
+      "avgResponseTime": 1440.942857142857,
+      "maxResponseTime": 941,
+      "minResponseTime": 941
+    },
+    "apiTests": {
+      "health": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "auth": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "sales": {
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
+      "orders": {
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "admin": {
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
+      "commission": {
+        "passed": 1,
+        "failed": 0,
+        "total": 1
+      }
+    }
+  },
+  "summary": {
+    "totalTests": 35,
+    "passedTests": 35,
+    "failedTests": 0,
+    "successRate": "100.00%",
+    "bugCount": 0,
+    "apiTestResults": {
+      "health": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "auth": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "sales": {
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
+      "orders": {
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "admin": {
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
+      "commission": {
+        "passed": 1,
+        "failed": 0,
+        "total": 1
+      }
+    }
+  }
+}

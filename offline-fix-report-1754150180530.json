@@ -1,0 +1,119 @@
+{
+  "timestamp": "2025-08-02T15:56:20.529Z",
+  "errorRecordChecks": [
+    {
+      "name": "订单状态更新问题",
+      "description": "检查订单状态枚举值是否匹配（Vercel架构）",
+      "files": [
+        "api/orders.js",
+        "api/admin.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "支付管理系统边框问题",
+      "description": "检查Content组件样式是否正确",
+      "files": [
+        "client/src/pages/AdminDashboardPage.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "付款截图显示问题",
+      "description": "检查文件上传和显示功能（Vercel架构）",
+      "files": [
+        "api/orders.js",
+        "client/src/components/admin/AdminOrders.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "管理员登录页面问题",
+      "description": "检查登录状态和token验证",
+      "files": [
+        "client/src/pages/AdminLoginPage.js",
+        "client/src/store/slices/authSlice.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "销售对账页面重新设计",
+      "description": "检查对账和催单功能合并",
+      "files": [
+        "client/src/pages/SalesReconciliationPage.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "收款码图片显示功能",
+      "description": "检查支付宝和链上收款码显示",
+      "files": [
+        "client/src/pages/PurchasePage.js",
+        "client/src/components/admin/AdminPaymentConfig.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "API路径不匹配问题",
+      "description": "检查前后端API路径一致性",
+      "files": [
+        "client/src/services/api.js",
+        "api/auth.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "Vercel部署配置问题",
+      "description": "检查vercel.json配置格式",
+      "files": [
+        "vercel.json"
+      ],
+      "status": "PASS"
+    }
+  ],
+  "deploymentChecks": [
+    {
+      "name": "vercel.json配置",
+      "description": "确保配置与成功版本一致",
+      "status": "PASS"
+    },
+    {
+      "name": "API文件格式",
+      "description": "确保使用ES6模块格式",
+      "status": "PASS"
+    },
+    {
+      "name": "package.json配置",
+      "description": "确保没有type: module配置",
+      "status": "PASS"
+    },
+    {
+      "name": "环境变量配置",
+      "description": "确保Vercel环境变量正确设置",
+      "status": "PENDING"
+    }
+  ],
+  "contentChecks": [
+    {
+      "name": "订单状态枚举值",
+      "status": "FAIL",
+      "message": "内容需要检查"
+    },
+    {
+      "name": "API路径配置",
+      "status": "FAIL",
+      "message": "内容需要检查"
+    },
+    {
+      "name": "支付配置组件",
+      "status": "PASS",
+      "message": "内容正确"
+    }
+  ],
+  "summary": {
+    "totalChecks": 15,
+    "passedChecks": 12,
+    "failedChecks": 3,
+    "successRate": 80
+  }
+}

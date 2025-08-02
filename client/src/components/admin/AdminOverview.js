@@ -9,7 +9,8 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   CrownOutlined,
-  TeamOutlined
+  TeamOutlined,
+  GiftOutlined
 } from '@ant-design/icons';
 import { getStats } from '../../store/slices/adminSlice';
 
@@ -104,10 +105,54 @@ const AdminOverview = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
+                  title="待配置确认"
+                  value={stats?.pending_config_orders || 0}
+                  prefix={<ExclamationCircleOutlined />}
+                  valueStyle={{ color: '#fa8c16' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="已付款确认"
+                  value={stats?.confirmed_payment_orders || 0}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="已配置确认"
+                  value={stats?.confirmed_config_orders || 0}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
                   title="总销售额"
                   value={stats?.total_amount || 0}
                   prefix={<DollarOutlined />}
                   valueStyle={{ color: '#1890ff' }}
+                  suffix="美元"
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="销售返佣金额"
+                  value={stats?.total_commission || 0}
+                  prefix={<GiftOutlined />}
+                  valueStyle={{ color: '#722ed1' }}
                   suffix="美元"
                 />
               </Card>
@@ -207,63 +252,63 @@ const AdminOverview = () => {
             </Col>
           </Row>
 
-          {/* 订单类型分布 */}
-          <Card title="订单类型分布" style={{ marginTop: 24 }} role="region">
+          {/* 订单金额分布 */}
+          <Card title="订单金额分布" style={{ marginTop: 24 }} role="region">
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
                 <div>
-                  <p>一个月订单</p>
+                  <p>188元订单</p>
                   <Progress 
-                    percent={stats?.one_month_percentage || 0} 
+                    percent={stats?.amount_188_percentage || 0} 
                     status="active"
                     strokeColor={{
                       '0%': '#108ee9',
                       '100%': '#87d068',
                     }}
                   />
-                  <p>数量: {stats?.one_month_orders || 0}</p>
+                  <p>数量: {stats?.amount_188_orders || 0} | 占比: {stats?.amount_188_percentage || 0}%</p>
                 </div>
               </Col>
               <Col xs={24} sm={12}>
                 <div>
-                  <p>三个月订单</p>
+                  <p>488元订单</p>
                   <Progress 
-                    percent={stats?.three_month_percentage || 0} 
+                    percent={stats?.amount_488_percentage || 0} 
                     status="active"
                     strokeColor={{
                       '0%': '#108ee9',
                       '100%': '#87d068',
                     }}
                   />
-                  <p>数量: {stats?.three_month_orders || 0}</p>
+                  <p>数量: {stats?.amount_488_orders || 0} | 占比: {stats?.amount_488_percentage || 0}%</p>
                 </div>
               </Col>
               <Col xs={24} sm={12}>
                 <div>
-                  <p>六个月订单</p>
+                  <p>688元订单</p>
                   <Progress 
-                    percent={stats?.six_month_percentage || 0} 
+                    percent={stats?.amount_688_percentage || 0} 
                     status="active"
                     strokeColor={{
                       '0%': '#108ee9',
                       '100%': '#87d068',
                     }}
                   />
-                  <p>数量: {stats?.six_month_orders || 0}</p>
+                  <p>数量: {stats?.amount_688_orders || 0} | 占比: {stats?.amount_688_percentage || 0}%</p>
                 </div>
               </Col>
               <Col xs={24} sm={12}>
                 <div>
-                  <p>终身订单</p>
+                  <p>1588元订单</p>
                   <Progress 
-                    percent={stats?.lifetime_percentage || 0} 
+                    percent={stats?.amount_1588_percentage || 0} 
                     status="active"
                     strokeColor={{
                       '0%': '#108ee9',
                       '100%': '#87d068',
                     }}
                   />
-                  <p>数量: {stats?.lifetime_orders || 0}</p>
+                  <p>数量: {stats?.amount_1588_orders || 0} | 占比: {stats?.amount_1588_percentage || 0}%</p>
                 </div>
               </Col>
             </Row>

@@ -232,9 +232,9 @@ const PurchasePage = () => {
             </div>
             
             {/* 支付宝收款码图片 */}
-            {paymentConfig.alipay_qr_code && (
-              <div style={{ textAlign: 'center', marginTop: 16 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>支付宝收款码</Text>
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>支付宝收款码</Text>
+              {paymentConfig.alipay_qr_code ? (
                 <Image
                   width={200}
                   height={200}
@@ -244,8 +244,21 @@ const PurchasePage = () => {
                     src: paymentConfig.alipay_qr_code,
                   }}
                 />
-              </div>
-            )}
+              ) : (
+                <div style={{ 
+                  width: 200, 
+                  height: 200, 
+                  border: '2px dashed #d9d9d9', 
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#fafafa'
+                }}>
+                  <Text type="secondary">暂无收款码图片</Text>
+                </div>
+              )}
+            </div>
             
             <Form.Item
               label="付款金额（人民币）"

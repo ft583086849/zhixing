@@ -1,0 +1,118 @@
+{
+  "timestamp": "2025-08-02T15:05:07.999Z",
+  "results": {
+    "startTime": "2025-08-02T15:04:11.392Z",
+    "endTime": "2025-08-02T15:05:07.944Z",
+    "totalTests": 35,
+    "passedTests": 32,
+    "failedTests": 3,
+    "bugs": [
+      {
+        "id": "BUG-1754147069728-6akmi",
+        "severity": "FUNCTIONAL",
+        "testName": "一级销售列表获取",
+        "stage": "",
+        "error": "Request failed with status code 500",
+        "stack": "AxiosError: Request failed with status code 500\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:276:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:659:22)\n    at async DetailedTestExecutor.testPrimarySalesAPI (/Users/zzj/Documents/w/execute-detailed-test.js:275:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:78:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:803:3)",
+        "timestamp": "2025-08-02T15:04:29.728Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754147093736-vgqcb",
+        "severity": "FUNCTIONAL",
+        "testName": "销售层级统计",
+        "stage": "",
+        "error": "Request failed with status code 500",
+        "stack": "AxiosError: Request failed with status code 500\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:470:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:659:22)\n    at async DetailedTestExecutor.testSalesHierarchyAPI (/Users/zzj/Documents/w/execute-detailed-test.js:469:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:93:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:803:3)",
+        "timestamp": "2025-08-02T15:04:53.736Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754147105467-3p5zu",
+        "severity": "FUNCTIONAL",
+        "testName": "404错误处理",
+        "stage": "",
+        "error": "应该返回404错误",
+        "stack": "Error: 应该返回404错误\n    at /Users/zzj/Documents/w/execute-detailed-test.js:604:15\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:659:22)\n    at async DetailedTestExecutor.testErrorHandling (/Users/zzj/Documents/w/execute-detailed-test.js:601:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:53:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:803:3)",
+        "timestamp": "2025-08-02T15:05:05.467Z",
+        "status": "未修复"
+      }
+    ],
+    "performance": {
+      "avgResponseTime": 1699.84375,
+      "maxResponseTime": 960,
+      "minResponseTime": 960
+    },
+    "apiTests": {
+      "health": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "auth": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "sales": {
+        "passed": 7,
+        "failed": 2,
+        "total": 9
+      },
+      "orders": {
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "admin": {
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
+      "commission": {
+        "passed": 1,
+        "failed": 0,
+        "total": 1
+      }
+    }
+  },
+  "summary": {
+    "totalTests": 35,
+    "passedTests": 32,
+    "failedTests": 3,
+    "successRate": "91.43%",
+    "bugCount": 3,
+    "apiTestResults": {
+      "health": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "auth": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "sales": {
+        "passed": 7,
+        "failed": 2,
+        "total": 9
+      },
+      "orders": {
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "admin": {
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
+      "commission": {
+        "passed": 1,
+        "failed": 0,
+        "total": 1
+      }
+    }
+  }
+}

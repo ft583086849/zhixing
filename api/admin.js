@@ -188,21 +188,90 @@ async function handleOrders(req, res) {
   try {
     connection = await mysql.createConnection(dbConfig);
     
-    const { page = 1, limit = 10, status, search } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      status, 
+      search,
+      sales_wechat,
+      tradingview_username,
+      link_code,
+      purchase_type,
+      payment_method,
+      start_date,
+      end_date,
+      payment_start_date,
+      payment_end_date,
+      config_start_date,
+      config_end_date,
+      expiry_start_date,
+      expiry_end_date
+    } = req.query;
     const offset = (page - 1) * limit;
     
     let whereClause = '';
     const params = [];
     
+    // 构建WHERE子句
+    const conditions = [];
+    
     if (status) {
-      whereClause += ' WHERE o.status = ?';
+      conditions.push('o.status = ?');
       params.push(status);
     }
     
+    if (sales_wechat) {
+      conditions.push('s.wechat_name LIKE ?');
+      params.push(`%${sales_wechat}%`);
+    }
+    
+    if (tradingview_username) {
+      conditions.push('o.tradingview_username LIKE ?');
+      params.push(`%${tradingview_username}%`);
+    }
+    
+    if (link_code) {
+      conditions.push('l.link_code LIKE ?');
+      params.push(`%${link_code}%`);
+    }
+    
+    if (purchase_type) {
+      conditions.push('o.purchase_type = ?');
+      params.push(purchase_type);
+    }
+    
+    if (payment_method) {
+      conditions.push('o.payment_method = ?');
+      params.push(payment_method);
+    }
+    
+    if (start_date && end_date) {
+      conditions.push('DATE(o.created_at) BETWEEN ? AND ?');
+      params.push(start_date, end_date);
+    }
+    
+    if (payment_start_date && payment_end_date) {
+      conditions.push('DATE(o.payment_time) BETWEEN ? AND ?');
+      params.push(payment_start_date, payment_end_date);
+    }
+    
+    if (config_start_date && config_end_date) {
+      conditions.push('DATE(o.effective_time) BETWEEN ? AND ?');
+      params.push(config_start_date, config_end_date);
+    }
+    
+    if (expiry_start_date && expiry_end_date) {
+      conditions.push('DATE(o.expiry_date) BETWEEN ? AND ?');
+      params.push(expiry_start_date, expiry_end_date);
+    }
+    
     if (search) {
-      const searchClause = whereClause ? ' AND' : ' WHERE';
-      whereClause += `${searchClause} (o.tradingview_username LIKE ? OR o.customer_wechat LIKE ?)`;
+      conditions.push('(o.tradingview_username LIKE ? OR o.customer_wechat LIKE ?)');
       params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    if (conditions.length > 0) {
+      whereClause = 'WHERE ' + conditions.join(' AND ');
     }
     
     // 获取订单列表
@@ -216,9 +285,19 @@ async function handleOrders(req, res) {
         o.created_at,
         o.payment_time,
         o.commission_amount,
-        s.wechat_name as sales_name
+        o.purchase_type,
+        o.payment_method,
+        o.effective_time,
+        o.expiry_date,
+        o.duration,
+        o.alipay_amount,
+        o.crypto_amount,
+        o.screenshot_path,
+        s.wechat_name as sales_name,
+        l.link_code
       FROM orders o
       LEFT JOIN sales s ON o.sales_id = s.id
+      LEFT JOIN sales_links l ON o.link_id = l.id
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT ? OFFSET ?
@@ -226,7 +305,11 @@ async function handleOrders(req, res) {
     
     // 获取总数
     const [countResult] = await connection.execute(`
-      SELECT COUNT(*) as total FROM orders o ${whereClause}
+      SELECT COUNT(*) as total 
+      FROM orders o
+      LEFT JOIN sales s ON o.sales_id = s.id
+      LEFT JOIN sales_links l ON o.link_id = l.id
+      ${whereClause}
     `, params);
     
     const total = countResult[0]?.total || 0;
@@ -776,25 +859,116 @@ async function handleUpdateSchema(req, res) {
 
 // 统计信息
 async function handleStats(req, res) {
-  // 返回硬编码的统计信息
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取基础统计
+    const [basicStats] = await connection.execute(`
+      SELECT 
+        COUNT(*) as total_orders,
+        SUM(amount) as total_amount,
+        COUNT(DISTINCT customer_wechat) as total_customers
+      FROM orders
+    `);
+    
+    // 获取订单状态统计
+    const [statusStats] = await connection.execute(`
+      SELECT 
+        COUNT(CASE WHEN status = 'pending_payment_confirmation' THEN 1 END) as pending_payment_orders,
+        COUNT(CASE WHEN status = 'pending_configuration_confirmation' THEN 1 END) as pending_config_orders,
+        COUNT(CASE WHEN status = 'confirmed_payment' THEN 1 END) as confirmed_payment_orders,
+        COUNT(CASE WHEN status = 'confirmed_configuration' THEN 1 END) as confirmed_config_orders
+      FROM orders
+    `);
+    
+    // 获取销售返佣金额统计
+    const [commissionStats] = await connection.execute(`
+      SELECT SUM(commission_amount) as total_commission
+      FROM orders 
+      WHERE commission_amount > 0
+    `);
+    
+    // 获取按金额分布的订单统计
+    const [amountStats] = await connection.execute(`
+      SELECT 
+        COUNT(CASE WHEN amount = 188 THEN 1 END) as amount_188_orders,
+        COUNT(CASE WHEN amount = 488 THEN 1 END) as amount_488_orders,
+        COUNT(CASE WHEN amount = 688 THEN 1 END) as amount_688_orders,
+        COUNT(CASE WHEN amount = 1588 THEN 1 END) as amount_1588_orders
+      FROM orders
+    `);
+    
+    // 获取销售层级统计
+    const [salesStats] = await connection.execute(`
+      SELECT 
+        COUNT(CASE WHEN sales_type = 'primary' THEN 1 END) as primary_sales_count,
+        COUNT(CASE WHEN sales_type = 'secondary' THEN 1 END) as secondary_sales_count
+      FROM sales
+    `);
+    
+    // 计算百分比
+    const totalOrders = basicStats[0]?.total_orders || 0;
+    const amount188Orders = amountStats[0]?.amount_188_orders || 0;
+    const amount488Orders = amountStats[0]?.amount_488_orders || 0;
+    const amount688Orders = amountStats[0]?.amount_688_orders || 0;
+    const amount1588Orders = amountStats[0]?.amount_1588_orders || 0;
+    
+    const amount188Percentage = totalOrders > 0 ? Math.round((amount188Orders / totalOrders) * 100) : 0;
+    const amount488Percentage = totalOrders > 0 ? Math.round((amount488Orders / totalOrders) * 100) : 0;
+    const amount688Percentage = totalOrders > 0 ? Math.round((amount688Orders / totalOrders) * 100) : 0;
+    const amount1588Percentage = totalOrders > 0 ? Math.round((amount1588Orders / totalOrders) * 100) : 0;
+    
     const stats = {
-      total_orders: 15,
-      today_orders: 0,
-      total_amount: 0,
-      today_amount: 0,
-      total_customers: 0,
-      pending_payment_orders: 15,
-      primary_sales_count: 0,
-      secondary_sales_count: 12,
-      primary_sales_amount: 0,
-      secondary_sales_amount: 0,
-      avg_secondary_per_primary: 0,
-      max_secondary_per_primary: 0,
-      active_hierarchies: 0
+      // 基础统计
+      total_orders: basicStats[0]?.total_orders || 0,
+      total_amount: basicStats[0]?.total_amount || 0,
+      total_customers: basicStats[0]?.total_customers || 0,
+      
+      // 订单状态统计
+      pending_payment_orders: statusStats[0]?.pending_payment_orders || 0,
+      pending_config_orders: statusStats[0]?.pending_config_orders || 0,
+      confirmed_payment_orders: statusStats[0]?.confirmed_payment_orders || 0,
+      confirmed_config_orders: statusStats[0]?.confirmed_config_orders || 0,
+      
+      // 销售返佣统计
+      total_commission: commissionStats[0]?.total_commission || 0,
+      
+      // 按金额分布的订单统计
+      amount_188_orders: amount188Orders,
+      amount_188_percentage: amount188Percentage,
+      amount_488_orders: amount488Orders,
+      amount_488_percentage: amount488Percentage,
+      amount_688_orders: amount688Orders,
+      amount_688_percentage: amount688Percentage,
+      amount_1588_orders: amount1588Orders,
+      amount_1588_percentage: amount1588Percentage,
+      
+      // 销售层级统计
+      primary_sales_count: salesStats[0]?.primary_sales_count || 0,
+      secondary_sales_count: salesStats[0]?.secondary_sales_count || 0,
+      primary_sales_amount: 0, // 需要根据实际业务逻辑计算
+      secondary_sales_amount: 0, // 需要根据实际业务逻辑计算
+      avg_secondary_per_primary: 0, // 需要根据实际业务逻辑计算
+      max_secondary_per_primary: 0, // 需要根据实际业务逻辑计算
+      active_hierarchies: 0 // 需要根据实际业务逻辑计算
     };
 
     res.json({
       success: true,
       data: stats
-  });
+    });
+    
+  } catch (error) {
+    console.error('统计信息获取错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取统计信息失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
 }

@@ -1,0 +1,223 @@
+{
+  "timestamp": "2025-08-02T15:54:40.664Z",
+  "baseUrl": "https://zhixing-seven.vercel.app",
+  "backupUrl": "https://zhixing.vercel.app",
+  "tests": [
+    {
+      "name": "主链接访问",
+      "status": "PASS",
+      "details": "Status: 200",
+      "url": "https://zhixing-seven.vercel.app",
+      "timestamp": "2025-08-02T15:54:41.548Z"
+    },
+    {
+      "name": "备用链接访问",
+      "status": "PASS",
+      "details": "Status: 200",
+      "url": "https://zhixing.vercel.app",
+      "timestamp": "2025-08-02T15:54:42.430Z"
+    },
+    {
+      "name": "管理员登录页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/admin/login",
+      "timestamp": "2025-08-02T15:54:42.654Z"
+    },
+    {
+      "name": "管理员概览页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/admin/overview",
+      "timestamp": "2025-08-02T15:54:42.862Z"
+    },
+    {
+      "name": "支付配置页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/admin/payment-config",
+      "timestamp": "2025-08-02T15:54:43.073Z"
+    },
+    {
+      "name": "用户管理页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/admin/users",
+      "timestamp": "2025-08-02T15:54:43.274Z"
+    },
+    {
+      "name": "订单管理页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/admin/orders",
+      "timestamp": "2025-08-02T15:54:43.476Z"
+    },
+    {
+      "name": "销售管理页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/admin/sales",
+      "timestamp": "2025-08-02T15:54:43.674Z"
+    },
+    {
+      "name": "数据导出页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/admin/export",
+      "timestamp": "2025-08-02T15:54:43.872Z"
+    },
+    {
+      "name": "一级销售注册页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/primary-sales/register",
+      "timestamp": "2025-08-02T15:54:44.070Z"
+    },
+    {
+      "name": "一级销售列表页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/primary-sales/list",
+      "timestamp": "2025-08-02T15:54:44.266Z"
+    },
+    {
+      "name": "一级销售结算页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/primary-sales/settlement",
+      "timestamp": "2025-08-02T15:54:44.465Z"
+    },
+    {
+      "name": "一级销售订单管理页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/primary-sales/orders",
+      "timestamp": "2025-08-02T15:54:44.658Z"
+    },
+    {
+      "name": "一级销售催单管理页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/primary-sales/reminders",
+      "timestamp": "2025-08-02T15:54:44.854Z"
+    },
+    {
+      "name": "二级销售注册页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/secondary-sales/register",
+      "timestamp": "2025-08-02T15:54:45.053Z"
+    },
+    {
+      "name": "二级销售列表页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/secondary-sales/list",
+      "timestamp": "2025-08-02T15:54:45.251Z"
+    },
+    {
+      "name": "二级销售订单管理页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/secondary-sales/orders",
+      "timestamp": "2025-08-02T15:54:45.446Z"
+    },
+    {
+      "name": "二级销售催单管理页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/secondary-sales/reminders",
+      "timestamp": "2025-08-02T15:54:45.642Z"
+    },
+    {
+      "name": "用户购买页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/purchase",
+      "timestamp": "2025-08-02T15:54:45.838Z"
+    },
+    {
+      "name": "用户订单页面",
+      "status": "PASS",
+      "details": "页面内容正常",
+      "url": "https://zhixing-seven.vercel.app/user/orders",
+      "timestamp": "2025-08-02T15:54:46.032Z"
+    },
+    {
+      "name": "健康检查API",
+      "status": "PASS",
+      "details": "API响应正常",
+      "url": "https://zhixing-seven.vercel.app/api/health",
+      "timestamp": "2025-08-02T15:54:46.942Z"
+    },
+    {
+      "name": "登录API",
+      "status": "PASS",
+      "details": "API端点存在（仅支持POST）",
+      "url": "https://zhixing-seven.vercel.app/api/auth?path=login",
+      "timestamp": "2025-08-02T15:54:46.943Z"
+    },
+    {
+      "name": "管理员统计API",
+      "status": "PASS",
+      "details": "API响应正常",
+      "url": "https://zhixing-seven.vercel.app/api/admin/stats",
+      "timestamp": "2025-08-02T15:54:47.139Z"
+    },
+    {
+      "name": "订单API",
+      "status": "PASS",
+      "details": "API响应正常",
+      "url": "https://zhixing-seven.vercel.app/api/orders",
+      "timestamp": "2025-08-02T15:54:48.932Z"
+    },
+    {
+      "name": "销售API",
+      "status": "PASS",
+      "details": "API响应正常",
+      "url": "https://zhixing-seven.vercel.app/api/sales",
+      "timestamp": "2025-08-02T15:54:49.848Z"
+    },
+    {
+      "name": "支付配置API",
+      "status": "PASS",
+      "details": "API响应正常",
+      "url": "https://zhixing-seven.vercel.app/api/payment-config",
+      "timestamp": "2025-08-02T15:54:50.823Z"
+    },
+    {
+      "name": "管理员登录功能",
+      "status": "PASS",
+      "details": "登录成功",
+      "url": "",
+      "timestamp": "2025-08-02T15:54:52.159Z"
+    },
+    {
+      "name": "支付配置获取",
+      "status": "PASS",
+      "details": "配置获取成功",
+      "url": "",
+      "timestamp": "2025-08-02T15:54:53.075Z"
+    },
+    {
+      "name": "订单列表获取",
+      "status": "PASS",
+      "details": "订单列表获取成功",
+      "url": "",
+      "timestamp": "2025-08-02T15:54:54.749Z"
+    },
+    {
+      "name": "主页面加载速度",
+      "status": "PASS",
+      "details": "197ms",
+      "url": "",
+      "timestamp": "2025-08-02T15:54:54.947Z"
+    }
+  ],
+  "summary": {
+    "total": 30,
+    "passed": 30,
+    "failed": 0,
+    "successRate": 100
+  }
+}
