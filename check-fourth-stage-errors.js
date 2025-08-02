@@ -15,8 +15,7 @@ function checkFourthStageErrors() {
     'api/primary-sales.js',
     'api/secondary-sales.js',
     'api/sales-hierarchy.js',
-    'api/orders-commission.js',
-    'api/data-cleanup.js'
+    'api/orders-commission.js'
   ];
   
   apiFiles.forEach(file => {
