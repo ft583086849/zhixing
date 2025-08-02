@@ -96,6 +96,43 @@ export default async function handler(req, res) {
   }
 }
 
+// 销售层级统计功能
+async function handleStats(req, res) {
+  let connection;
+  
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取销售层级统计数据
+    const [stats] = await connection.execute(`
+      SELECT 
+        COUNT(DISTINCT ps.id) as primary_sales_count,
+        COUNT(DISTINCT ss.id) as secondary_sales_count,
+        COUNT(DISTINCT CASE WHEN ss.id IS NOT NULL THEN ps.id END) as active_primary_sales,
+        AVG(ps.commission_rate) as avg_primary_commission_rate,
+        AVG(ss.commission_rate) as avg_secondary_commission_rate
+      FROM primary_sales ps
+      LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
+    `);
+    
+    res.status(200).json({
+      success: true,
+      data: stats[0] || {}
+    });
+    
+  } catch (error) {
+    console.error('销售层级统计错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取层级统计数据失败'
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
+
 // 销售层级关系功能
 async function handleRelationships(req, res) {
   let connection;
@@ -129,9 +166,7 @@ async function handleRelationships(req, res) {
       SELECT 
         COUNT(DISTINCT ps.id) as primary_sales_count,
         COUNT(DISTINCT ss.id) as secondary_sales_count,
-        COUNT(DISTINCT CASE WHEN ss.id IS NOT NULL THEN ps.id END) as active_primary_sales,
-        AVG(ps.commission_rate) as avg_primary_commission_rate,
-        AVG(ss.commission_rate) as avg_secondary_commission_rate
+        COUNT(DISTINCT CASE WHEN ss.id IS NOT NULL THEN ps.id END) as active_primary_sales
       FROM primary_sales ps
       LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
     `);

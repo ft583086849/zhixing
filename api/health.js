@@ -34,6 +34,17 @@ export default async function handler(req, res) {
   }
 
   try {
+    // 检查路径参数
+    const { path } = req.query;
+    
+    // 如果指定了路径且不是有效的路径，返回404
+    if (path && path !== 'health' && path !== 'status') {
+      return res.status(404).json({
+        success: false,
+        message: `路径不存在: ${path}`
+      });
+    }
+    
     // 测试数据库连接
     let dbStatus = { connected: false, error: null, message: '数据库连接失败' };
     

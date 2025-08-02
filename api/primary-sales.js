@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
     // 处理一级销售列表
     if (req.method === 'GET' && (path === 'list' || !path)) {
-      await handleList(req, res);
+      await handleGetPrimarySalesList(req, res, null);
       return;
     }
 
@@ -297,7 +297,14 @@ async function handleCreatePrimarySales(req, res, connection) {
 
 // 获取一级销售列表
 async function handleGetPrimarySalesList(req, res, connection) {
+  let shouldCloseConnection = false;
+  
   try {
+    if (!connection) {
+      connection = await mysql.createConnection(dbConfig);
+      shouldCloseConnection = true;
+    }
+    
     const [rows] = await connection.execute(
       `SELECT 
         ps.id,
@@ -324,6 +331,10 @@ async function handleGetPrimarySalesList(req, res, connection) {
       success: false,
       message: '获取一级销售列表失败'
     });
+  } finally {
+    if (shouldCloseConnection && connection) {
+      await connection.end();
+    }
   }
 }
 
