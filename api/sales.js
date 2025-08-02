@@ -46,7 +46,7 @@ async function verifyAdminAuth(req, res) {
   }
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
