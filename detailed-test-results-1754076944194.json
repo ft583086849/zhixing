@@ -1,0 +1,178 @@
+{
+  "timestamp": "2025-08-01T19:35:44.194Z",
+  "results": {
+    "startTime": "2025-08-01T19:35:08.578Z",
+    "endTime": "2025-08-01T19:35:44.147Z",
+    "totalTests": 35,
+    "passedTests": 26,
+    "failedTests": 9,
+    "bugs": [
+      {
+        "id": "BUG-1754076918469-9rkut",
+        "severity": "FUNCTIONAL",
+        "testName": "权限控制验证",
+        "stage": "",
+        "error": "未认证访问应该被拒绝",
+        "stack": "Error: 未认证访问应该被拒绝\n    at /Users/zzj/Documents/w/execute-detailed-test.js:199:15\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testAuthAPI (/Users/zzj/Documents/w/execute-detailed-test.js:196:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:72:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:18.469Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076924842-j54r7",
+        "severity": "FUNCTIONAL",
+        "testName": "一级销售结算数据",
+        "stage": "",
+        "error": "Request failed with status code 404",
+        "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:289:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testPrimarySalesAPI (/Users/zzj/Documents/w/execute-detailed-test.js:288:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:78:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:24.842Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076930048-zod98",
+        "severity": "FUNCTIONAL",
+        "testName": "管理员概览数据",
+        "stage": "",
+        "error": "Request failed with status code 404",
+        "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:379:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testAdminAPI (/Users/zzj/Documents/w/execute-detailed-test.js:378:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:87:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:30.048Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076930347-ne7vu",
+        "severity": "FUNCTIONAL",
+        "testName": "管理员订单管理",
+        "stage": "",
+        "error": "Request failed with status code 404",
+        "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:393:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testAdminAPI (/Users/zzj/Documents/w/execute-detailed-test.js:392:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:87:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:30.347Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076930649-tflyd",
+        "severity": "FUNCTIONAL",
+        "testName": "管理员销售管理",
+        "stage": "",
+        "error": "Request failed with status code 404",
+        "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:406:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testAdminAPI (/Users/zzj/Documents/w/execute-detailed-test.js:405:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:87:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:30.649Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076931448-nd5w4",
+        "severity": "FUNCTIONAL",
+        "testName": "数据导出功能",
+        "stage": "",
+        "error": "Request failed with status code 500",
+        "stack": "AxiosError: Request failed with status code 500\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:420:9\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testAdminAPI (/Users/zzj/Documents/w/execute-detailed-test.js:418:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:87:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:31.448Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076932741-dufjz",
+        "severity": "FUNCTIONAL",
+        "testName": "佣金统计数据",
+        "stage": "",
+        "error": "Request failed with status code 404",
+        "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:439:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testCommissionAPI (/Users/zzj/Documents/w/execute-detailed-test.js:438:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:90:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:32.741Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076934114-a2xf7",
+        "severity": "FUNCTIONAL",
+        "testName": "销售层级关系",
+        "stage": "",
+        "error": "Request failed with status code 404",
+        "stack": "AxiosError: Request failed with status code 404\n    at settle (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:2090:12)\n    at IncomingMessage.handleStreamEnd (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:3207:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (/Users/zzj/Documents/w/node_modules/axios/dist/node/axios.cjs:4317:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/zzj/Documents/w/execute-detailed-test.js:457:24\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testSalesHierarchyAPI (/Users/zzj/Documents/w/execute-detailed-test.js:456:5)\n    at async DetailedTestExecutor.testAllAPIs (/Users/zzj/Documents/w/execute-detailed-test.js:93:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:44:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:34.114Z",
+        "status": "未修复"
+      },
+      {
+        "id": "BUG-1754076942890-n2cjg",
+        "severity": "FUNCTIONAL",
+        "testName": "404错误处理",
+        "stage": "",
+        "error": "应该返回404错误",
+        "stack": "Error: 应该返回404错误\n    at /Users/zzj/Documents/w/execute-detailed-test.js:604:15\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async DetailedTestExecutor.test (/Users/zzj/Documents/w/execute-detailed-test.js:655:22)\n    at async DetailedTestExecutor.testErrorHandling (/Users/zzj/Documents/w/execute-detailed-test.js:601:5)\n    at async DetailedTestExecutor.start (/Users/zzj/Documents/w/execute-detailed-test.js:53:7)\n    at async main (/Users/zzj/Documents/w/execute-detailed-test.js:799:3)",
+        "timestamp": "2025-08-01T19:35:42.890Z",
+        "status": "未修复"
+      }
+    ],
+    "performance": {
+      "avgResponseTime": 1135.6923076923076,
+      "maxResponseTime": 926,
+      "minResponseTime": 926
+    },
+    "apiTests": {
+      "health": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "auth": {
+        "passed": 3,
+        "failed": 1,
+        "total": 4
+      },
+      "sales": {
+        "passed": 7,
+        "failed": 2,
+        "total": 9
+      },
+      "orders": {
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "admin": {
+        "passed": 2,
+        "failed": 4,
+        "total": 6
+      },
+      "commission": {
+        "passed": 0,
+        "failed": 1,
+        "total": 1
+      }
+    }
+  },
+  "summary": {
+    "totalTests": 35,
+    "passedTests": 26,
+    "failedTests": 9,
+    "successRate": "74.29%",
+    "bugCount": 9,
+    "apiTestResults": {
+      "health": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "auth": {
+        "passed": 3,
+        "failed": 1,
+        "total": 4
+      },
+      "sales": {
+        "passed": 7,
+        "failed": 2,
+        "total": 9
+      },
+      "orders": {
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "admin": {
+        "passed": 2,
+        "failed": 4,
+        "total": 6
+      },
+      "commission": {
+        "passed": 0,
+        "failed": 1,
+        "total": 1
+      }
+    }
+  }
+}
