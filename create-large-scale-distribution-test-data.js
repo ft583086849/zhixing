@@ -124,7 +124,7 @@ const createSubSecondarySales = async (registrationCode, index) => {
     };
 
     log(`尝试创建挂名二级销售 ${index}: ${wechatName}`, 'progress');
-    const response = await axios.post(`${BASE_URL}/secondary-sales?path=create`, secondaryData);
+    const response = await axios.post(`${BASE_URL}/secondary-sales?path=register`, secondaryData);
     
     if (!response.data.success) {
       throw new Error(response.data.message || '创建失败');

@@ -116,10 +116,10 @@ async function handleRegister(req, res) {
   } = req.body;
 
   // 验证必填字段
-  if (!wechat_name || !primary_sales_id || !payment_method || !payment_address) {
+  if (!wechat_name || !registration_code || !payment_method || !payment_address) {
     return res.status(400).json({
       success: false,
-      message: '微信号、一级销售ID、收款方式和收款地址为必填项'
+      message: '微信号、注册码、收款方式和收款地址为必填项'
     });
   }
 
@@ -163,6 +163,10 @@ async function handleRegister(req, res) {
         message: '注册码无效或已过期'
       });
     }
+
+    // 从注册链接中获取一级销售ID
+    const linkInfo = registrationLink[0];
+    const primary_sales_id = linkInfo.sales_id;
 
           // 检查微信号是否已存在
     const [existingSales] = await connection.execute(
