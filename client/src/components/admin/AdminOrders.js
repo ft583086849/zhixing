@@ -166,8 +166,8 @@ const AdminOrders = () => {
     },
     {
       title: '销售微信号',
-      dataIndex: 'sales_wechat',
-      key: 'sales_wechat',
+      dataIndex: 'sales_wechat_name',
+      key: 'sales_wechat_name',
       width: 120,
     },
     {
@@ -267,11 +267,9 @@ const AdminOrders = () => {
       width: 120,
       render: (status) => {
         const statusMap = {
-          'pending_review': { text: '待审核', color: 'orange' },
           'pending_payment_confirmation': { text: '待付款确认', color: 'orange' },
-          'confirmed_payment': { text: '已付款确认', color: 'blue' },
           'pending_configuration_confirmation': { text: '待配置确认', color: 'purple' },
-          'confirmed_configuration': { text: '已配置确认', color: 'green' },
+          'confirmed': { text: '已确认', color: 'green' },
           'active': { text: '已生效', color: 'green' },
           'expired': { text: '已过期', color: 'gray' },
           'cancelled': { text: '已取消', color: 'red' },

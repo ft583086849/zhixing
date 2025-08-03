@@ -352,7 +352,7 @@ async function handleCreateOrder(req, res, connection) {
           alipay_amount || null, 
           crypto_amount || null,
           commissionAmount, 
-          'pending_review',
+          duration === '7days' ? 'pending_configuration_confirmation' : 'pending_payment_confirmation',
           screenshotData,
           formatDateForMySQL(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 7天后过期
         ]
@@ -402,8 +402,19 @@ async function handleGetOrdersList(req, res, connection) {
   }
 
   const [rows] = await connection.execute(
-    `SELECT o.*, s.wechat_name, s.payment_method as sales_payment_method
+    `SELECT 
+       o.*,
+       COALESCE(ps.wechat_name, ss.wechat_name, s.wechat_name) as sales_wechat_name,
+       COALESCE(ps.payment_method, ss.payment_method, s.payment_method) as sales_payment_method,
+       CASE 
+         WHEN ps.id IS NOT NULL THEN 'primary'
+         WHEN ss.id IS NOT NULL THEN 'secondary' 
+         ELSE 'legacy'
+       END as sales_type
      FROM orders o 
+     LEFT JOIN links l ON o.link_code = l.link_code AND l.link_type = 'user_sales'
+     LEFT JOIN primary_sales ps ON l.sales_id = ps.id
+     LEFT JOIN secondary_sales ss ON l.sales_id = ss.id
      LEFT JOIN sales s ON o.link_code = s.link_code 
      ${whereClause}
      ORDER BY o.created_at DESC 
@@ -431,7 +442,7 @@ async function handleGetOrdersList(req, res, connection) {
 async function handleUpdateOrderStatus(req, res, connection, orderId) {
   const { status } = req.body;
 
-  if (!['pending_review', 'active', 'expired', 'cancelled'].includes(status)) {
+  if (!['pending_payment_confirmation', 'pending_configuration_confirmation', 'confirmed', 'active', 'expired', 'cancelled', 'rejected'].includes(status)) {
     return res.status(400).json({
       success: false,
       message: '无效的订单状态'
