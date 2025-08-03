@@ -35,7 +35,8 @@ export const getSalesByLink = createAsyncThunk(
       const response = await salesAPI.getSalesByLink(linkCode);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '获取失败');
+      // 销售链接不存在时显示友好提示
+      return rejectWithValue('下单拥挤，请等待');
     }
   }
 );

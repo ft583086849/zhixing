@@ -190,7 +190,8 @@ const PurchasePage = () => {
       setPurchaseType('immediate');
       setEffectiveTime(null);
     } catch (error) {
-      message.error(error || '提交失败');
+      // 用户购买失败友好提示 - 不显示技术错误信息
+      message.error('下单拥挤，请等待');
     }
   };
 
@@ -372,9 +373,9 @@ const PurchasePage = () => {
         <div className="content-container" role="main">
           <Card className="card-container" role="region">
             <Alert
-              message="链接无效"
-              description="该收款链接不存在或已失效"
-              type="error"
+              message="下单拥挤，请等待"
+              description={salesError || "系统繁忙，请稍后再试"}
+              type="warning"
               showIcon
             />
           </Card>
@@ -661,9 +662,9 @@ const PurchasePage = () => {
         {/* 错误提示 */}
         {orderError && (
           <Alert
-            message="错误"
+            message="下单拥挤，请等待"
             description={orderError}
-            type="error"
+            type="warning"
             showIcon
             style={{ marginTop: 16 }}
           />

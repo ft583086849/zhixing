@@ -9,7 +9,8 @@ export const createOrder = createAsyncThunk(
       const response = await ordersAPI.createOrder(orderData);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '创建订单失败');
+      // 订单创建失败时显示友好提示
+      return rejectWithValue('下单拥挤，请等待');
     }
   }
 );

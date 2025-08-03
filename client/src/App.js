@@ -73,6 +73,9 @@ function App() {
       </a>
 
         <Routes>
+          {/* 管理员登录页面 - 优先级最高 */}
+          <Route path="/admin" element={<Suspense fallback={<div>加载中...</div>}><AdminLoginPage /></Suspense>} />
+          
           {/* 销售页面 - 创建收款链接 */}
           <Route path="/sales" element={<Suspense fallback={<div>加载中...</div>}><SalesPage /></Suspense>} />
           
@@ -100,8 +103,7 @@ function App() {
           {/* 认证测试页面 */}
           <Route path="/auth-test" element={<Suspense fallback={<div>加载中...</div>}><AuthTestPage /></Suspense>} />
           
-          {/* 管理员登录页面 */}
-          <Route path="/admin" element={<Suspense fallback={<div>加载中...</div>}><AdminLoginPage /></Suspense>} />
+
           
           {/* 管理员后台页面 - 需要认证 */}
           <Route 
@@ -127,11 +129,18 @@ function App() {
             } 
           />
           
-          {/* 默认重定向到销售页面 */}
-          <Route path="/" element={<Suspense fallback={<div>加载中...</div>}><Navigate to="/sales" replace /></Suspense>} />
+          {/* 默认显示管理员登录页面 */}
+          <Route path="/" element={<Suspense fallback={<div>加载中...</div>}><AdminLoginPage /></Suspense>} />
           
-          {/* 404页面 - 仅对未匹配的路径重定向 */}
-          <Route path="*" element={<Suspense fallback={<div>加载中...</div>}><div style={{textAlign: 'center', padding: '50px'}}>页面未找到，正在跳转...</div></Suspense>} />
+          {/* 404页面 - 显示友好错误信息，不重定向 */}
+          <Route path="*" element={
+            <Suspense fallback={<div>加载中...</div>}>
+              <div style={{textAlign: 'center', padding: '50px', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                <h2>页面未找到</h2>
+                <p>请检查链接是否正确，或联系管理员</p>
+              </div>
+            </Suspense>
+          } />
         </Routes>
       </div>
     </Router>

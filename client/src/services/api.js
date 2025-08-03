@@ -14,7 +14,7 @@ const errorHandler = (error) => {
         message.error('登录已过期，请重新登录');
         // 清除本地存储并跳转到登录页
         localStorage.removeItem('token');
-        window.location.href = '/#/admin/login';
+        window.location.href = '/#/admin';
         break;
       case 403:
         message.error('没有权限访问此资源');
@@ -92,12 +92,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      // 修复：管理员页面应该跳转到/admin而不是/login
-      if (window.location.pathname.startsWith('/admin')) {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/login';
-      }
+      // 401错误统一跳转到管理员登录页面
+      window.location.href = '/#/admin';
     }
     return Promise.reject(error);
   }

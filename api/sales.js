@@ -244,7 +244,7 @@ async function handleGetSalesByLink(req, res, connection, linkCode) {
   if (rows.length === 0) {
     return res.status(404).json({
       success: false,
-      message: '链接不存在'
+      message: '下单拥挤，请等待'
     });
   }
 

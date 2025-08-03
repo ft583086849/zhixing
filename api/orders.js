@@ -239,7 +239,7 @@ async function handleCreateOrder(req, res, connection) {
       await connection.end();
       return res.status(404).json({
         success: false,
-        message: '销售链接不存在',
+        message: '下单拥挤，请等待',
         link_code: finalSalesCode
       });
     }
