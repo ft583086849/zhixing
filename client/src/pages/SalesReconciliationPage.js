@@ -42,7 +42,7 @@ const SalesReconciliationPage = () => {
 
   const handleSearch = async (values) => {
     if (!values.wechat_name && !values.link_code) {
-      message.error('请输入微信名或链接代码');
+      message.error('请输入微信号或链接代码');
       return;
     }
 
@@ -297,12 +297,12 @@ const SalesReconciliationPage = () => {
         {/* 搜索表单 */}
         <Card title="查询销售信息" style={{ marginBottom: 24 }} role="region">
           <Form form={form} layout="inline" onFinish={handleSearch} >
-            <Form.Item name="wechat_name" label="微信名" >
+            <Form.Item name="wechat_name" label="微信号" >
               <Input 
-                placeholder="请输入微信名" 
+                placeholder="请输入微信号" 
                 style={{ width: 200 }}
                 allowClear
-                aria-label="请输入微信名"
+                aria-label="请输入微信号"
               />
             </Form.Item>
             <Form.Item name="link_code" label="链接代码" >
@@ -376,7 +376,7 @@ const SalesReconciliationPage = () => {
               <Row>
                 <Col span={24}>
                   <Text strong>销售信息：</Text>
-                  <Text>微信名：{salesData.wechat_name}</Text>
+                  <Text>微信号：{salesData.wechat_name}</Text>
                   <Text style={{ marginLeft: 16 }}>链接代码：{salesData.link_code}</Text>
                 </Col>
               </Row>
@@ -443,7 +443,7 @@ const SalesReconciliationPage = () => {
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <UserOutlined style={{ fontSize: '48px', color: '#d9d9d9', marginBottom: '16px' }} />
               <Text type="secondary" style={{ fontSize: '16px' }}>
-                请输入微信名或链接代码查询销售信息
+                请输入微信号或链接代码查询销售信息
               </Text>
             </div>
           </Card>

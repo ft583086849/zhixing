@@ -115,11 +115,11 @@ async function handleGetPaymentConfig(req, res) {
     return res.json({
       success: true,
       data: {
-        alipay_account: '',
-        alipay_surname: '',
+        alipay_account: '752304285@qq.com',
+        alipay_surname: '梁',
         alipay_qr_code: '',
-        crypto_chain_name: '',
-        crypto_address: '',
+        crypto_chain_name: 'TRC10/TRC20',
+        crypto_address: 'TDnNfU9GYcDbzFqf8LUNzBuTsaDbCh5LTo',
         crypto_qr_code: ''
       }
     });

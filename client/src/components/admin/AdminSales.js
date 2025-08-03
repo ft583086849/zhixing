@@ -93,7 +93,7 @@ const AdminSales = () => {
     const exportData = sales.map(sale => ({
       '销售ID': sale.sales?.id,
       '销售类型': sale.sales?.sales_type === 'primary' ? '一级销售' : '二级销售',
-      '微信名称': sale.sales?.wechat_name,
+      '微信号': sale.sales?.wechat_name,
       '链接代码': sale.link_code,
       '层级关系': getHierarchyInfo(sale),
       '总订单数': sale.total_orders,

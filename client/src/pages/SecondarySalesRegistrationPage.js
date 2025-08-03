@@ -222,9 +222,9 @@ const SecondarySalesRegistrationPage = () => {
       <Card>
         <Steps current={currentStep} items={steps} style={{ marginBottom: '30px' }} />
         
-        <Title level={2}>二级销售注册</Title>
+        <Title level={2}>销售注册</Title>
         <Text type="secondary">
-          通过一级销售提供的注册码，注册成为二级销售，开始您的销售之旅。
+          通过一级销售提供的注册码，注册成为销售，开始您的销售之旅。
         </Text>
 
         <Divider />
@@ -241,13 +241,13 @@ const SecondarySalesRegistrationPage = () => {
             <Col span={12}>
               <Form.Item
                 name="wechat_name"
-                label="微信名称"
+                label="微信号"
                 rules={[
-                  { required: true, message: '请输入微信名称' },
-                  { min: 2, message: '微信名称至少2个字符' }
+                  { required: true, message: '请输入微信号' },
+                  { min: 2, message: '微信号至少2个字符' }
                 ]}
               >
-                <Input placeholder="请输入您的微信名称" />
+                <Input placeholder="请输入您的微信号" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -318,7 +318,7 @@ const SecondarySalesRegistrationPage = () => {
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit" loading={loading}>
-                注册二级销售
+                注册销售
               </Button>
               <Button onClick={() => navigate('/')}>
                 取消

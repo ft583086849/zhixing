@@ -174,7 +174,7 @@ const PrimarySalesSettlementPage = () => {
   // 二级销售列表表格列定义
   const secondarySalesColumns = [
     {
-      title: '微信名',
+      title: '微信号',
       dataIndex: 'wechat_name',
       key: 'wechat_name',
       width: 120,
@@ -370,7 +370,7 @@ const PrimarySalesSettlementPage = () => {
       >
         <Form form={commissionForm} layout="vertical">
           <Form.Item
-            label="二级销售微信名"
+            label="二级销售微信号"
           >
             <Input 
               value={selectedSecondarySales?.wechat_name} 

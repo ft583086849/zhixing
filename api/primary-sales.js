@@ -65,13 +65,23 @@ export default async function handler(req, res) {
 
     // 处理一级销售列表
     if (req.method === 'GET' && (path === 'list' || !path)) {
-      await handleList(req, res);
+      const connection = await mysql.createConnection(dbConfig);
+      try {
+        await handleGetPrimarySalesList(req, res, connection);
+      } finally {
+        await connection.end();
+      }
       return;
     }
 
     // 处理一级销售创建
     if (req.method === 'POST' && (path === 'create' || bodyPath === 'create')) {
-      await handleCreate(req, res);
+      const connection = await mysql.createConnection(dbConfig);
+      try {
+        await handleCreatePrimarySales(req, res, connection);
+      } finally {
+        await connection.end();
+      }
       return;
     }
 
@@ -181,7 +191,7 @@ async function handleCreatePrimarySales(req, res, connection) {
   if (!wechat_name || !payment_method || !payment_address) {
     return res.status(400).json({
       success: false,
-      message: '微信名称、收款方式和收款地址为必填项'
+              message: '微信号、收款方式和收款地址为必填项'
     });
   }
 
@@ -210,7 +220,7 @@ async function handleCreatePrimarySales(req, res, connection) {
   }
 
   try {
-    // 检查微信名是否已存在（包括一级销售、二级销售和普通销售）
+          // 检查微信号是否已存在（包括一级销售、二级销售和普通销售）
     const [existingSales] = await connection.execute(
       `SELECT wechat_name FROM primary_sales WHERE wechat_name = ? 
        UNION SELECT wechat_name FROM secondary_sales WHERE wechat_name = ? 
@@ -221,7 +231,7 @@ async function handleCreatePrimarySales(req, res, connection) {
     if (existingSales.length > 0) {
       return res.status(400).json({
         success: false,
-        message: '这个微信名已经被人使用了，请换一个'
+        message: '一个微信号仅支持一次注册。'
       });
     }
 
@@ -284,7 +294,7 @@ async function handleCreatePrimarySales(req, res, connection) {
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({
         success: false,
-        message: '这个微信名已经被人使用了，请换一个'
+        message: '一个微信号仅支持一次注册。'
       });
     }
 

@@ -142,7 +142,7 @@ const PurchasePage = () => {
         message.error('请选择生效时间');
         return;
       }
-      // 免费订单不需要验证付款金额
+      // 免费订单不需要验证付款金额和截图
       if (selectedDuration !== '7days') {
         if (paymentMethod === 'alipay' && !alipayAmount) {
           message.error('请输入支付宝付款金额');
@@ -150,6 +150,11 @@ const PurchasePage = () => {
         }
         if (paymentMethod === 'crypto' && !cryptoAmount) {
           message.error('请输入线上地址码付款金额');
+          return;
+        }
+        // 付款截图必填验证
+        if (fileList.length === 0) {
+          message.error('请上传付款截图');
           return;
         }
       }
@@ -421,14 +426,14 @@ const PurchasePage = () => {
               />
             </Form.Item>
 
-            {/* 用户微信名 */}
+            {/* 用户微信号 */}
             <Form.Item
               name="customer_wechat"
-              label="用户微信名"
-              rules={[{ required: true, message: '请输入用户微信名' }]}>
+              label="用户微信号"
+              rules={[{ required: true, message: '请输入用户微信号' }]}>
               <Input 
                 prefix={<UserOutlined />} 
-                placeholder="请输入用户微信名"
+                placeholder="请输入用户微信号"
                 size="large"
               />
             </Form.Item>
@@ -556,7 +561,10 @@ const PurchasePage = () => {
             {/* 付款截图 - 免费订单不显示 */}
             {selectedDuration !== '7days' && (
               <Form.Item
-                label="付款截图">
+                label="付款截图"
+                required
+                validateStatus={fileList.length === 0 ? 'error' : 'success'}
+                help={fileList.length === 0 ? '请上传付款截图' : ''}>
                 <Upload {...uploadProps} listType="picture">
                   <Button icon={<UploadOutlined />} size="large" tabIndex={0}>
                     上传截图

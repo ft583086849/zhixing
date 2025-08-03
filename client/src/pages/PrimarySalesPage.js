@@ -51,7 +51,8 @@ const PrimarySalesPage = () => {
   };
 
   const handleCopyLink = async (linkType) => {
-    const link = createdLinks?.[linkType];
+    const linkKey = linkType === 'secondary' ? 'secondary_registration_link' : 'user_sales_link';
+    const link = createdLinks?.[linkKey];
     if (link) {
       try {
         await navigator.clipboard.writeText(link);
@@ -63,7 +64,8 @@ const PrimarySalesPage = () => {
   };
 
   const handleCopyCode = async (linkType) => {
-    const code = createdLinks?.[`${linkType}_code`];
+    const codeKey = linkType === 'secondary' ? 'secondary_registration_code' : 'user_sales_code';
+    const code = createdLinks?.[codeKey];
     if (code) {
       try {
         await navigator.clipboard.writeText(code);
@@ -92,15 +94,15 @@ const PrimarySalesPage = () => {
             onFinish={handleSubmit}
             className="form-container"
            >
-            {/* 微信名称 */}
+            {/* 微信号 */}
             <Form.Item
               name="wechat_name"
-              label="微信名称"
-              rules={[{ required: true, message: '请输入微信名称' }]}
+              label="微信号"
+              rules={[{ required: true, message: '请输入微信号' }]}
              >
               <Input 
                 prefix={<UserOutlined />} 
-                placeholder="请输入微信名称"
+                placeholder="请输入微信号"
                 size="large"
               />
             </Form.Item>
@@ -234,7 +236,7 @@ const PrimarySalesPage = () => {
                           marginTop: '4px',
                           border: '1px solid #d9d9d9'
                         }}>
-                          {createdLinks.secondary}
+                          {createdLinks.secondary_registration_link}
                         </div>
                         <Button 
                           type="link" 
@@ -257,7 +259,7 @@ const PrimarySalesPage = () => {
                           marginTop: '4px',
                           border: '1px solid #d9d9d9'
                         }}>
-                          {createdLinks.secondary_code}
+                          {createdLinks.secondary_registration_code}
                         </div>
                         <Button 
                           type="link" 
@@ -297,7 +299,7 @@ const PrimarySalesPage = () => {
                           marginTop: '4px',
                           border: '1px solid #d9d9d9'
                         }}>
-                          {createdLinks.user}
+                          {createdLinks.user_sales_link}
                         </div>
                         <Button 
                           type="link" 
@@ -320,7 +322,7 @@ const PrimarySalesPage = () => {
                           marginTop: '4px',
                           border: '1px solid #d9d9d9'
                         }}>
-                          {createdLinks.user_code}
+                          {createdLinks.user_sales_code}
                         </div>
                         <Button 
                           type="link" 

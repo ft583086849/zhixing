@@ -32,7 +32,7 @@ const SalesPage = () => {
 
   // 设置页面标题
   useEffect(() => {
-    document.title = '销售页面';
+    document.title = '高阶销售注册';
   }, []);
 
   const handleSubmit = async (values) => {
@@ -76,7 +76,7 @@ const SalesPage = () => {
       <div className="content-container">
         <Card className="card-container" role="region">
           <Title level={2} style={{ textAlign: 'center', marginBottom: 32 }}>
-            销售页面
+            高阶销售注册
           </Title>
 
           <Form
@@ -85,15 +85,15 @@ const SalesPage = () => {
             onFinish={handleSubmit}
             className="form-container"
            >
-            {/* 微信名称 */}
+            {/* 微信号 */}
             <Form.Item
               name="wechat_name"
-              label="微信名称"
-              rules={[{ required: true, message: '请输入微信名称' }]}
+              label="微信号"
+              rules={[{ required: true, message: '请输入微信号' }]}
              >
               <Input 
                 prefix={<UserOutlined />} 
-                placeholder="请输入微信名称"
+                placeholder="请输入微信号"
                 size="large"
               />
             </Form.Item>

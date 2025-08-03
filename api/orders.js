@@ -185,10 +185,10 @@ async function handleCreateOrder(req, res, connection) {
       });
     }
 
-    // 验证销售代码是否存在（兼容link_code和sales_code）
+    // 验证销售代码是否存在（优先使用link_code以保持兼容性）
     const [salesRows] = await connection.execute(
-      'SELECT * FROM sales WHERE link_code = ? OR sales_code = ?',
-      [finalSalesCode, finalSalesCode]
+      'SELECT * FROM sales WHERE link_code = ?',
+      [finalSalesCode]
     );
 
     if (salesRows.length === 0) {
@@ -196,7 +196,7 @@ async function handleCreateOrder(req, res, connection) {
       return res.status(404).json({
         success: false,
         message: '销售链接不存在',
-        link_code
+        link_code: finalSalesCode
       });
     }
 
@@ -297,7 +297,7 @@ async function handleCreateOrder(req, res, connection) {
           alipay_amount, crypto_amount, commission_amount, status, screenshot_data, screenshot_expires_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          link_code, 
+          finalSalesCode, 
           tradingview_username, 
           customer_wechat || null, 
           duration, 
@@ -319,7 +319,7 @@ async function handleCreateOrder(req, res, connection) {
     // 更新销售统计
     await connection.execute(
       'UPDATE sales SET total_orders = total_orders + 1, total_revenue = total_revenue + ? WHERE link_code = ?',
-      [amount, link_code]
+      [amount, finalSalesCode]
     );
 
     await connection.end();

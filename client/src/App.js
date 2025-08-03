@@ -12,6 +12,7 @@ const SalesReconciliationPage = lazy(() => import('./pages/SalesReconciliationPa
 const AuthTestPage = lazy(() => import('./pages/AuthTestPage'));
 const PrimarySalesPage = lazy(() => import('./pages/PrimarySalesPage'));
 const PrimarySalesSettlementPage = lazy(() => import('./pages/PrimarySalesSettlementPage'));
+const SecondarySalesRegistrationPage = lazy(() => import('./pages/SecondarySalesRegistrationPage'));
 
 // 组件
 import LoadingSpinner from './components/LoadingSpinner';
@@ -75,6 +76,12 @@ function App() {
           {/* 销售页面 - 创建收款链接 */}
           <Route path="/sales" element={<Suspense fallback={<div>加载中...</div>}><SalesPage /></Suspense>} />
           
+          {/* 一级销售订单结算页面 */}
+          <Route path="/sales/commission" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesSettlementPage /></Suspense>} />
+          
+          {/* 二级销售对账页面 */}
+          <Route path="/sales/settlement" element={<Suspense fallback={<div>加载中...</div>}><SalesReconciliationPage /></Suspense>} />
+          
           {/* 用户购买页面 - 通过链接访问 */}
           <Route path="/purchase/:linkCode" element={<Suspense fallback={<div>加载中...</div>}><PurchasePage /></Suspense>} />
           
@@ -84,8 +91,11 @@ function App() {
           {/* 一级销售页面 */}
           <Route path="/primary-sales" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesPage /></Suspense>} />
           
-          {/* 一级销售订单结算页面 */}
+          {/* 一级销售订单结算页面（备用路径） */}
           <Route path="/primary-sales-settlement" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesSettlementPage /></Suspense>} />
+          
+          {/* 二级销售注册页面 */}
+          <Route path="/secondary-registration/:linkCode" element={<Suspense fallback={<div>加载中...</div>}><SecondarySalesRegistrationPage /></Suspense>} />
           
           {/* 认证测试页面 */}
           <Route path="/auth-test" element={<Suspense fallback={<div>加载中...</div>}><AuthTestPage /></Suspense>} />
@@ -95,10 +105,24 @@ function App() {
           
           {/* 管理员后台页面 - 需要认证 */}
           <Route 
+            path="/admin/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<div>加载中...</div>}>
+                  <AdminDashboardPage />
+                </Suspense>
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 管理员通配符路由 - 需要认证 */}
+          <Route 
             path="/admin/*" 
             element={
               <ProtectedRoute>
-                <AdminDashboardPage />
+                <Suspense fallback={<div>加载中...</div>}>
+                  <AdminDashboardPage />
+                </Suspense>
               </ProtectedRoute>
             } 
           />

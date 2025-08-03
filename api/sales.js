@@ -122,7 +122,7 @@ async function handleCreateSales(req, res, connection) {
   if (!wechat_name || !payment_method || !payment_address) {
     return res.status(400).json({
       success: false,
-      message: '微信名称、收款方式和收款地址为必填项'
+              message: '微信号、收款方式和收款地址为必填项'
     });
   }
 
@@ -154,7 +154,7 @@ async function handleCreateSales(req, res, connection) {
   const linkCode = uuidv4().replace(/-/g, '').substring(0, 16);
 
   try {
-    // 检查微信名是否已存在（包括一级销售和二级销售）
+          // 检查微信号是否已存在（包括一级销售和二级销售）
     const [existingSales] = await connection.execute(
       'SELECT wechat_name FROM sales WHERE wechat_name = ? UNION SELECT wechat_name FROM primary_sales WHERE wechat_name = ? UNION SELECT wechat_name FROM secondary_sales WHERE wechat_name = ?',
       [wechat_name, wechat_name, wechat_name]
@@ -163,14 +163,14 @@ async function handleCreateSales(req, res, connection) {
     if (existingSales.length > 0) {
       return res.status(400).json({
         success: false,
-        message: '这个微信名已经被人使用了，请换一个'
+        message: '一个微信号仅支持一次注册。'
       });
     }
   } catch (error) {
-    console.error('微信名去重校验错误:', error);
+            console.error('微信号去重校验错误:', error);
     return res.status(500).json({
       success: false,
-      message: '微信名校验失败，请稍后重试'
+                message: '微信号校验失败，请稍后重试'
     });
   }
 
@@ -214,7 +214,7 @@ async function handleCreateSales(req, res, connection) {
     if (dbError.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({
         success: false,
-        message: '这个微信名或链接代码已经存在，请重试'
+                  message: '这个微信号或链接代码已经存在，请重试'
       });
     }
     
@@ -301,7 +301,7 @@ async function handleExportSales(req, res, connection) {
     const exportData = rows.map(sale => ({
       '销售ID': sale.id,
       '销售类型': sale.sales_type === 'primary' ? '一级销售' : (sale.sales_type === 'secondary' ? '二级销售' : '普通销售'),
-      '微信名称': sale.wechat_name,
+              '微信号': sale.wechat_name,
       '链接代码': sale.link_code,
       '层级关系': sale.sales_type === 'secondary' ? `隶属于: ${sale.primary_sales_name || '未知'}` : 
                   sale.sales_type === 'primary' ? `管理 ${sale.secondary_sales_count} 个二级销售` : '独立销售',

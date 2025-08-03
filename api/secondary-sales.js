@@ -119,7 +119,7 @@ async function handleRegister(req, res) {
   if (!wechat_name || !primary_sales_id || !payment_method || !payment_address) {
     return res.status(400).json({
       success: false,
-      message: '微信名称、一级销售ID、收款方式和收款地址为必填项'
+      message: '微信号、一级销售ID、收款方式和收款地址为必填项'
     });
   }
 
@@ -164,7 +164,7 @@ async function handleRegister(req, res) {
       });
     }
 
-    // 检查微信名是否已存在
+          // 检查微信号是否已存在
     const [existingSales] = await connection.execute(
       `SELECT wechat_name FROM primary_sales WHERE wechat_name = ? 
        UNION SELECT wechat_name FROM secondary_sales WHERE wechat_name = ? 
@@ -176,7 +176,7 @@ async function handleRegister(req, res) {
       await connection.end();
       return res.status(400).json({
         success: false,
-        message: '这个微信名已经被人使用了，请换一个'
+        message: '一个微信号仅支持一次注册。'
       });
     }
 
@@ -229,7 +229,7 @@ async function handleRegister(req, res) {
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({
         success: false,
-        message: '这个微信名已经被人使用了，请换一个'
+        message: '一个微信号仅支持一次注册。'
       });
     }
 
