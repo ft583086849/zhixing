@@ -82,9 +82,15 @@ export default async function handler(req, res) {
       return;
     }
 
-    // 处理二级销售注册
+    // 处理二级销售注册（挂名）
     if (req.method === 'POST' && (path === 'register' || bodyPath === 'register')) {
       await handleRegister(req, res);
+      return;
+    }
+
+    // 处理独立二级销售创建
+    if (req.method === 'POST' && (path === 'create' || bodyPath === 'create')) {
+      await handleCreate(req, res);
       return;
     }
 
@@ -96,6 +102,108 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('二级销售API错误:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '服务器内部错误'
+    });
+  }
+}
+
+// 独立二级销售创建
+async function handleCreate(req, res) {
+  const { 
+    wechat_name, 
+    payment_method, 
+    payment_address, 
+    alipay_surname, 
+    chain_name
+  } = req.body;
+
+  // 验证必填字段
+  if (!wechat_name || !payment_method || !payment_address) {
+    return res.status(400).json({
+      success: false,
+      message: '微信号、收款方式和收款地址为必填项'
+    });
+  }
+
+  // 验证收款方式
+  if (!['alipay', 'crypto'].includes(payment_method)) {
+    return res.status(400).json({
+      success: false,
+      message: '收款方式只能是支付宝或线上地址码'
+    });
+  }
+
+  // 支付宝收款验证
+  if (payment_method === 'alipay' && !alipay_surname) {
+    return res.status(400).json({
+      success: false,
+      message: '支付宝收款需要填写收款人姓氏'
+    });
+  }
+
+  // 线上地址码验证
+  if (payment_method === 'crypto' && !chain_name) {
+    return res.status(400).json({
+      success: false,
+      message: '线上地址码需要填写链名'
+    });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    // 检查微信号是否已存在
+    const [existingSales] = await connection.execute(
+      `SELECT wechat_name FROM primary_sales WHERE wechat_name = ? 
+       UNION SELECT wechat_name FROM secondary_sales WHERE wechat_name = ? 
+       UNION SELECT wechat_name FROM sales WHERE wechat_name = ?`,
+      [wechat_name, wechat_name, wechat_name]
+    );
+
+    if (existingSales.length > 0) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        message: '一个微信号仅支持一次注册。'
+      });
+    }
+
+    // 生成唯一链接代码
+    const userSalesCode = uuidv4().replace(/-/g, '').substring(0, 16);
+
+    // 创建独立二级销售记录（不关联一级销售）
+    const [secondaryResult] = await connection.execute(
+      `INSERT INTO secondary_sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [wechat_name, payment_method, payment_address, alipay_surname || null, chain_name || null]
+    );
+
+    const secondarySalesId = secondaryResult.insertId;
+
+    // 为独立二级销售创建销售链接
+    await connection.execute(
+      `INSERT INTO links (link_code, sales_id, link_type, created_at)
+       VALUES (?, ?, 'secondary_sales', NOW())`,
+      [userSalesCode, secondarySalesId]
+    );
+
+    await connection.end();
+
+    res.json({
+      success: true,
+      message: '独立二级销售创建成功',
+      data: {
+        id: secondarySalesId,
+        wechat_name: wechat_name,
+        link_code: userSalesCode,
+        payment_method: payment_method
+      }
+    });
+
+  } catch (error) {
+    console.error('创建独立二级销售错误:', error);
     res.status(500).json({
       success: false,
       message: error.message || '服务器内部错误'

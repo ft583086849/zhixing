@@ -33,7 +33,7 @@ console.log('=====================================\n');
 console.log('📱 第1步: 创建销售链接');
 console.log('   点击链接: http://localhost:3000/#/sales');
 console.log('   操作步骤:');
-console.log('   - 输入微信名称: "测试销售"');
+console.log('   - 输入微信号: "测试销售"');
 console.log('   - 选择收款方式: "支付宝"');
 console.log('   - 点击"生成收款链接"');
 console.log('   - 复制生成的链接代码');

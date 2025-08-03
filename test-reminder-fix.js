@@ -58,7 +58,7 @@ async function testReminderFix() {
     console.log('   修复后: "已同customer004用户完成催单"');
     console.log('');
     console.log('✅ 修复要点:');
-    console.log('   1. 使用用户微信名而不是TradingView用户名');
+    console.log('   1. 使用用户微信号而不是TradingView用户名');
     console.log('   2. 消息格式更符合业务需求');
     console.log('   3. 显示"已同xxx用户完成催单"');
 
@@ -72,9 +72,9 @@ async function testReminderFix() {
     // 4. 测试边界情况
     console.log('\n4️⃣ 测试边界情况...');
     console.log('✅ 边界情况处理:');
-    console.log('   1. 用户微信名为空的情况');
-    console.log('   2. 特殊字符的用户微信名');
-    console.log('   3. 中英文混合的用户微信名');
+    console.log('   1. 用户微信号为空的情况');
+console.log('   2. 特殊字符的用户微信号');
+console.log('   3. 中英文混合的用户微信号');
 
     // 模拟边界情况
     const edgeCases = [
@@ -95,7 +95,7 @@ async function testReminderFix() {
 
     console.log('\n🎉 催单功能修复验证完成！');
     console.log('\n📋 修复总结:');
-    console.log('1. ✅ 催单消息使用用户微信名而不是TradingView用户名');
+    console.log('1. ✅ 催单消息使用用户微信号而不是TradingView用户名');
     console.log('2. ✅ 消息格式改为"已同xxx用户完成催单"');
     console.log('3. ✅ 数据完整性检查通过');
     console.log('4. ✅ 边界情况处理正确');

@@ -83,8 +83,8 @@ async function checkSalesTableStructure() {
         
         if (error.response.data.message.includes('服务器内部错误')) {
           console.log('  - 可能原因: 数据库表结构不匹配或SQL语句错误');
-        } else if (error.response.data.message.includes('微信名')) {
-          console.log('  - 可能原因: 微信名重复');
+            } else if (error.response.data.message.includes('微信号')) {
+      console.log('  - 可能原因: 微信号重复');
         }
       }
     }

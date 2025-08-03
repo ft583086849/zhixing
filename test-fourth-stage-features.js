@@ -118,7 +118,7 @@ async function testFourthStageFeatures() {
       const primarySales = primarySalesData[0];
       console.log('📊 一级销售层级信息:');
       console.log(`  - 销售ID: ${primarySales.id}`);
-      console.log(`  - 微信名: ${primarySales.wechat_name}`);
+      console.log(`  - 微信号: ${primarySales.wechat_name}`);
       console.log(`  - 二级销售数: ${primarySales.secondary_sales_count}`);
     }
     
@@ -126,7 +126,7 @@ async function testFourthStageFeatures() {
       const secondarySales = secondarySalesData[0];
       console.log('📊 二级销售层级信息:');
       console.log(`  - 销售ID: ${secondarySales.id}`);
-      console.log(`  - 微信名: ${secondarySales.wechat_name}`);
+      console.log(`  - 微信号: ${secondarySales.wechat_name}`);
       console.log(`  - 所属一级销售: ${secondarySales.primary_sales_name || '无'}`);
     }
     
@@ -137,7 +137,7 @@ async function testFourthStageFeatures() {
     const exportFields = [
       '销售ID',
       '销售类型', 
-      '微信名称',
+              '微信号',
       '链接代码',
       '层级关系',
       '总订单数',

@@ -210,7 +210,6 @@ const AdminSales = () => {
   const handleSalesTypeFilter = (value) => {
     setSalesTypeFilter(value);
     // 这里可以调用API重新获取数据，或者在前端过滤
-    console.log('销售类型筛选:', value);
   };
 
   // 获取销售类型标签

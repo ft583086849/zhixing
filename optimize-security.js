@@ -266,7 +266,7 @@ const orderValidation = [
   body('customer_wechat')
     .trim()
     .isLength({ min: 1, max: 100 })
-    .withMessage('用户微信名不能为空且长度不能超过100个字符'),
+    .withMessage('用户微信号不能为空且长度不能超过100个字符'),
   body('duration')
     .isIn(['7days', '1month', '3months', '6months', '1year', 'lifetime'])
     .withMessage('无效的购买时长'),

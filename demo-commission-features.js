@@ -78,7 +78,7 @@ async function demoCommissionFeatures() {
     // 6. 演示搜索功能组合
     console.log('🔍 搜索功能组合演示：');
     console.log('   支持以下搜索条件组合：');
-    console.log('   • 销售微信名称');
+    console.log('   • 销售微信号');
     console.log('   • 链接代码');
     console.log('   • 收款方式（支付宝/线上地址码）');
     console.log('   • 佣金比率');

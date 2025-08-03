@@ -48,7 +48,7 @@ function showTestLinks() {
   console.log('   链接: http://localhost:3000/#/sales');
   console.log('   功能: 创建销售收款信息，生成唯一链接');
   console.log('   测试步骤:');
-  console.log('   - 输入微信名称');
+  console.log('   - 输入微信号');
   console.log('   - 选择收款方式 (支付宝/链上地址)');
   console.log('   - 点击"生成收款链接"');
   console.log('   - 复制生成的链接代码');
@@ -119,7 +119,7 @@ function showCompleteTestFlow() {
   
   console.log('第1步: 销售页面测试');
   console.log('   1. 访问: http://localhost:3000/#/sales');
-  console.log('   2. 输入微信名称: "测试销售"');
+  console.log('   2. 输入微信号: "测试销售"');
   console.log('   3. 选择收款方式: "支付宝"');
   console.log('   4. 点击"生成收款链接"');
   console.log('   5. 复制生成的链接代码 (例如: c97f8695988d4495)');

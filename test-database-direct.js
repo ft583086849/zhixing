@@ -77,7 +77,7 @@ async function testDatabaseDirect() {
         const createTableSQL = `
           CREATE TABLE sales (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            wechat_name VARCHAR(100) NOT NULL COMMENT '微信名称',
+            wechat_name VARCHAR(100) NOT NULL COMMENT '微信号',
             payment_method ENUM('alipay', 'crypto') NOT NULL COMMENT '收款方式',
             payment_address VARCHAR(500) NOT NULL COMMENT '收款地址',
             alipay_surname VARCHAR(10) DEFAULT NULL COMMENT '支付宝收款人姓氏',

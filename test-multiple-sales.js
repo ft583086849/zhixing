@@ -1,12 +1,12 @@
 const axios = require('axios');
 
 async function testMultipleSales() {
-  console.log('🔍 开始使用多个不同微信名测试销售API...');
+  console.log('🔍 开始使用多个不同微信号测试销售API...');
   
   const baseURL = 'https://zhixing-seven.vercel.app/api';
   
   try {
-    // 生成多个不同的微信名
+    // 生成多个不同的微信号
     const testCases = [
       {
         name: '测试销售1',
@@ -140,13 +140,13 @@ async function testMultipleSales() {
       console.log(`📊 错误响应: ${JSON.stringify(error.response?.data)}`);
     }
     
-    console.log('\n🎉 多微信名测试完成！');
-    console.log('✅ 所有测试用例都使用了唯一的微信名');
-    console.log('✅ 避免了微信名重复导致的400错误');
+    console.log('\n🎉 多微信号测试完成！');
+console.log('✅ 所有测试用例都使用了唯一的微信号');
+console.log('✅ 避免了微信号重复导致的400错误');
     
     return {
       success: true,
-      message: '多微信名测试完成'
+      message: '多微信号测试完成'
     };
     
   } catch (error) {
