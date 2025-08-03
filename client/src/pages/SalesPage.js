@@ -18,14 +18,14 @@ import {
   LinkOutlined,
   CopyOutlined 
 } from '@ant-design/icons';
-import { createPrimarySales, clearCreatedLink } from '../store/slices/salesSlice';
+import { createPrimarySales, clearCreatedLinks } from '../store/slices/salesSlice';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 const SalesPage = () => {
   const dispatch = useDispatch();
-  const { loading, error, createdLink } = useSelector((state) => state.sales);
+  const { loading, error, createdLinks } = useSelector((state) => state.sales);
   const [form] = Form.useForm();
 
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -46,9 +46,9 @@ const SalesPage = () => {
   };
 
   const handleCopyUserLink = async () => {
-    if (createdLink?.user_sales_link) {
+    if (createdLinks?.user_sales_link) {
       try {
-        await navigator.clipboard.writeText(createdLink.user_sales_link);
+        await navigator.clipboard.writeText(createdLinks.user_sales_link);
         message.success('用户购买链接已复制到剪贴板');
       } catch (err) {
         message.error('复制失败');
@@ -57,9 +57,9 @@ const SalesPage = () => {
   };
 
   const handleCopySecondaryLink = async () => {
-    if (createdLink?.secondary_registration_link) {
+    if (createdLinks?.secondary_registration_link) {
       try {
-        await navigator.clipboard.writeText(createdLink.secondary_registration_link);
+        await navigator.clipboard.writeText(createdLinks.secondary_registration_link);
         message.success('二级销售注册链接已复制到剪贴板');
       } catch (err) {
         message.error('复制失败');
@@ -68,9 +68,9 @@ const SalesPage = () => {
   };
 
   const handleCopyUserCode = async () => {
-    if (createdLink?.user_sales_code) {
+    if (createdLinks?.user_sales_code) {
       try {
-        await navigator.clipboard.writeText(createdLink.user_sales_code);
+        await navigator.clipboard.writeText(createdLinks.user_sales_code);
         message.success('用户购买代码已复制到剪贴板');
       } catch (err) {
         message.error('复制失败');
@@ -79,9 +79,9 @@ const SalesPage = () => {
   };
 
   const handleCopySecondaryCode = async () => {
-    if (createdLink?.secondary_registration_code) {
+    if (createdLinks?.secondary_registration_code) {
       try {
-        await navigator.clipboard.writeText(createdLink.secondary_registration_code);
+        await navigator.clipboard.writeText(createdLinks.secondary_registration_code);
         message.success('二级销售注册代码已复制到剪贴板');
       } catch (err) {
         message.error('复制失败');
@@ -90,7 +90,7 @@ const SalesPage = () => {
   };
 
   const clearLink = () => {
-    dispatch(clearCreatedLink());
+    dispatch(clearCreatedLinks());
   };
 
   return (
@@ -220,7 +220,7 @@ const SalesPage = () => {
           )}
 
           {/* 生成的链接 */}
-          {createdLink && (
+          {createdLinks && (
             <div style={{ marginTop: 32 }}>
               <Divider>生成的收款链接</Divider>
               
@@ -242,7 +242,7 @@ const SalesPage = () => {
                         marginTop: '4px',
                         border: '1px solid #d9d9d9'
                       }}>
-                        {createdLink.user_sales_link}
+                        {createdLinks.user_sales_link}
                       </div>
                       <Button 
                         type="link" 
@@ -265,7 +265,7 @@ const SalesPage = () => {
                         marginTop: '4px',
                         border: '1px solid #d9d9d9'
                       }}>
-                        {createdLink.user_sales_code}
+                        {createdLinks.user_sales_code}
                       </div>
                       <Button 
                         type="link" 
@@ -297,7 +297,7 @@ const SalesPage = () => {
                         marginTop: '4px',
                         border: '1px solid #d9d9d9'
                       }}>
-                        {createdLink.secondary_registration_link}
+                        {createdLinks.secondary_registration_link}
                       </div>
                       <Button 
                         type="link" 
@@ -320,7 +320,7 @@ const SalesPage = () => {
                         marginTop: '4px',
                         border: '1px solid #d9d9d9'
                       }}>
-                        {createdLink.secondary_registration_code}
+                        {createdLinks.secondary_registration_code}
                       </div>
                       <Button 
                         type="link" 
