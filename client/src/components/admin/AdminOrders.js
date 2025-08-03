@@ -71,6 +71,12 @@ const AdminOrders = () => {
       delete queryParams.config_date_range;
     }
 
+    if (searchValues.expiry_date_range && searchValues.expiry_date_range.length === 2) {
+      queryParams.expiry_start_date = searchValues.expiry_date_range[0].format('YYYY-MM-DD');
+      queryParams.expiry_end_date = searchValues.expiry_date_range[1].format('YYYY-MM-DD');
+      delete queryParams.expiry_date_range;
+    }
+
     dispatch(getAdminOrders(queryParams));
   };
 
@@ -159,9 +165,9 @@ const AdminOrders = () => {
       fixed: 'left',
     },
     {
-      title: '销售微信',
-      dataIndex: ['links', 'sales', 'wechat_name'],
-      key: 'wechat_name',
+      title: '销售微信号',
+      dataIndex: 'sales_wechat',
+      key: 'sales_wechat',
       width: 120,
     },
     {
@@ -208,10 +214,10 @@ const AdminOrders = () => {
     },
     {
       title: '到期时间',
-      dataIndex: 'expiry_date',
-      key: 'expiry_date',
+      dataIndex: 'expiry_time',
+      key: 'expiry_time',
       width: 150,
-      render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (time) => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
       title: '应付金额',
@@ -261,10 +267,14 @@ const AdminOrders = () => {
       width: 120,
       render: (status) => {
         const statusMap = {
+          'pending_review': { text: '待审核', color: 'orange' },
           'pending_payment_confirmation': { text: '待付款确认', color: 'orange' },
           'confirmed_payment': { text: '已付款确认', color: 'blue' },
           'pending_configuration_confirmation': { text: '待配置确认', color: 'purple' },
           'confirmed_configuration': { text: '已配置确认', color: 'green' },
+          'active': { text: '已生效', color: 'green' },
+          'expired': { text: '已过期', color: 'gray' },
+          'cancelled': { text: '已取消', color: 'red' },
           'rejected': { text: '已拒绝', color: 'red' }
         };
         const statusInfo = statusMap[status] || { text: status, color: 'default' };
@@ -316,7 +326,52 @@ const AdminOrders = () => {
       width: 150,
       render: (_, record) => (
         <Space size="small">
-          {record.status === 'pending_payment_confirmation' && (
+          {/* 待审核状态的操作 */}
+          {record.status === 'pending_review' && (
+            <>
+              <Button 
+                type="link" 
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => handleUpdateStatus(record.id, record.duration === '7days' ? 'pending_configuration_confirmation' : 'pending_payment_confirmation')}
+              >
+                审核通过
+              </Button>
+              <Button 
+                type="link" 
+                size="small"
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => handleUpdateStatus(record.id, 'rejected')}
+              >
+                拒绝
+              </Button>
+            </>
+          )}
+          {/* 7天免费订单直接显示待配置确认 */}
+          {record.status === 'pending_configuration_confirmation' && record.duration === '7days' && (
+            <>
+              <Button 
+                type="link" 
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
+              >
+                确认配置
+              </Button>
+              <Button 
+                type="link" 
+                size="small"
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => handleUpdateStatus(record.id, 'rejected')}
+              >
+                拒绝
+              </Button>
+            </>
+          )}
+          {/* 付费订单的付款确认流程 */}
+          {record.status === 'pending_payment_confirmation' && record.duration !== '7days' && (
             <>
               <Button 
                 type="link" 
@@ -349,7 +404,8 @@ const AdminOrders = () => {
               </Button>
             </>
           )}
-          {record.status === 'pending_configuration_confirmation' && (
+          {/* 付费订单的配置确认流程 */}
+          {record.status === 'pending_configuration_confirmation' && record.duration !== '7days' && (
             <>
               <Button 
                 type="link" 
@@ -383,10 +439,27 @@ const AdminOrders = () => {
       <Card style={{ marginBottom: 16 }}>
         <Form form={searchForm} layout="inline">
           <Row gutter={[16, 16]} style={{ width: '100%' }}>
-
+            <Col xs={24} sm={12} md={6}>
+                          <Form.Item name="sales_wechat" label="销售微信号">
+              <Input placeholder="请输入销售微信号" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="tradingview_username" label="TradingView用户">
+                <Input placeholder="请输入TradingView用户" />
+              </Form.Item>
+            </Col>
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="link_code" label="链接代码">
                 <Input placeholder="请输入链接代码" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="purchase_type" label="购买方式">
+                <Select placeholder="请选择购买方式" allowClear>
+                  <Option value="immediate">即时购买</Option>
+                  <Option value="advance">提前购买</Option>
+                </Select>
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -397,7 +470,6 @@ const AdminOrders = () => {
                 </Select>
               </Form.Item>
             </Col>
-
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="status" label="订单状态">
                 <Select placeholder="请选择状态" allowClear>
@@ -424,7 +496,11 @@ const AdminOrders = () => {
                 <RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="expiry_date_range" label="到期时间">
+                <RangePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
             <Col xs={24} sm={12} md={6}>
               <Space>
                 <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>

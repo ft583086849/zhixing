@@ -146,7 +146,8 @@ export default async function handler(req, res) {
 async function handleCreateOrder(req, res, connection) {
   try {
     const {
-      link_code,
+      sales_code,
+      link_code, // 兼容性支持
       tradingview_username,
       customer_wechat,
       duration,
@@ -162,9 +163,12 @@ async function handleCreateOrder(req, res, connection) {
     console.log('文件信息:', req.file);
     console.log('amount类型:', typeof amount, '值:', amount);
 
+    // 处理销售代码兼容性：优先使用sales_code，如果没有则使用link_code
+    let finalSalesCode = sales_code || link_code;
+    
     // 验证必填字段
     const missingFields = [];
-    if (!link_code) missingFields.push('link_code');
+    if (!finalSalesCode) missingFields.push('sales_code/link_code');
     if (!tradingview_username) missingFields.push('tradingview_username');
     if (!duration) missingFields.push('duration');
     if (amount === undefined || amount === null || amount === '' || (typeof amount === 'string' && amount.trim() === '')) missingFields.push('amount');
@@ -177,14 +181,14 @@ async function handleCreateOrder(req, res, connection) {
         success: false,
         message: `缺少必填字段: ${missingFields.join(', ')}`,
         missingFields: missingFields,
-        received: { link_code, tradingview_username, duration, amount, payment_method, payment_time }
+        received: { sales_code: finalSalesCode, link_code, tradingview_username, duration, amount, payment_method, payment_time }
       });
     }
 
-    // 验证链接代码是否存在
+    // 验证销售代码是否存在（兼容link_code和sales_code）
     const [salesRows] = await connection.execute(
-      'SELECT * FROM sales WHERE link_code = ?',
-      [link_code]
+      'SELECT * FROM sales WHERE link_code = ? OR sales_code = ?',
+      [finalSalesCode, finalSalesCode]
     );
 
     if (salesRows.length === 0) {

@@ -125,10 +125,9 @@ const AdminSales = () => {
   };
 
   // 复制链接
-  const handleCopyLink = async (linkCode) => {
-    const link = `${window.location.origin}/#/purchase/${linkCode}`;
+  const handleCopyLink = async (fullUrl) => {
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(fullUrl);
       message.success('链接已复制到剪贴板');
     } catch (error) {
       message.error('复制失败');
@@ -250,7 +249,7 @@ const AdminSales = () => {
       render: (_, record) => getSalesTypeTag(record.sales?.sales_type || 'secondary'),
     },
     {
-      title: '销售微信',
+      title: '销售微信号',
       dataIndex: ['sales', 'wechat_name'],
       key: 'wechat_name',
       width: 120,
@@ -268,21 +267,58 @@ const AdminSales = () => {
       ),
     },
     {
-      title: '链接代码',
-      dataIndex: 'link_code',
-      key: 'link_code',
-      width: 120,
-      render: (code) => (
-        <Space size="small">
-          <span>{code}</span>
-          <Tooltip title="复制链接代码">
-            <Button
-              type="link"
-              icon={<CopyOutlined />}
-              onClick={() => handleCopyCode(code)}
-            />
-          </Tooltip>
-        </Space>
+      title: '销售链接',
+      key: 'links',
+      width: 300,
+      render: (_, record) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {record.links && record.links.map((link, index) => (
+            <div key={index} style={{ 
+              padding: 8, 
+              border: '1px solid #e8e8e8', 
+              borderRadius: 4, 
+              backgroundColor: '#fafafa' 
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                marginBottom: 4 
+              }}>
+                <Tag color={link.type === 'sales_register' ? 'orange' : 'blue'}>
+                  {link.title}
+                </Tag>
+                <Space size="small">
+                  <Tooltip title="复制链接">
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={() => handleCopyLink(link.fullUrl)}
+                    />
+                  </Tooltip>
+                  <Tooltip title="复制代码">
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={() => handleCopyCode(link.code)}
+                    />
+                  </Tooltip>
+                </Space>
+              </div>
+              <div style={{ fontSize: 12, color: '#666' }}>
+                代码: {link.code}
+              </div>
+              <div style={{ fontSize: 11, color: '#999' }}>
+                {link.description}
+              </div>
+            </div>
+          ))}
+          {(!record.links || record.links.length === 0) && (
+            <span style={{ color: '#ccc' }}>暂无链接</span>
+          )}
+        </div>
       )
     },
     {
@@ -438,20 +474,8 @@ const AdminSales = () => {
       }
     },
     {
-      title: '层级关系',
-      key: 'hierarchy',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          {getSalesTypeTag(record.sales_type)}
-          <Divider type="vertical" />
-          <span>{getHierarchyInfo(record)}</span>
-        </Space>
-      )
-    },
-    {
       title: '创建时间',
-      dataIndex: ['sales', 'created_at'],
+      dataIndex: 'created_at',
       key: 'created_at',
       width: 150,
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
@@ -481,7 +505,7 @@ const AdminSales = () => {
           <Col xs={24} sm={12} md={6}>
             <Form.Item name="search" style={{ marginBottom: 0 }}>
               <Input
-                placeholder="搜索微信名或链接代码"
+                placeholder="搜索微信号或链接代码"
                 prefix={<SearchOutlined />}
                 allowClear
               />

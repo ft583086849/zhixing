@@ -2,6 +2,17 @@
 const mysql = require('mysql2/promise');
 const jwt = require('jsonwebtoken');
 
+// 内联销售链接生成函数，避免导入路径问题
+function generateFullLink(code, type, baseUrl = process.env.FRONTEND_URL || 'https://zhixing-seven.vercel.app') {
+  if (type === 'sales_register') {
+    return `${baseUrl}/#/sales/register/${code}`;
+  } else if (type === 'user_purchase') {
+    return `${baseUrl}/#/purchase/${code}`;
+  } else {
+    throw new Error(`不支持的链接类型: ${type}`);
+  }
+}
+
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -102,9 +113,21 @@ export default async function handler(req, res) {
       return;
     }
 
+    // 处理客户管理
+    if (req.method === 'GET' && path === 'customers') {
+      await handleCustomers(req, res);
+      return;
+    }
+
     // 处理数据导出
     if (req.method === 'GET' && path === 'export') {
       await handleDataExport(req, res);
+      return;
+    }
+
+    // 处理催单功能
+    if (req.method === 'POST' && path === 'remind') {
+      await handleRemindCustomer(req, res);
       return;
     }
 
@@ -797,4 +820,70 @@ async function handleStats(req, res) {
       success: true,
       data: stats
   });
+}
+
+// 客户管理功能
+async function handleCustomers(req, res) {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    // 简化的客户数据返回
+    const [customers] = await connection.execute(`
+      SELECT 
+        o.customer_wechat,
+        o.tradingview_username,
+        s.wechat_name as sales_wechat,
+        COUNT(o.id) as total_orders,
+        SUM(o.amount) as total_amount,
+        MAX(o.expiry_time) as expiry_date,
+        MAX(o.is_reminded) as is_reminded,
+        MAX(o.reminder_date) as reminder_date
+      FROM orders o
+      LEFT JOIN sales s ON (o.link_code = s.link_code OR o.sales_code = s.sales_code)
+      GROUP BY o.customer_wechat, o.tradingview_username, s.wechat_name
+      ORDER BY expiry_date ASC
+      LIMIT 100
+    `);
+    
+    res.status(200).json({
+      success: true,
+      data: { customers: customers || [] }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+// 催单功能
+async function handleRemindCustomer(req, res) {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const { customer_wechat, tradingview_username } = req.body;
+    
+    if (!customer_wechat || !tradingview_username) {
+      return res.status(400).json({
+        success: false,
+        message: "客户微信和TradingView用户名不能为空"
+      });
+    }
+    
+    const [result] = await connection.execute(`
+      UPDATE orders 
+      SET is_reminded = TRUE, reminder_date = NOW()
+      WHERE customer_wechat = ? AND tradingview_username = ?
+    `, [customer_wechat, tradingview_username]);
+    
+    res.status(200).json({
+      success: true,
+      message: "催单成功",
+      data: { affected_rows: result.affectedRows }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    if (connection) await connection.end();
+  }
 }
