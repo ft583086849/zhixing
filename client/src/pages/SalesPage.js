@@ -18,7 +18,7 @@ import {
   LinkOutlined,
   CopyOutlined 
 } from '@ant-design/icons';
-import { createSales, clearCreatedLink } from '../store/slices/salesSlice';
+import { createPrimarySales, clearCreatedLink } from '../store/slices/salesSlice';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -37,7 +37,7 @@ const SalesPage = () => {
 
   const handleSubmit = async (values) => {
     try {
-      await dispatch(createSales(values)).unwrap();
+      await dispatch(createPrimarySales(values)).unwrap();
       message.success('销售收款信息创建成功！');
       form.resetFields();
     } catch (error) {
@@ -45,22 +45,44 @@ const SalesPage = () => {
     }
   };
 
-  const handleCopyLink = async () => {
-    if (createdLink?.full_link) {
+  const handleCopyUserLink = async () => {
+    if (createdLink?.user_sales_link) {
       try {
-        await navigator.clipboard.writeText(createdLink.full_link);
-        message.success('链接已复制到剪贴板');
+        await navigator.clipboard.writeText(createdLink.user_sales_link);
+        message.success('用户购买链接已复制到剪贴板');
       } catch (err) {
         message.error('复制失败');
       }
     }
   };
 
-  const handleCopyCode = async () => {
-    if (createdLink?.link_code) {
+  const handleCopySecondaryLink = async () => {
+    if (createdLink?.secondary_registration_link) {
       try {
-        await navigator.clipboard.writeText(createdLink.link_code);
-        message.success('链接代码已复制到剪贴板');
+        await navigator.clipboard.writeText(createdLink.secondary_registration_link);
+        message.success('二级销售注册链接已复制到剪贴板');
+      } catch (err) {
+        message.error('复制失败');
+      }
+    }
+  };
+
+  const handleCopyUserCode = async () => {
+    if (createdLink?.user_sales_code) {
+      try {
+        await navigator.clipboard.writeText(createdLink.user_sales_code);
+        message.success('用户购买代码已复制到剪贴板');
+      } catch (err) {
+        message.error('复制失败');
+      }
+    }
+  };
+
+  const handleCopySecondaryCode = async () => {
+    if (createdLink?.secondary_registration_code) {
+      try {
+        await navigator.clipboard.writeText(createdLink.secondary_registration_code);
+        message.success('二级销售注册代码已复制到剪贴板');
       } catch (err) {
         message.error('复制失败');
       }
@@ -202,63 +224,125 @@ const SalesPage = () => {
             <div style={{ marginTop: 32 }}>
               <Divider>生成的收款链接</Divider>
               
-              <Card style={{ backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }} role="region">
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <div>
-                    <Text strong>完整链接：</Text>
-                    <div style={{ 
-                      wordBreak: 'break-all', 
-                      backgroundColor: 'white',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      marginTop: '4px',
-                      border: '1px solid #d9d9d9'
-                    }}>
-                      {createdLink.full_link}
+              <Space direction="vertical" style={{ width: '100%' }} size="large">
+                {/* 用户购买链接 */}
+                <Card 
+                  title="💰 用户购买链接" 
+                  style={{ backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }} 
+                  role="region"
+                >
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <Text strong>用户购买链接：</Text>
+                      <div style={{ 
+                        wordBreak: 'break-all', 
+                        backgroundColor: 'white',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        marginTop: '4px',
+                        border: '1px solid #d9d9d9'
+                      }}>
+                        {createdLink.user_sales_link}
+                      </div>
+                      <Button 
+                        type="link" 
+                        icon={<CopyOutlined />}
+                        onClick={handleCopyUserLink}
+                        style={{ padding: 0, marginTop: '4px' }}
+                        tabIndex={0}
+                      >
+                        复制用户购买链接
+                      </Button>
                     </div>
-                    <Button 
-                      type="link" 
-                      icon={<CopyOutlined />}
-                      onClick={handleCopyLink}
-                      style={{ padding: 0, marginTop: '4px' }}
-                      tabIndex={0}
-                    >
-                      复制链接
-                    </Button>
-                  </div>
 
-                  <div>
-                    <Text strong>链接代码：</Text>
-                    <div style={{ 
-                      wordBreak: 'break-all', 
-                      backgroundColor: 'white',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      marginTop: '4px',
-                      border: '1px solid #d9d9d9'
-                    }}>
-                      {createdLink.link_code}
+                    <div>
+                      <Text strong>用户购买代码：</Text>
+                      <div style={{ 
+                        wordBreak: 'break-all', 
+                        backgroundColor: 'white',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        marginTop: '4px',
+                        border: '1px solid #d9d9d9'
+                      }}>
+                        {createdLink.user_sales_code}
+                      </div>
+                      <Button 
+                        type="link" 
+                        icon={<CopyOutlined />}
+                        onClick={handleCopyUserCode}
+                        style={{ padding: 0, marginTop: '4px' }}
+                        tabIndex={0}
+                      >
+                        复制用户购买代码
+                      </Button>
                     </div>
-                    <Button 
-                      type="link" 
-                      icon={<CopyOutlined />}
-                      onClick={handleCopyCode}
-                      style={{ padding: 0, marginTop: '4px' }}
-                      tabIndex={0}
-                    >
-                      复制代码
-                    </Button>
-                  </div>
+                  </Space>
+                </Card>
 
-                  <Button 
-                    type="default" 
-                    onClick={clearLink}
-                    style={{ marginTop: '8px' }}
-                   tabIndex={0}>
-                    生成新链接
-                  </Button>
-                </Space>
-              </Card>
+                {/* 二级销售注册链接 */}
+                <Card 
+                  title="👥 二级销售注册链接" 
+                  style={{ backgroundColor: '#fff7e6', borderColor: '#ffd591' }} 
+                  role="region"
+                >
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <Text strong>二级销售注册链接：</Text>
+                      <div style={{ 
+                        wordBreak: 'break-all', 
+                        backgroundColor: 'white',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        marginTop: '4px',
+                        border: '1px solid #d9d9d9'
+                      }}>
+                        {createdLink.secondary_registration_link}
+                      </div>
+                      <Button 
+                        type="link" 
+                        icon={<CopyOutlined />}
+                        onClick={handleCopySecondaryLink}
+                        style={{ padding: 0, marginTop: '4px' }}
+                        tabIndex={0}
+                      >
+                        复制二级销售注册链接
+                      </Button>
+                    </div>
+
+                    <div>
+                      <Text strong>二级销售注册代码：</Text>
+                      <div style={{ 
+                        wordBreak: 'break-all', 
+                        backgroundColor: 'white',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        marginTop: '4px',
+                        border: '1px solid #d9d9d9'
+                      }}>
+                        {createdLink.secondary_registration_code}
+                      </div>
+                      <Button 
+                        type="link" 
+                        icon={<CopyOutlined />}
+                        onClick={handleCopySecondaryCode}
+                        style={{ padding: 0, marginTop: '4px' }}
+                        tabIndex={0}
+                      >
+                        复制二级销售注册代码
+                      </Button>
+                    </div>
+                  </Space>
+                </Card>
+
+                <Button 
+                  type="default" 
+                  onClick={clearLink}
+                  style={{ marginTop: '8px' }}
+                 tabIndex={0}>
+                  生成新链接
+                </Button>
+              </Space>
             </div>
           )}
         </Card>

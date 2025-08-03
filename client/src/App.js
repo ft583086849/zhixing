@@ -130,8 +130,8 @@ function App() {
           {/* 默认重定向到销售页面 */}
           <Route path="/" element={<Suspense fallback={<div>加载中...</div>}><Navigate to="/sales" replace /></Suspense>} />
           
-          {/* 404页面 - 排除管理员路径 */}
-          <Route path="*" element={<Suspense fallback={<div>加载中...</div>}><Navigate to="/sales" replace /></Suspense>} />
+          {/* 404页面 - 仅对未匹配的路径重定向 */}
+          <Route path="*" element={<Suspense fallback={<div>加载中...</div>}><div style={{textAlign: 'center', padding: '50px'}}>页面未找到，正在跳转...</div></Suspense>} />
         </Routes>
       </div>
     </Router>
