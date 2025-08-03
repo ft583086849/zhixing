@@ -4,19 +4,14 @@
   "description": "支付管理系统",
   "main": "server/index.js",
   "scripts": {
-    "start": "cd server && npm start",
+    "start": "echo '✅ 前端已部署到Vercel，API为Serverless Functions'",
     "build": "cd client && npm install && npm run build",
-    "install-server": "cd server && npm install",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm start",
+    "dev": "cd client && npm start",
     "client": "cd client && npm start",
     "build-client": "cd client && npm run build",
-    "deploy": "chmod +x deploy.sh && ./deploy.sh",
-    "deploy-sqlite": "chmod +x deploy-sqlite.sh && ./deploy-sqlite.sh",
-    "local-start": "chmod +x start.sh && ./start.sh",
-    "migrate": "cd server && node scripts/migrate.js",
     "test": "cd test && node test-system.js",
-    "vercel-build": "cd client && npm install && npm run build"
+    "vercel-build": "cd client && npm install && npm run build",
+    "local-test": "echo '🧪 运行本地测试' && cd test && node test-system.js"
   },
   "keywords": [
     "payment",
