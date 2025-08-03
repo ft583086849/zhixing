@@ -105,7 +105,7 @@ const AdminDashboardPage = () => {
         fontSize: '18px',
         fontWeight: 'bold'
       }}>
-        测试：AdminDashboardPage 组件已加载 - 时间: {new Date().toLocaleString()}
+        管理员控制面板
       </div>
       <Layout style={{ minHeight: '100vh' }}>
         <Sider 

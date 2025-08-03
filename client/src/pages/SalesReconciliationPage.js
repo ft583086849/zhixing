@@ -161,7 +161,7 @@ const SalesReconciliationPage = () => {
       width: 80,
     },
     {
-      title: '用户微信',
+      title: '用户微信号',
       dataIndex: 'customer_wechat',
       key: 'customer_wechat',
       width: 120,
@@ -223,8 +223,8 @@ const SalesReconciliationPage = () => {
       width: 100,
       render: (status) => {
         const statusMap = {
-          'pending_payment_confirmation': { text: '待付款确认', color: 'processing' },
-          'pending_configuration_confirmation': { text: '待配置确认', color: 'warning' },
+                  'pending_payment': { text: '待付款确认', color: 'processing' },
+        'pending_config': { text: '待配置确认', color: 'warning' },
           'confirmed_payment': { text: '已付款确认', color: 'success' },
           'confirmed_configuration': { text: '已配置确认', color: 'success' },
           'rejected': { text: '已拒绝', color: 'error' }

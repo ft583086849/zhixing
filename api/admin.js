@@ -234,12 +234,20 @@ async function handleOrders(req, res) {
         o.id,
         o.tradingview_username,
         o.customer_wechat,
+        o.duration,
+        o.purchase_type,
+        o.effective_time,
+        o.expiry_time,
         o.amount,
+        o.payment_method,
+        o.alipay_amount,
+        o.crypto_amount,
         o.status,
         o.created_at,
         o.payment_time,
         o.commission_amount,
-        s.wechat_name as sales_name
+        o.screenshot_path,
+        s.wechat_name as sales_wechat_name
       FROM orders o
       LEFT JOIN sales s ON o.sales_id = s.id
       ${whereClause}

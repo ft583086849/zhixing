@@ -352,7 +352,7 @@ async function handleCreateOrder(req, res, connection) {
           alipay_amount || null, 
           crypto_amount || null,
           commissionAmount, 
-          duration === '7days' ? 'pending_configuration_confirmation' : 'pending_payment_confirmation',
+          duration === '7days' ? 'pending_config' : 'pending_payment',
           screenshotData,
           formatDateForMySQL(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 7天后过期
         ]
@@ -442,7 +442,7 @@ async function handleGetOrdersList(req, res, connection) {
 async function handleUpdateOrderStatus(req, res, connection, orderId) {
   const { status } = req.body;
 
-  if (!['pending_payment_confirmation', 'pending_configuration_confirmation', 'confirmed', 'active', 'expired', 'cancelled', 'rejected'].includes(status)) {
+      if (!['pending_payment', 'pending_config', 'confirmed', 'active', 'expired', 'cancelled', 'rejected'].includes(status)) {
     return res.status(400).json({
       success: false,
       message: '无效的订单状态'

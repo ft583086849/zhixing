@@ -267,8 +267,8 @@ const AdminOrders = () => {
       width: 120,
       render: (status) => {
         const statusMap = {
-          'pending_payment_confirmation': { text: '待付款确认', color: 'orange' },
-          'pending_configuration_confirmation': { text: '待配置确认', color: 'purple' },
+          'pending_payment': { text: '待付款确认', color: 'orange' },
+          'pending_config': { text: '待配置确认', color: 'purple' },
           'confirmed': { text: '已确认', color: 'green' },
           'active': { text: '已生效', color: 'green' },
           'expired': { text: '已过期', color: 'gray' },
@@ -331,7 +331,7 @@ const AdminOrders = () => {
                 type="link" 
                 size="small"
                 icon={<CheckOutlined />}
-                onClick={() => handleUpdateStatus(record.id, record.duration === '7days' ? 'pending_configuration_confirmation' : 'pending_payment_confirmation')}
+                onClick={() => handleUpdateStatus(record.id, record.duration === '7days' ? 'pending_config' : 'pending_payment')}
               >
                 审核通过
               </Button>
@@ -347,7 +347,7 @@ const AdminOrders = () => {
             </>
           )}
           {/* 7天免费订单直接显示待配置确认 */}
-          {record.status === 'pending_configuration_confirmation' && record.duration === '7days' && (
+          {record.status === 'pending_config' && record.duration === '7days' && (
             <>
               <Button 
                 type="link" 
@@ -369,7 +369,7 @@ const AdminOrders = () => {
             </>
           )}
           {/* 付费订单的付款确认流程 */}
-          {record.status === 'pending_payment_confirmation' && record.duration !== '7days' && (
+          {record.status === 'pending_payment' && record.duration !== '7days' && (
             <>
               <Button 
                 type="link" 
@@ -396,14 +396,14 @@ const AdminOrders = () => {
                 type="link" 
                 size="small"
                 icon={<CheckOutlined />} 
-                onClick={() => handleUpdateStatus(record.id, 'pending_configuration_confirmation')}
+                onClick={() => handleUpdateStatus(record.id, 'pending_config')}
               >
                 待配置
               </Button>
             </>
           )}
           {/* 付费订单的配置确认流程 */}
-          {record.status === 'pending_configuration_confirmation' && record.duration !== '7days' && (
+          {record.status === 'pending_config' && record.duration !== '7days' && (
             <>
               <Button 
                 type="link" 
@@ -471,8 +471,8 @@ const AdminOrders = () => {
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="status" label="订单状态">
                 <Select placeholder="请选择状态" allowClear>
-                  <Option value="pending_payment_confirmation">待付款确认</Option>
-                  <Option value="pending_configuration_confirmation">待配置确认</Option>
+                              <Option value="pending_payment">待付款确认</Option>
+            <Option value="pending_config">待配置确认</Option>
                   <Option value="confirmed_payment">已付款确认</Option>
                   <Option value="confirmed_configuration">已配置确认</Option>
                   <Option value="rejected">已拒绝</Option>

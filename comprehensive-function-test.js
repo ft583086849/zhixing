@@ -297,7 +297,7 @@ async function runComprehensiveTest() {
     
     // 返回报告供进一步分析
     return report;
-    
+
   } catch (error) {
     console.error('❌ 测试过程中发生错误:', error.message);
     return null;

@@ -50,7 +50,7 @@ const AdminSales = () => {
   // 获取佣金率
   const fetchCommissionRates = async () => {
     // 这里应该调用API获取佣金率数据
-    console.log('获取佣金率数据');
+    // 实际生产环境中应该调用相应的API
   };
 
   useEffect(() => {
@@ -76,8 +76,8 @@ const AdminSales = () => {
   // 处理搜索
   const handleSearch = () => {
     const searchValues = form.getFieldsValue();
-    console.log('搜索条件:', searchValues);
     // 实现搜索逻辑
+    // TODO: 添加实际的搜索API调用
   };
 
   // 重置搜索
@@ -88,7 +88,6 @@ const AdminSales = () => {
 
   // 导出数据
   const handleExport = () => {
-    console.log('导出销售数据');
     // 实现导出逻辑
     const exportData = sales.map(sale => ({
       '销售ID': sale.sales?.id,
