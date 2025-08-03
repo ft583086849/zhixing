@@ -185,13 +185,57 @@ async function handleCreateOrder(req, res, connection) {
       });
     }
 
-    // 验证销售代码是否存在（优先使用link_code以保持兼容性）
-    const [salesRows] = await connection.execute(
-      'SELECT * FROM sales WHERE link_code = ?',
+    // 验证销售代码是否存在（兼容新的links表和老的sales表）
+    let sales = null;
+    let salesType = null;
+    
+    // 首先查找links表中的用户销售链接
+    const [linkRows] = await connection.execute(
+      'SELECT * FROM links WHERE link_code = ? AND link_type = "user_sales"',
       [finalSalesCode]
     );
-
-    if (salesRows.length === 0) {
+    
+    if (linkRows.length > 0) {
+      const link = linkRows[0];
+      // 根据links表的sales_id查找对应的销售信息
+      
+      // 先查一级销售
+      const [primaryRows] = await connection.execute(
+        'SELECT *, "primary" as sales_type FROM primary_sales WHERE id = ?',
+        [link.sales_id]
+      );
+      
+      if (primaryRows.length > 0) {
+        sales = primaryRows[0];
+        salesType = 'primary';
+      } else {
+        // 再查二级销售
+        const [secondaryRows] = await connection.execute(
+          'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE id = ?',
+          [link.sales_id]
+        );
+        
+        if (secondaryRows.length > 0) {
+          sales = secondaryRows[0];
+          salesType = 'secondary';
+        }
+      }
+    }
+    
+    // 如果在links表中没找到，则回退到老的sales表查找
+    if (!sales) {
+      const [salesRows] = await connection.execute(
+        'SELECT *, "legacy" as sales_type FROM sales WHERE link_code = ?',
+        [finalSalesCode]
+      );
+      
+      if (salesRows.length > 0) {
+        sales = salesRows[0];
+        salesType = 'legacy';
+      }
+    }
+    
+    if (!sales) {
       await connection.end();
       return res.status(404).json({
         success: false,
@@ -199,8 +243,6 @@ async function handleCreateOrder(req, res, connection) {
         link_code: finalSalesCode
       });
     }
-
-    const sales = salesRows[0];
 
     // 验证TradingView用户名是否已被绑定
     const [existingOrders] = await connection.execute(
