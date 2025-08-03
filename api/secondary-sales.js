@@ -217,7 +217,7 @@ async function handleRegister(req, res) {
         wechat_name: wechat_name,
         primary_sales_id: primary_sales_id,
         user_sales_code: userSalesCode,
-        user_sales_link: `${process.env.CORS_ORIGIN || 'https://zhixing-seven.vercel.app'}/purchase/${userSalesCode}`,
+        user_sales_link: `https://zhixing-seven.vercel.app/#/purchase/${userSalesCode}`,
         commission_rate: 30.00
       }
     });
