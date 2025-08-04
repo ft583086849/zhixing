@@ -32,50 +32,50 @@ const PrimarySalesSettlementPage = () => {
     try {
       // 模拟查询一级销售数据 - 实际项目中需要替换为真实API
       const mockSalesData = {
-        wechat_name: values.wechat_name || '一级销售测试',
-        sales_code: values.sales_code || 'primary_test123',
+        wechat_name: values.wechat_name || '一级销售示例',
+        sales_code: values.sales_code || 'primary_demo',
         commission_rate: 0.40,
-        total_secondary_sales: 3,
-        total_orders: 8,
-        total_amount: 4588,
-        total_commission: 1835.2 // 40%佣金
+        total_secondary_sales: 2,
+        total_orders: 5,
+        total_amount: 2952,
+        total_commission: 1180.8 // 40%佣金
       };
 
       const mockStats = {
-        totalCommission: 1835.2,
-        monthlyCommission: 756.8,
-        totalOrders: 8,
-        monthlyOrders: 3,
+        totalCommission: 1180.8,
+        monthlyCommission: 488.4,
+        totalOrders: 5,
+        monthlyOrders: 2,
         secondarySales: [
           {
             id: 1,
-            wechat_name: '二级销售1',
+            wechat_name: '二级销售A',
             link_code: 'sec001',
             commission_rate: 0.30,
-            total_orders: 3,
-            total_amount: 1364,
-            commission_earned: 409.2
+            total_orders: 2,
+            total_amount: 1076,
+            commission_earned: 322.8
           },
           {
             id: 2,
-            wechat_name: '二级销售2', 
+            wechat_name: '二级销售B', 
             link_code: 'sec002',
             commission_rate: 0.32,
-            total_orders: 2,
-            total_amount: 876,
-            commission_earned: 280.32
+            total_orders: 3,
+            total_amount: 1876,
+            commission_earned: 600.32
           }
         ],
-        pendingReminderCount: 2,
-        monthlyReminderCount: 5,
-        reminderSuccessRate: 78.5,
-        avgResponseTime: 3.2,
+        pendingReminderCount: 1,
+        monthlyReminderCount: 3,
+        reminderSuccessRate: 85.2,
+        avgResponseTime: 2.8,
         pendingReminderOrders: [
           {
             id: 1,
-            sales_wechat: '二级销售1',
-            customer_wechat: 'customer001',
-            tradingview_username: 'user001',
+            sales_wechat: '二级销售A',
+            customer_wechat: 'customer_demo',
+            tradingview_username: 'demo_user',
             amount: 188,
             expiry_time: '2025-02-28',
             reminder_status: false
@@ -87,24 +87,24 @@ const PrimarySalesSettlementPage = () => {
         data: [
           {
             id: 1,
-            customer_wechat: 'customer001',
-            tradingview_username: 'user001',
+            customer_wechat: 'customer_demo',
+            tradingview_username: 'demo_user',
             duration: '1month',
             amount: 188,
             status: 'confirmed_configuration',
-            sales_wechat: '二级销售1'
+            sales_wechat: '二级销售A'
           },
           {
             id: 2,
-            customer_wechat: 'customer002',
-            tradingview_username: 'user002',
+            customer_wechat: 'customer_example',
+            tradingview_username: 'example_user',
             duration: '3months',
             amount: 488,
             status: 'pending_payment',
-            sales_wechat: '二级销售2'
+            sales_wechat: '二级销售B'
           }
         ],
-        total: 8,
+        total: 5,
         page: 1
       };
 
