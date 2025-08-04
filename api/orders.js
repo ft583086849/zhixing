@@ -32,6 +32,48 @@ const dbConfig = {
   }
 };
 
+// 统一销售代码查找函数（重构版核心逻辑）
+async function findSalesByCode(sales_code, connection) {
+  try {
+    // 1. 查找一级销售
+    const [primary] = await connection.execute(
+      'SELECT *, "primary" as sales_type FROM primary_sales WHERE sales_code = ?', 
+      [sales_code]
+    );
+    
+    if (primary.length > 0) {
+      return { sales: primary[0], type: 'primary' };
+    }
+    
+    // 2. 查找二级销售（独立或一级下的统一处理）
+    const [secondary] = await connection.execute(
+      'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE sales_code = ?', 
+      [sales_code]
+    );
+    
+    if (secondary.length > 0) {
+      return { sales: secondary[0], type: 'secondary' };
+    }
+    
+    // 3. 查找遗留的sales表（兼容性处理）
+    const [legacy] = await connection.execute(
+      'SELECT *, "legacy" as sales_type FROM sales WHERE link_code = ?', 
+      [sales_code]
+    );
+    
+    if (legacy.length > 0) {
+      return { sales: legacy[0], type: 'legacy' };
+    }
+    
+    // 4. 未找到
+    return null;
+    
+  } catch (error) {
+    console.error('查找销售代码错误:', error);
+    return null;
+  }
+}
+
 // 权限验证中间件
 async function verifyAdminAuth(req, res) {
   const authHeader = req.headers.authorization;
@@ -185,54 +227,15 @@ async function handleCreateOrder(req, res, connection) {
       });
     }
 
-    // 验证销售代码是否存在（兼容新的links表和老的sales表）
+    // 统一销售代码查找逻辑（重构版）
+    const salesResult = await findSalesByCode(finalSalesCode, connection);
+    
     let sales = null;
     let salesType = null;
     
-    // 首先查找links表中的用户销售链接
-    const [linkRows] = await connection.execute(
-      'SELECT * FROM links WHERE link_code = ? AND link_type = "user_sales"',
-      [finalSalesCode]
-    );
-    
-    if (linkRows.length > 0) {
-      const link = linkRows[0];
-      // 根据links表的sales_id查找对应的销售信息
-      
-      // 先查一级销售
-      const [primaryRows] = await connection.execute(
-        'SELECT *, "primary" as sales_type FROM primary_sales WHERE id = ?',
-        [link.sales_id]
-      );
-      
-      if (primaryRows.length > 0) {
-        sales = primaryRows[0];
-        salesType = 'primary';
-      } else {
-        // 再查二级销售
-        const [secondaryRows] = await connection.execute(
-          'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE id = ?',
-          [link.sales_id]
-        );
-        
-        if (secondaryRows.length > 0) {
-          sales = secondaryRows[0];
-          salesType = 'secondary';
-        }
-      }
-    }
-    
-    // 如果在links表中没找到，则回退到老的sales表查找
-    if (!sales) {
-      const [salesRows] = await connection.execute(
-        'SELECT *, "legacy" as sales_type FROM sales WHERE link_code = ?',
-        [finalSalesCode]
-      );
-      
-      if (salesRows.length > 0) {
-        sales = salesRows[0];
-        salesType = 'legacy';
-      }
+    if (salesResult) {
+      sales = salesResult.sales;
+      salesType = salesResult.type;
     }
     
     if (!sales) {
@@ -331,15 +334,17 @@ async function handleCreateOrder(req, res, connection) {
       console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
     }
 
-          // 创建订单 - 暂时不插入commission_rate，使用数据库默认值
+      // 创建订单（重构版 - 使用新的字段结构）
       const [result] = await connection.execute(
         `INSERT INTO orders (
-          link_code, tradingview_username, customer_wechat, duration, amount, 
+          sales_code, sales_type, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
-          alipay_amount, crypto_amount, commission_amount, screenshot_data, screenshot_expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          alipay_amount, crypto_amount, commission_rate, commission_amount, 
+          primary_sales_id, secondary_sales_id, screenshot_data, screenshot_expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          finalSalesCode, 
+          finalSalesCode,
+          salesType,
           tradingview_username, 
           customer_wechat || null, 
           duration, 
@@ -351,7 +356,10 @@ async function handleCreateOrder(req, res, connection) {
           formatDateForMySQL(expiryTime),
           alipay_amount || null, 
           crypto_amount || null,
-          commissionAmount, 
+          commissionRate,
+          commissionAmount,
+          salesType === 'primary' ? sales.id : null,      // primary_sales_id
+          salesType === 'secondary' ? sales.id : null,    // secondary_sales_id
           screenshotData,
           formatDateForMySQL(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 7天后过期
         ]
@@ -400,21 +408,24 @@ async function handleGetOrdersList(req, res, connection) {
     params.push(status);
   }
 
+  // 重构版订单查询 - 直接使用sales_code关联
   const [rows] = await connection.execute(
     `SELECT 
        o.*,
-       COALESCE(ps.wechat_name, ss.wechat_name, s.wechat_name) as sales_wechat_name,
-       COALESCE(ps.payment_method, ss.payment_method, s.payment_method) as sales_payment_method,
        CASE 
-         WHEN ps.id IS NOT NULL THEN 'primary'
-         WHEN ss.id IS NOT NULL THEN 'secondary' 
-         ELSE 'legacy'
-       END as sales_type
+         WHEN o.sales_type = 'primary' THEN ps.wechat_name
+         WHEN o.sales_type = 'secondary' THEN ss.wechat_name
+         ELSE s.wechat_name
+       END as sales_wechat_name,
+       CASE 
+         WHEN o.sales_type = 'primary' THEN ps.payment_method
+         WHEN o.sales_type = 'secondary' THEN ss.payment_method
+         ELSE s.payment_method
+       END as sales_payment_method
      FROM orders o 
-     LEFT JOIN links l ON o.link_code = l.link_code AND l.link_type = 'user_sales'
-     LEFT JOIN primary_sales ps ON l.sales_id = ps.id
-     LEFT JOIN secondary_sales ss ON l.sales_id = ss.id
-     LEFT JOIN sales s ON o.link_code = s.link_code 
+     LEFT JOIN primary_sales ps ON o.sales_type = 'primary' AND o.primary_sales_id = ps.id
+     LEFT JOIN secondary_sales ss ON o.sales_type = 'secondary' AND o.secondary_sales_id = ss.id
+     LEFT JOIN sales s ON o.sales_type = 'legacy' AND o.sales_code = s.link_code
      ${whereClause}
      ORDER BY o.created_at DESC 
      LIMIT ? OFFSET ?`,

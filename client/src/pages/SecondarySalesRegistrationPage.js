@@ -51,7 +51,8 @@ const SecondarySalesRegistrationPage = () => {
   const validateRegistrationCode = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/links?link_code=${registrationCode}&link_type=secondary_registration`);
+      // 重构版：调用新的secondary-sales API
+      const response = await axios.get(`/api/secondary-sales?path=validate&link_code=${registrationCode}&link_type=secondary_registration`);
       
       if (response.data.success) {
         setRegistrationData(response.data.data);

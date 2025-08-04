@@ -22,6 +22,116 @@ const PrimarySalesSettlementPage = () => {
   const [commissionForm] = Form.useForm();
   const [removeForm] = Form.useForm();
 
+  // 页面初始化时加载默认数据
+  useEffect(() => {
+    // 自动加载默认示例数据
+    const defaultSalesData = {
+      wechat_name: '一级销售示例',
+      sales_code: 'primary_demo',
+      commission_rate: 0.40,
+      total_secondary_sales: 3,
+      total_orders: 8,
+      total_amount: 1835.20,
+      total_commission: 756.80
+    };
+
+    const defaultStats = {
+      totalCommission: 1835.20,
+      monthlyCommission: 756.80,
+      totalOrders: 8,
+      monthlyOrders: 3,
+      secondarySales: [
+        {
+          id: 1,
+          wechat_name: '二级销售A',
+          link_code: 'sec001',
+          commission_rate: 0.30,
+          total_orders: 3,
+          total_amount: 876,
+          commission_earned: 262.8
+        },
+        {
+          id: 2,
+          wechat_name: '二级销售B', 
+          link_code: 'sec002',
+          commission_rate: 0.32,
+          total_orders: 2,
+          total_amount: 568,
+          commission_earned: 181.76
+        },
+        {
+          id: 3,
+          wechat_name: '二级销售C', 
+          link_code: 'sec003',
+          commission_rate: 0.28,
+          total_orders: 3,
+          total_amount: 391.20,
+          commission_earned: 109.536
+        }
+      ],
+      pendingReminderCount: 1,
+      monthlyReminderCount: 3,
+      reminderSuccessRate: 85.2,
+      pendingReminderOrders: [
+        {
+          id: 1,
+          sales_wechat: '二级销售A',
+          customer_wechat: 'customer_demo',
+          tradingview_username: 'demo_user',
+          amount: 188,
+          expiry_time: '2025-02-28',
+          payment_method: 'alipay',
+          order_count: 1,
+          created_at: '2025-01-15',
+          status: 'pending_payment',
+          commission_amount: 56.4,
+          alipay_amount: 188,
+          crypto_amount: null,
+          reminder_status: null
+        }
+      ]
+    };
+
+    setSalesData(defaultSalesData);
+    setPrimarySalesStats(defaultStats);
+    
+    // 模拟订单数据
+    const mockOrdersData = {
+      data: [
+        {
+          id: 1,
+          customer_wechat: 'customer_A',
+          tradingview_username: 'trader_001',
+          amount: 588,
+          commission_amount: 235.2,
+          payment_method: 'alipay',
+          order_count: 2,
+          created_at: '2025-01-10',
+          status: 'confirmed',
+          alipay_amount: 588,
+          crypto_amount: null
+        },
+        {
+          id: 2,
+          customer_wechat: 'customer_B',
+          tradingview_username: 'trader_002',
+          amount: 288,
+          commission_amount: 115.2,
+          payment_method: 'crypto',
+          order_count: 1,
+          created_at: '2025-01-12',
+          status: 'active',
+          alipay_amount: null,
+          crypto_amount: 288
+        }
+      ],
+      total: 8,
+      page: 1
+    };
+    
+    setPrimarySalesOrders(mockOrdersData);
+  }, []);
+
   // 搜索处理函数
   const handleSearch = async (values) => {
     if (!values.wechat_name && !values.sales_code) {
@@ -30,15 +140,15 @@ const PrimarySalesSettlementPage = () => {
     }
 
     try {
-      // 模拟查询一级销售数据 - 实际项目中需要替换为真实API
+      // 查询一级销售数据 - 使用用户输入或默认示例数据
       const mockSalesData = {
         wechat_name: values.wechat_name || '一级销售示例',
         sales_code: values.sales_code || 'primary_demo',
-        commission_rate: 0.40,
-        total_secondary_sales: 2,
-        total_orders: 5,
-        total_amount: 2952,
-        total_commission: 1180.8 // 40%佣金
+        commission_rate: 0.40, // 默认佣金比率，实际应从后端获取
+        total_secondary_sales: 3, // 实际应从后端计算
+        total_orders: 8, // 实际应从后端计算  
+        total_amount: 1835.20, // 实际应从后端计算
+        total_commission: 756.80 // 实际应从后端计算
       };
 
       const mockStats = {
@@ -489,31 +599,18 @@ const PrimarySalesSettlementPage = () => {
         </div>
       </Card>
       
-      {/* 查询前提示 */}
-      {!salesData && (
-        <Card style={{ marginBottom: 24, textAlign: 'center', background: '#f8f9fa' }}>
-          <div style={{ padding: '40px 20px' }}>
-            <UserOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: 16 }} />
-            <h3 style={{ color: '#666', marginBottom: 8 }}>请先查询一级销售信息</h3>
-            <p style={{ color: '#999', margin: 0 }}>
-              输入一级销售的微信号或销售代码，即可查看分销数据、佣金对账和催单信息
-            </p>
-          </div>
-        </Card>
-      )}
 
-      {/* 只有搜索到数据后才显示以下内容 */}
+
+      {/* 销售数据展示 */}
       {salesData && (
         <>
           {/* 销售基本信息 */}
           <Card title="销售信息" style={{ marginBottom: 24 }}>
             <Row>
               <Col span={24}>
-                <Space size="large">
+                                <Space size="large">
                   <span><strong>微信号：</strong>{salesData.wechat_name}</span>
                   <span><strong>销售代码：</strong>{salesData.sales_code}</span>
-                  <span><strong>佣金比率：</strong>{(salesData.commission_rate * 100).toFixed(0)}%</span>
-  
                 </Space>
               </Col>
             </Row>
@@ -521,6 +618,42 @@ const PrimarySalesSettlementPage = () => {
 
           {/* 统计卡片 */}
           {renderStatsCards()}
+
+          {/* 佣金管理 */}
+          <Card title="佣金管理" style={{ marginBottom: 24 }}>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Card>
+                  <Statistic
+                    title="当前佣金比率"
+                    value={(salesData.commission_rate * 100).toFixed(0)}
+                    suffix="%"
+                    prefix={<DollarOutlined />}
+                    valueStyle={{ color: '#52c41a', fontSize: '24px' }}
+                  />
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card>
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <p style={{ marginBottom: 16, color: '#666' }}>
+                      您可以通过设置下属二级销售的佣金比率来管理分成比例
+                    </p>
+                    <Button 
+                      type="primary" 
+                      icon={<DollarOutlined />}
+                      onClick={() => {
+                        // 可以在这里添加全局佣金设置功能
+                        message.info('请在下方二级销售列表中设置具体佣金比率');
+                      }}
+                    >
+                      佣金设置说明
+                    </Button>
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+          </Card>
 
           {/* 二级销售管理 */}
           <Card title="二级销售管理" style={{ marginBottom: 24 }}>

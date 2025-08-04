@@ -235,9 +235,9 @@ async function handleCreatePrimarySales(req, res, connection) {
       });
     }
 
-    // 生成唯一链接代码
-    const secondaryRegistrationCode = uuidv4().replace(/-/g, '').substring(0, 16);
+    // 生成唯一销售代码（重构版）
     const userSalesCode = uuidv4().replace(/-/g, '').substring(0, 16);
+    const secondaryRegistrationCode = uuidv4().replace(/-/g, '').substring(0, 16);
 
     // 确保所有参数都不是undefined，转换为null
     const params = {
@@ -246,44 +246,44 @@ async function handleCreatePrimarySales(req, res, connection) {
       payment_address: payment_address || null,
       alipay_surname: alipay_surname || null,
       chain_name: chain_name || null,
-      secondary_registration_code: secondaryRegistrationCode,
-      user_sales_code: userSalesCode
+      sales_code: userSalesCode,
+      secondary_registration_code: secondaryRegistrationCode
     };
 
-    // 插入一级销售数据（默认佣金比率40%）
+    // 插入一级销售数据（重构版 - 直接存储sales_code）
     const [result] = await connection.execute(
-      `INSERT INTO primary_sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, commission_rate) 
-       VALUES (?, ?, ?, ?, ?, 40.00)`,
-      [params.wechat_name, params.payment_method, params.payment_address, params.alipay_surname, params.chain_name]
+      `INSERT INTO primary_sales (
+        wechat_name, payment_method, payment_address, alipay_surname, chain_name, 
+        sales_code, secondary_registration_code, commission_rate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 40.00)`,
+      [
+        params.wechat_name, 
+        params.payment_method, 
+        params.payment_address, 
+        params.alipay_surname, 
+        params.chain_name,
+        params.sales_code,
+        params.secondary_registration_code
+      ]
     );
 
     const primarySalesId = result.insertId;
 
-    // 创建二级销售注册链接
-    await connection.execute(
-      `INSERT INTO links (link_code, sales_id, link_type, created_at) 
-       VALUES (?, ?, 'secondary_registration', NOW())`,
-      [secondaryRegistrationCode, primarySalesId]
-    );
+    // 重构后不再需要创建links表记录
+    // sales_code直接存储在primary_sales表中
 
-    // 创建用户销售链接
-    await connection.execute(
-      `INSERT INTO links (link_code, sales_id, link_type, created_at) 
-       VALUES (?, ?, 'user_sales', NOW())`,
-      [userSalesCode, primarySalesId]
-    );
-
-    // 返回成功响应
+    // 返回成功响应（重构版）
     res.status(201).json({
       success: true,
       message: '一级销售信息创建成功！',
       data: {
         primary_sales_id: primarySalesId,
         wechat_name: params.wechat_name,
-        secondary_registration_code: secondaryRegistrationCode,
-        user_sales_code: userSalesCode,
-        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${secondaryRegistrationCode}`,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${userSalesCode}`
+        sales_code: params.sales_code,
+        secondary_registration_code: params.secondary_registration_code,
+        user_sales_code: params.sales_code, // 保持兼容性
+        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${params.secondary_registration_code}`,
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${params.sales_code}`
       }
     });
 
