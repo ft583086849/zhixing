@@ -79,7 +79,7 @@ const AdminOverview = () => {
             </Space>
           </Card>
 
-          {/* 统计卡片 */}
+          {/* 统计卡片 - 核心指标 */}
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
@@ -94,7 +94,7 @@ const AdminOverview = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="待付款确认"
+                  title="待付款确认订单"
                   value={stats?.pending_payment_orders || 0}
                   prefix={<ClockCircleOutlined />}
                   valueStyle={{ color: '#faad14' }}
@@ -104,7 +104,40 @@ const AdminOverview = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="总销售额"
+                  title="待配置确认订单"
+                  value={stats?.pending_config_orders || 0}
+                  prefix={<ClockCircleOutlined />}
+                  valueStyle={{ color: '#fa8c16' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="已付款确认订单"
+                  value={stats?.confirmed_payment_orders || 0}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="已配置确认订单"
+                  value={stats?.confirmed_config_orders || 0}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="总收入"
                   value={stats?.total_amount || 0}
                   prefix={<DollarOutlined />}
                   valueStyle={{ color: '#1890ff' }}
@@ -115,10 +148,22 @@ const AdminOverview = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="总客户数"
-                  value={stats?.total_customers || 0}
-                  prefix={<UserOutlined />}
+                  title="销售返佣金额"
+                  value={stats?.commission_amount || 0}
+                  prefix={<DollarOutlined />}
                   valueStyle={{ color: '#722ed1' }}
+                  suffix="美元"
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card role="region">
+                <Statistic
+                  title="待返佣金金额"
+                  value={stats?.pending_commission_amount || 0}
+                  prefix={<DollarOutlined />}
+                  valueStyle={{ color: '#ff4d4f' }}
+                  suffix="美元"
                 />
               </Card>
             </Col>
@@ -207,63 +252,51 @@ const AdminOverview = () => {
             </Col>
           </Row>
 
-          {/* 订单类型分布 */}
-          <Card title="订单类型分布" style={{ marginTop: 24 }} role="region">
+          {/* 订单分类统计 */}
+          <Card title="订单分类统计" style={{ marginTop: 24 }} role="region">
             <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12}>
+              <Col xs={24} sm={12} lg={6}>
                 <div>
-                  <p>一个月订单</p>
+                  <p>1个月订单</p>
                   <Progress 
                     percent={stats?.one_month_percentage || 0} 
                     status="active"
-                    strokeColor={{
-                      '0%': '#108ee9',
-                      '100%': '#87d068',
-                    }}
+                    strokeColor="#108ee9"
                   />
-                  <p>数量: {stats?.one_month_orders || 0}</p>
+                  <p>{stats?.one_month_orders || 0}笔，占比{(stats?.one_month_percentage || 0).toFixed(1)}%</p>
                 </div>
               </Col>
-              <Col xs={24} sm={12}>
+              <Col xs={24} sm={12} lg={6}>
                 <div>
-                  <p>三个月订单</p>
+                  <p>3个月订单</p>
                   <Progress 
                     percent={stats?.three_month_percentage || 0} 
                     status="active"
-                    strokeColor={{
-                      '0%': '#108ee9',
-                      '100%': '#87d068',
-                    }}
+                    strokeColor="#87d068"
                   />
-                  <p>数量: {stats?.three_month_orders || 0}</p>
+                  <p>{stats?.three_month_orders || 0}笔，占比{(stats?.three_month_percentage || 0).toFixed(1)}%</p>
                 </div>
               </Col>
-              <Col xs={24} sm={12}>
+              <Col xs={24} sm={12} lg={6}>
                 <div>
-                  <p>六个月订单</p>
+                  <p>6个月订单</p>
                   <Progress 
                     percent={stats?.six_month_percentage || 0} 
                     status="active"
-                    strokeColor={{
-                      '0%': '#108ee9',
-                      '100%': '#87d068',
-                    }}
+                    strokeColor="#fa8c16"
                   />
-                  <p>数量: {stats?.six_month_orders || 0}</p>
+                  <p>{stats?.six_month_orders || 0}笔，占比{(stats?.six_month_percentage || 0).toFixed(1)}%</p>
                 </div>
               </Col>
-              <Col xs={24} sm={12}>
+              <Col xs={24} sm={12} lg={6}>
                 <div>
                   <p>终身订单</p>
                   <Progress 
                     percent={stats?.lifetime_percentage || 0} 
                     status="active"
-                    strokeColor={{
-                      '0%': '#108ee9',
-                      '100%': '#87d068',
-                    }}
+                    strokeColor="#722ed1"
                   />
-                  <p>数量: {stats?.lifetime_orders || 0}</p>
+                  <p>{stats?.lifetime_orders || 0}笔，占比{(stats?.lifetime_percentage || 0).toFixed(1)}%</p>
                 </div>
               </Col>
             </Row>

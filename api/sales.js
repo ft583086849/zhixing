@@ -189,8 +189,8 @@ async function handleCreateSales(req, res, connection) {
     console.log('🔧 尝试插入销售记录，参数:', params);
     
     const [result] = await connection.execute(
-      `INSERT INTO sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, link_code) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, link_code, commission_rate, sales_type) 
+       VALUES (?, ?, ?, ?, ?, ?, 30.00, 'secondary')`,
       params
     );
 
@@ -308,7 +308,7 @@ async function handleExportSales(req, res, connection) {
       '总订单数': sale.total_orders || 0,
       '有效订单数': sale.valid_orders || 0,
       '总金额': sale.total_amount || 0,
-      '佣金率': `${sale.commission_rate || 0}%`,
+      '佣金率': `${sale.commission_rate || 30}%`,
       '收款方式': sale.payment_method,
       '创建时间': sale.created_at
     }));

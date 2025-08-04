@@ -500,7 +500,7 @@ async function handleUpdateSchema(req, res) {
           phone VARCHAR(20),
           email VARCHAR(100),
           primary_sales_id INT,
-          commission_rate DECIMAL(5,2) DEFAULT 0.00,
+          commission_rate DECIMAL(5,2) DEFAULT 30.00,
           payment_method ENUM('wechat', 'alipay', 'bank') DEFAULT 'wechat',
           bank_info TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -542,7 +542,7 @@ async function handleUpdateSchema(req, res) {
       if (salesColumns.length === 0) {
         await connection.execute(`
           ALTER TABLE sales 
-          ADD COLUMN sales_type ENUM('primary', 'secondary') DEFAULT 'primary'
+          ADD COLUMN sales_type ENUM('primary', 'secondary') DEFAULT 'secondary'
         `);
         console.log('✅ 添加sales_type列成功');
       }
@@ -572,7 +572,7 @@ async function handleUpdateSchema(req, res) {
       if (commissionColumns.length === 0) {
         await connection.execute(`
           ALTER TABLE sales 
-          ADD COLUMN commission_rate DECIMAL(5,2) DEFAULT 40.00
+          ADD COLUMN commission_rate DECIMAL(5,2) DEFAULT 30.00
         `);
         console.log('✅ 添加commission_rate列成功');
       }

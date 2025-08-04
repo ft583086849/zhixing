@@ -85,7 +85,7 @@ const handleSearch = () => {
   // 表格列定义
   const columns = [
     {
-      title: '客户微信',
+      title: '客户微信号',
       dataIndex: 'customer_wechat',
       key: 'customer_wechat',
       width: 120,

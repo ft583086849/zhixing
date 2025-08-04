@@ -250,10 +250,10 @@ async function handleCreatePrimarySales(req, res, connection) {
       user_sales_code: userSalesCode
     };
 
-    // 插入一级销售数据
+    // 插入一级销售数据（默认佣金比率40%）
     const [result] = await connection.execute(
-      `INSERT INTO primary_sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name) 
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO primary_sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, commission_rate) 
+       VALUES (?, ?, ?, ?, ?, 40.00)`,
       [params.wechat_name, params.payment_method, params.payment_address, params.alipay_surname, params.chain_name]
     );
 
