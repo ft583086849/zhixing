@@ -1,0 +1,679 @@
+{
+  "timestamp": "2025-08-04T20:09:20.705Z",
+  "referenceCommit": "4fa4602",
+  "checkpoints": [
+    {
+      "name": "文件存在性检查: api/admin.js",
+      "status": "correct",
+      "details": "管理员API - 文件存在且可读",
+      "metrics": {
+        "fileSize": 33410,
+        "lastModified": "2025-08-04T16:53:52.096Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.723Z"
+    },
+    {
+      "name": "文件存在性检查: api/orders.js",
+      "status": "correct",
+      "details": "订单API - 文件存在且可读",
+      "metrics": {
+        "fileSize": 17141,
+        "lastModified": "2025-08-04T20:04:31.622Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.723Z"
+    },
+    {
+      "name": "文件存在性检查: api/primary-sales.js",
+      "status": "correct",
+      "details": "一级销售API - 文件存在且可读",
+      "metrics": {
+        "fileSize": 16967,
+        "lastModified": "2025-08-04T17:55:41.962Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.723Z"
+    },
+    {
+      "name": "文件存在性检查: api/sales.js",
+      "status": "correct",
+      "details": "销售API - 文件存在且可读",
+      "metrics": {
+        "fileSize": 19700,
+        "lastModified": "2025-08-04T20:02:19.441Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.723Z"
+    },
+    {
+      "name": "文件存在性检查: client/src/components/admin/AdminOverview.js",
+      "status": "correct",
+      "details": "数据概览页面 - 文件存在且可读",
+      "metrics": {
+        "fileSize": 10408,
+        "lastModified": "2025-08-04T15:29:26.702Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.723Z"
+    },
+    {
+      "name": "文件存在性检查: client/src/components/admin/AdminOrders.js",
+      "status": "correct",
+      "details": "订单管理页面 - 文件存在且可读",
+      "metrics": {
+        "fileSize": 19239,
+        "lastModified": "2025-08-04T20:00:49.288Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.723Z"
+    },
+    {
+      "name": "文件存在性检查: client/src/components/admin/AdminSales.js",
+      "status": "correct",
+      "details": "销售管理页面 - 文件存在且可读",
+      "metrics": {
+        "fileSize": 21617,
+        "lastModified": "2025-08-04T19:29:36.027Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.724Z"
+    },
+    {
+      "name": "文件存在性检查: 支付管理系统需求文档.md",
+      "status": "correct",
+      "details": "需求文档 - 文件存在且可读",
+      "metrics": {
+        "fileSize": 51980,
+        "lastModified": "2025-08-04T18:08:08.574Z"
+      },
+      "timestamp": "2025-08-04T20:09:20.724Z"
+    },
+    {
+      "name": "检查点1总结",
+      "status": "correct",
+      "details": "文件完整性: 8/8",
+      "metrics": {
+        "passRate": "100.0%"
+      },
+      "timestamp": "2025-08-04T20:09:20.724Z"
+    },
+    {
+      "name": "代码模式检查: admin.js",
+      "status": "correct",
+      "details": "客户管理必须使用config_confirmed过滤 - 找到预期模式",
+      "metrics": {
+        "pattern": "o.config_confirmed = true",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.725Z"
+    },
+    {
+      "name": "代码模式检查: admin.js",
+      "status": "correct",
+      "details": "数据概览不应使用config_confirmed过滤 - 未找到预期模式",
+      "metrics": {
+        "pattern": "/总订单数.*config_confirmed/",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.725Z"
+    },
+    {
+      "name": "代码模式检查: orders.js",
+      "status": "correct",
+      "details": "订单API必须包含统一sales_code查找 - 找到预期模式",
+      "metrics": {
+        "pattern": "findSalesByCode",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.726Z"
+    },
+    {
+      "name": "代码模式检查: sales.js",
+      "status": "correct",
+      "details": "销售API必须包含统一sales_code查找 - 找到预期模式",
+      "metrics": {
+        "pattern": "handleGetSalesBySalesCode",
+        "lineCount": 2
+      },
+      "timestamp": "2025-08-04T20:09:20.726Z"
+    },
+    {
+      "name": "代码模式检查: primary-sales.js",
+      "status": "correct",
+      "details": "一级销售API必须支持临时代码格式 - 找到预期模式",
+      "metrics": {
+        "pattern": "/ps_|临时/",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.726Z"
+    },
+    {
+      "name": "代码模式检查: orders.js",
+      "status": "correct",
+      "details": "订单API必须支持临时代码查找 - 找到预期模式",
+      "metrics": {
+        "pattern": "/ps_|startsWith/",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.727Z"
+    },
+    {
+      "name": "检查点2总结",
+      "status": "correct",
+      "details": "后端API标准: 6/6",
+      "metrics": {
+        "passRate": "100.0%"
+      },
+      "timestamp": "2025-08-04T20:09:20.727Z"
+    },
+    {
+      "name": "代码模式检查: AdminOverview.js",
+      "status": "correct",
+      "details": "数据概览不应包含活跃层级关系字段 - 未找到预期模式",
+      "metrics": {
+        "pattern": "活跃层级关系",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.727Z"
+    },
+    {
+      "name": "代码模式检查: AdminOrders.js",
+      "status": "correct",
+      "details": "订单管理必须显示销售微信号 - 找到预期模式",
+      "metrics": {
+        "pattern": "sales_wechat_name",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.727Z"
+    },
+    {
+      "name": "代码模式检查: AdminOrders.js",
+      "status": "correct",
+      "details": "订单管理必须使用中文状态 - 找到预期模式",
+      "metrics": {
+        "pattern": "/待付款|已付款|statusMap/",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.727Z"
+    },
+    {
+      "name": "代码模式检查: AdminSales.js",
+      "status": "correct",
+      "details": "销售管理必须使用config_confirmed过滤 - 找到预期模式",
+      "metrics": {
+        "pattern": "config_confirmed",
+        "lineCount": 2
+      },
+      "timestamp": "2025-08-04T20:09:20.728Z"
+    },
+    {
+      "name": "代码模式检查: AdminSales.js",
+      "status": "correct",
+      "details": "销售链接必须在最后位置 - 找到预期模式",
+      "metrics": {
+        "pattern": "/title: '销售链接'[\\s\\S]*?\\}[\\s\\S]*?\\];/",
+        "lineCount": 2
+      },
+      "timestamp": "2025-08-04T20:09:20.728Z"
+    },
+    {
+      "name": "检查点3总结",
+      "status": "correct",
+      "details": "前端UI合规: 5/5",
+      "metrics": {
+        "passRate": "100.0%"
+      },
+      "timestamp": "2025-08-04T20:09:20.728Z"
+    },
+    {
+      "name": "代码模式检查: 支付管理系统需求文档.md",
+      "status": "correct",
+      "details": "需求文档必须包含config_confirmed规则 - 找到预期模式",
+      "metrics": {
+        "pattern": "config_confirmed",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.730Z"
+    },
+    {
+      "name": "代码模式检查: 支付管理系统需求文档.md",
+      "status": "correct",
+      "details": "需求文档必须包含数据概览统计规则 - 找到预期模式",
+      "metrics": {
+        "pattern": "/数据概览.*订单管理/",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.730Z"
+    },
+    {
+      "name": "代码模式检查: 支付管理系统需求文档.md",
+      "status": "correct",
+      "details": "需求文档必须包含sales_code查找标准 - 找到预期模式",
+      "metrics": {
+        "pattern": "sales_code",
+        "lineCount": 1
+      },
+      "timestamp": "2025-08-04T20:09:20.731Z"
+    },
+    {
+      "name": "佣金计算逻辑检查",
+      "status": "correct",
+      "details": "需求文档包含一级销售佣金计算逻辑",
+      "metrics": {
+        "formula": "一级销售佣金比率计算公式已记录"
+      },
+      "timestamp": "2025-08-04T20:09:20.731Z"
+    },
+    {
+      "name": "检查点4总结",
+      "status": "correct",
+      "details": "需求文档对齐: 4/4",
+      "metrics": {
+        "passRate": "100.0%"
+      },
+      "timestamp": "2025-08-04T20:09:20.731Z"
+    },
+    {
+      "name": "Git状态检查",
+      "status": "incorrect",
+      "details": "有 1 个文件待提交，需要先提交",
+      "metrics": {
+        "modifiedFiles": 1,
+        "needsCommit": true
+      },
+      "timestamp": "2025-08-04T20:09:20.753Z"
+    },
+    {
+      "name": "编译检查",
+      "status": "correct",
+      "details": "代码语法检查通过",
+      "metrics": {
+        "method": "静态分析"
+      },
+      "timestamp": "2025-08-04T20:09:20.753Z"
+    },
+    {
+      "name": "API导出检查: admin.js",
+      "status": "correct",
+      "details": "API正确导出",
+      "metrics": {
+        "hasExport": true
+      },
+      "timestamp": "2025-08-04T20:09:20.753Z"
+    },
+    {
+      "name": "API导出检查: orders.js",
+      "status": "correct",
+      "details": "API正确导出",
+      "metrics": {
+        "hasExport": true
+      },
+      "timestamp": "2025-08-04T20:09:20.753Z"
+    },
+    {
+      "name": "API导出检查: sales.js",
+      "status": "correct",
+      "details": "API正确导出",
+      "metrics": {
+        "hasExport": true
+      },
+      "timestamp": "2025-08-04T20:09:20.753Z"
+    },
+    {
+      "name": "API导出检查: primary-sales.js",
+      "status": "correct",
+      "details": "API正确导出",
+      "metrics": {
+        "hasExport": true
+      },
+      "timestamp": "2025-08-04T20:09:20.753Z"
+    },
+    {
+      "name": "检查点5总结",
+      "status": "correct",
+      "details": "部署就绪性: 4/4 API就绪",
+      "metrics": {
+        "readyAPIs": 4,
+        "totalAPIs": 4,
+        "deploymentReady": false
+      },
+      "timestamp": "2025-08-04T20:09:20.753Z"
+    }
+  ],
+  "metrics": {
+    "totalChecks": 34,
+    "passedChecks": 33,
+    "failedChecks": 1,
+    "correctSolutions": [
+      {
+        "name": "文件存在性检查: api/admin.js",
+        "status": "correct",
+        "details": "管理员API - 文件存在且可读",
+        "metrics": {
+          "fileSize": 33410,
+          "lastModified": "2025-08-04T16:53:52.096Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.723Z"
+      },
+      {
+        "name": "文件存在性检查: api/orders.js",
+        "status": "correct",
+        "details": "订单API - 文件存在且可读",
+        "metrics": {
+          "fileSize": 17141,
+          "lastModified": "2025-08-04T20:04:31.622Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.723Z"
+      },
+      {
+        "name": "文件存在性检查: api/primary-sales.js",
+        "status": "correct",
+        "details": "一级销售API - 文件存在且可读",
+        "metrics": {
+          "fileSize": 16967,
+          "lastModified": "2025-08-04T17:55:41.962Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.723Z"
+      },
+      {
+        "name": "文件存在性检查: api/sales.js",
+        "status": "correct",
+        "details": "销售API - 文件存在且可读",
+        "metrics": {
+          "fileSize": 19700,
+          "lastModified": "2025-08-04T20:02:19.441Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.723Z"
+      },
+      {
+        "name": "文件存在性检查: client/src/components/admin/AdminOverview.js",
+        "status": "correct",
+        "details": "数据概览页面 - 文件存在且可读",
+        "metrics": {
+          "fileSize": 10408,
+          "lastModified": "2025-08-04T15:29:26.702Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.723Z"
+      },
+      {
+        "name": "文件存在性检查: client/src/components/admin/AdminOrders.js",
+        "status": "correct",
+        "details": "订单管理页面 - 文件存在且可读",
+        "metrics": {
+          "fileSize": 19239,
+          "lastModified": "2025-08-04T20:00:49.288Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.723Z"
+      },
+      {
+        "name": "文件存在性检查: client/src/components/admin/AdminSales.js",
+        "status": "correct",
+        "details": "销售管理页面 - 文件存在且可读",
+        "metrics": {
+          "fileSize": 21617,
+          "lastModified": "2025-08-04T19:29:36.027Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.724Z"
+      },
+      {
+        "name": "文件存在性检查: 支付管理系统需求文档.md",
+        "status": "correct",
+        "details": "需求文档 - 文件存在且可读",
+        "metrics": {
+          "fileSize": 51980,
+          "lastModified": "2025-08-04T18:08:08.574Z"
+        },
+        "timestamp": "2025-08-04T20:09:20.724Z"
+      },
+      {
+        "name": "检查点1总结",
+        "status": "correct",
+        "details": "文件完整性: 8/8",
+        "metrics": {
+          "passRate": "100.0%"
+        },
+        "timestamp": "2025-08-04T20:09:20.724Z"
+      },
+      {
+        "name": "代码模式检查: admin.js",
+        "status": "correct",
+        "details": "客户管理必须使用config_confirmed过滤 - 找到预期模式",
+        "metrics": {
+          "pattern": "o.config_confirmed = true",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.725Z"
+      },
+      {
+        "name": "代码模式检查: admin.js",
+        "status": "correct",
+        "details": "数据概览不应使用config_confirmed过滤 - 未找到预期模式",
+        "metrics": {
+          "pattern": "/总订单数.*config_confirmed/",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.725Z"
+      },
+      {
+        "name": "代码模式检查: orders.js",
+        "status": "correct",
+        "details": "订单API必须包含统一sales_code查找 - 找到预期模式",
+        "metrics": {
+          "pattern": "findSalesByCode",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.726Z"
+      },
+      {
+        "name": "代码模式检查: sales.js",
+        "status": "correct",
+        "details": "销售API必须包含统一sales_code查找 - 找到预期模式",
+        "metrics": {
+          "pattern": "handleGetSalesBySalesCode",
+          "lineCount": 2
+        },
+        "timestamp": "2025-08-04T20:09:20.726Z"
+      },
+      {
+        "name": "代码模式检查: primary-sales.js",
+        "status": "correct",
+        "details": "一级销售API必须支持临时代码格式 - 找到预期模式",
+        "metrics": {
+          "pattern": "/ps_|临时/",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.726Z"
+      },
+      {
+        "name": "代码模式检查: orders.js",
+        "status": "correct",
+        "details": "订单API必须支持临时代码查找 - 找到预期模式",
+        "metrics": {
+          "pattern": "/ps_|startsWith/",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.727Z"
+      },
+      {
+        "name": "检查点2总结",
+        "status": "correct",
+        "details": "后端API标准: 6/6",
+        "metrics": {
+          "passRate": "100.0%"
+        },
+        "timestamp": "2025-08-04T20:09:20.727Z"
+      },
+      {
+        "name": "代码模式检查: AdminOverview.js",
+        "status": "correct",
+        "details": "数据概览不应包含活跃层级关系字段 - 未找到预期模式",
+        "metrics": {
+          "pattern": "活跃层级关系",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.727Z"
+      },
+      {
+        "name": "代码模式检查: AdminOrders.js",
+        "status": "correct",
+        "details": "订单管理必须显示销售微信号 - 找到预期模式",
+        "metrics": {
+          "pattern": "sales_wechat_name",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.727Z"
+      },
+      {
+        "name": "代码模式检查: AdminOrders.js",
+        "status": "correct",
+        "details": "订单管理必须使用中文状态 - 找到预期模式",
+        "metrics": {
+          "pattern": "/待付款|已付款|statusMap/",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.727Z"
+      },
+      {
+        "name": "代码模式检查: AdminSales.js",
+        "status": "correct",
+        "details": "销售管理必须使用config_confirmed过滤 - 找到预期模式",
+        "metrics": {
+          "pattern": "config_confirmed",
+          "lineCount": 2
+        },
+        "timestamp": "2025-08-04T20:09:20.728Z"
+      },
+      {
+        "name": "代码模式检查: AdminSales.js",
+        "status": "correct",
+        "details": "销售链接必须在最后位置 - 找到预期模式",
+        "metrics": {
+          "pattern": "/title: '销售链接'[\\s\\S]*?\\}[\\s\\S]*?\\];/",
+          "lineCount": 2
+        },
+        "timestamp": "2025-08-04T20:09:20.728Z"
+      },
+      {
+        "name": "检查点3总结",
+        "status": "correct",
+        "details": "前端UI合规: 5/5",
+        "metrics": {
+          "passRate": "100.0%"
+        },
+        "timestamp": "2025-08-04T20:09:20.728Z"
+      },
+      {
+        "name": "代码模式检查: 支付管理系统需求文档.md",
+        "status": "correct",
+        "details": "需求文档必须包含config_confirmed规则 - 找到预期模式",
+        "metrics": {
+          "pattern": "config_confirmed",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.730Z"
+      },
+      {
+        "name": "代码模式检查: 支付管理系统需求文档.md",
+        "status": "correct",
+        "details": "需求文档必须包含数据概览统计规则 - 找到预期模式",
+        "metrics": {
+          "pattern": "/数据概览.*订单管理/",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.730Z"
+      },
+      {
+        "name": "代码模式检查: 支付管理系统需求文档.md",
+        "status": "correct",
+        "details": "需求文档必须包含sales_code查找标准 - 找到预期模式",
+        "metrics": {
+          "pattern": "sales_code",
+          "lineCount": 1
+        },
+        "timestamp": "2025-08-04T20:09:20.731Z"
+      },
+      {
+        "name": "佣金计算逻辑检查",
+        "status": "correct",
+        "details": "需求文档包含一级销售佣金计算逻辑",
+        "metrics": {
+          "formula": "一级销售佣金比率计算公式已记录"
+        },
+        "timestamp": "2025-08-04T20:09:20.731Z"
+      },
+      {
+        "name": "检查点4总结",
+        "status": "correct",
+        "details": "需求文档对齐: 4/4",
+        "metrics": {
+          "passRate": "100.0%"
+        },
+        "timestamp": "2025-08-04T20:09:20.731Z"
+      },
+      {
+        "name": "编译检查",
+        "status": "correct",
+        "details": "代码语法检查通过",
+        "metrics": {
+          "method": "静态分析"
+        },
+        "timestamp": "2025-08-04T20:09:20.753Z"
+      },
+      {
+        "name": "API导出检查: admin.js",
+        "status": "correct",
+        "details": "API正确导出",
+        "metrics": {
+          "hasExport": true
+        },
+        "timestamp": "2025-08-04T20:09:20.753Z"
+      },
+      {
+        "name": "API导出检查: orders.js",
+        "status": "correct",
+        "details": "API正确导出",
+        "metrics": {
+          "hasExport": true
+        },
+        "timestamp": "2025-08-04T20:09:20.753Z"
+      },
+      {
+        "name": "API导出检查: sales.js",
+        "status": "correct",
+        "details": "API正确导出",
+        "metrics": {
+          "hasExport": true
+        },
+        "timestamp": "2025-08-04T20:09:20.753Z"
+      },
+      {
+        "name": "API导出检查: primary-sales.js",
+        "status": "correct",
+        "details": "API正确导出",
+        "metrics": {
+          "hasExport": true
+        },
+        "timestamp": "2025-08-04T20:09:20.753Z"
+      },
+      {
+        "name": "检查点5总结",
+        "status": "correct",
+        "details": "部署就绪性: 4/4 API就绪",
+        "metrics": {
+          "readyAPIs": 4,
+          "totalAPIs": 4,
+          "deploymentReady": false
+        },
+        "timestamp": "2025-08-04T20:09:20.753Z"
+      }
+    ],
+    "incorrectSolutions": [
+      {
+        "name": "Git状态检查",
+        "status": "incorrect",
+        "details": "有 1 个文件待提交，需要先提交",
+        "metrics": {
+          "modifiedFiles": 1,
+          "needsCommit": true
+        },
+        "timestamp": "2025-08-04T20:09:20.753Z"
+      }
+    ],
+    "improvements": []
+  },
+  "deploymentRecommendation": "FIX_REQUIRED"
+}

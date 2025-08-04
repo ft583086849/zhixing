@@ -257,8 +257,8 @@ async function checkpoint5_DeploymentReadiness() {
     
     logCheckpoint(
       'Git状态检查',
-      modifiedFiles > 0 ? 'correct' : 'incorrect',
-      `有 ${modifiedFiles} 个文件待提交`,
+      modifiedFiles === 0 ? 'correct' : 'incorrect',
+      modifiedFiles === 0 ? '所有文件已提交，可以部署' : `有 ${modifiedFiles} 个文件待提交，需要先提交`,
       { modifiedFiles, needsCommit: modifiedFiles > 0 }
     );
     
@@ -314,7 +314,7 @@ async function checkpoint5_DeploymentReadiness() {
       { 
         readyAPIs: apiReady,
         totalAPIs: apiFiles.length,
-        deploymentReady: apiReady === apiFiles.length && modifiedFiles > 0
+        deploymentReady: apiReady === apiFiles.length && modifiedFiles === 0
       }
     );
     
