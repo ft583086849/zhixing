@@ -50,7 +50,7 @@ export default async function handler(req, res) {
   // 设置CORS头部
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
   // 处理OPTIONS预检请求
@@ -94,6 +94,17 @@ export default async function handler(req, res) {
     } else if (req.method === 'GET' && path === 'export') {
       // 导出销售数据
       await handleExportSales(req, res, connection);
+    } else if (req.method === 'PUT' && path === 'remove-secondary') {
+      // 移除二级销售
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        await connection.end();
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
+      await handleRemoveSecondarySales(req, res, connection);
     } else {
       res.status(404).json({
         success: false,

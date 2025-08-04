@@ -169,14 +169,20 @@ const AdminOrders = () => {
       key: 'sales_wechat_name',
       width: 120,
       render: (_, record) => {
-        // 根据销售类型显示对应的微信号
-        if (record.sales_type === 'primary' && record.primary_sales_wechat) {
-          return record.primary_sales_wechat;
-        } else if (record.sales_type === 'secondary' && record.secondary_sales_wechat) {
-          return record.secondary_sales_wechat;
-        } else if (record.sales_wechat_name) {
-          return record.sales_wechat_name;
+        // 优化销售微信号显示逻辑 - 支持多种字段名
+        const wechatFields = [
+          'sales_wechat_name',     // 主要字段
+          'wechat_name',           // 销售表字段
+          'primary_sales_wechat',  // 一级销售微信
+          'secondary_sales_wechat' // 二级销售微信
+        ];
+        
+        for (const field of wechatFields) {
+          if (record[field]) {
+            return record[field];
+          }
         }
+        
         return '-';
       }
     },
