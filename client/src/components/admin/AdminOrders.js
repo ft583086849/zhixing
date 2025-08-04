@@ -342,7 +342,7 @@ const AdminOrders = () => {
                 icon={<CloseOutlined />}
                 onClick={() => handleUpdateStatus(record.id, 'rejected')}
               >
-                拒绝
+                拒绝订单
               </Button>
             </>
           )}
@@ -355,7 +355,7 @@ const AdminOrders = () => {
                 icon={<CheckOutlined />}
                 onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
               >
-                确认配置
+                配置确认
               </Button>
               <Button 
                 type="link" 
@@ -364,7 +364,7 @@ const AdminOrders = () => {
                 icon={<CloseOutlined />}
                 onClick={() => handleUpdateStatus(record.id, 'rejected')}
               >
-                拒绝
+                拒绝订单
               </Button>
             </>
           )}
@@ -377,7 +377,7 @@ const AdminOrders = () => {
                 icon={<CheckOutlined />}
                 onClick={() => handleUpdateStatus(record.id, 'confirmed_payment')}
               >
-                确认付款
+                付款确认
               </Button>
               <Button 
                 type="link" 
@@ -386,7 +386,7 @@ const AdminOrders = () => {
                 icon={<CloseOutlined />}
                 onClick={() => handleUpdateStatus(record.id, 'rejected')}
               >
-                拒绝
+                拒绝订单
               </Button>
             </>
           )}
@@ -411,7 +411,7 @@ const AdminOrders = () => {
                 icon={<CheckOutlined />}
                 onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
               >
-                确认配置
+                配置确认
               </Button>
               <Button 
                 type="link" 
@@ -420,7 +420,7 @@ const AdminOrders = () => {
                 icon={<CloseOutlined />}
                 onClick={() => handleUpdateStatus(record.id, 'rejected')}
               >
-                拒绝
+                拒绝订单
               </Button>
             </>
           )}

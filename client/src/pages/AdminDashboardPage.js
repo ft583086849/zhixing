@@ -97,16 +97,7 @@ const AdminDashboardPage = () => {
 
   return (
     <div>
-      <div style={{ 
-        background: 'red', 
-        color: 'white', 
-        padding: '10px', 
-        textAlign: 'center',
-        fontSize: '18px',
-        fontWeight: 'bold'
-      }}>
-        管理员控制面板
-      </div>
+
       <Layout style={{ minHeight: '100vh' }}>
         <Sider 
           trigger={null} 
