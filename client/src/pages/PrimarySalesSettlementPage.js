@@ -252,19 +252,51 @@ const PrimarySalesSettlementPage = () => {
           <Statistic
             title="佣金比率"
             value={(() => {
-              // 按需求文档计算：一级销售整体佣金比率 = 40% - 二级销售分佣比率平均值
-              if (!primarySalesStats?.secondarySales || primarySalesStats.secondarySales.length === 0) {
-                return 40; // 没有二级销售时，显示40%
+              // 新的佣金比率计算逻辑：
+              // 佣金比率 = （（一级销售的用户下单金额*40%）+（二级销售订单总金额-二级销售分佣比率平均值*二级销售订单总金额））/（二级销售订单总金额+一级销售的用户下单金额）
+              
+              if (!primarySalesOrders?.data || primarySalesOrders.data.length === 0) {
+                return 40; // 没有订单时，显示40%
               }
               
-              // 计算二级销售佣金比率平均值
-              const secondaryRates = primarySalesStats.secondarySales.map(sales => sales.commission_rate * 100);
-              const averageSecondaryRate = secondaryRates.reduce((sum, rate) => sum + rate, 0) / secondaryRates.length;
+              // 获取配置确认的订单
+              const confirmedOrders = primarySalesOrders.data.filter(order => order.config_confirmed === true);
               
-              // 一级销售佣金比率 = 40% - 二级销售平均佣金比率
-              const primaryRate = 40 - averageSecondaryRate;
+              if (confirmedOrders.length === 0) {
+                return 40; // 没有配置确认的订单时，显示40%
+              }
               
-              return primaryRate.toFixed(1);
+              // 1. 计算一级销售的用户下单金额（没有secondary_sales_name的订单）
+              const primaryDirectOrders = confirmedOrders.filter(order => !order.secondary_sales_name);
+              const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => sum + order.amount, 0);
+              
+              // 2. 计算二级销售订单总金额
+              const secondaryOrders = confirmedOrders.filter(order => order.secondary_sales_name);
+              const secondaryTotalAmount = secondaryOrders.reduce((sum, order) => sum + order.amount, 0);
+              
+              // 3. 计算二级销售分佣比率平均值
+              let averageSecondaryRate = 0;
+              if (primarySalesStats?.secondarySales && primarySalesStats.secondarySales.length > 0) {
+                const secondaryRates = primarySalesStats.secondarySales.map(sales => sales.commission_rate);
+                averageSecondaryRate = secondaryRates.reduce((sum, rate) => sum + rate, 0) / secondaryRates.length;
+              }
+              
+              // 4. 计算总订单金额
+              const totalOrderAmount = primaryDirectAmount + secondaryTotalAmount;
+              
+              if (totalOrderAmount === 0) {
+                return 40; // 总金额为0时，显示40%
+              }
+              
+              // 5. 计算一级销售总佣金
+              const primaryDirectCommission = primaryDirectAmount * 0.40; // 一级销售直接用户佣金：40%
+              const primaryFromSecondaryCommission = secondaryTotalAmount * (1 - averageSecondaryRate); // 一级销售从二级销售获得的佣金
+              const totalPrimaryCommission = primaryDirectCommission + primaryFromSecondaryCommission;
+              
+              // 6. 计算一级销售佣金比率
+              const primaryCommissionRate = (totalPrimaryCommission / totalOrderAmount) * 100;
+              
+              return primaryCommissionRate.toFixed(1);
             })()}
             valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
             prefix={<DollarOutlined />}

@@ -16,7 +16,8 @@ import {
   Select,
   Row,
   Col,
-  Divider
+  Divider,
+  DatePicker
 } from 'antd';
 import { 
   CopyOutlined,
@@ -34,6 +35,7 @@ import { getSales, updateCommissionRate, downloadCommissionData } from '../../st
 
 const { Title } = Typography;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 const AdminSales = () => {
   const dispatch = useDispatch();
@@ -71,6 +73,55 @@ const AdminSales = () => {
     if (totalAmount >= 500) return 12;
     if (totalAmount >= 200) return 10;
     return 8;
+  };
+
+  // 计算一级销售佣金比率（管理员页面）
+  const calculatePrimaryCommissionRate = (record) => {
+    // 新的佣金比率计算逻辑：
+    // 佣金比率 = （（一级销售的用户下单金额×40%）+（二级销售订单总金额-二级销售分佣比率平均值×二级销售订单总金额））/（二级销售订单总金额+一级销售的用户下单金额）
+    
+    if (!record.orders || record.orders.length === 0) {
+      return 40; // 没有订单时，显示40%
+    }
+    
+    // 获取配置确认的订单
+    const confirmedOrders = record.orders.filter(order => order.config_confirmed === true);
+    
+    if (confirmedOrders.length === 0) {
+      return 40; // 没有配置确认的订单时，显示40%
+    }
+    
+    // 1. 计算一级销售的用户下单金额（没有secondary_sales_name的订单）
+    const primaryDirectOrders = confirmedOrders.filter(order => !order.secondary_sales_name);
+    const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    
+    // 2. 计算二级销售订单总金额
+    const secondaryOrders = confirmedOrders.filter(order => order.secondary_sales_name);
+    const secondaryTotalAmount = secondaryOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    
+    // 3. 计算二级销售分佣比率平均值
+    let averageSecondaryRate = 0;
+    if (record.secondary_sales && record.secondary_sales.length > 0) {
+      const secondaryRates = record.secondary_sales.map(sales => sales.commission_rate || 0.30);
+      averageSecondaryRate = secondaryRates.reduce((sum, rate) => sum + rate, 0) / secondaryRates.length;
+    }
+    
+    // 4. 计算总订单金额
+    const totalOrderAmount = primaryDirectAmount + secondaryTotalAmount;
+    
+    if (totalOrderAmount === 0) {
+      return 40; // 总金额为0时，显示40%
+    }
+    
+    // 5. 计算一级销售总佣金
+    const primaryDirectCommission = primaryDirectAmount * 0.40; // 一级销售直接用户佣金：40%
+    const primaryFromSecondaryCommission = secondaryTotalAmount * (1 - averageSecondaryRate); // 一级销售从二级销售获得的佣金
+    const totalPrimaryCommission = primaryDirectCommission + primaryFromSecondaryCommission;
+    
+    // 6. 计算一级销售佣金比率
+    const primaryCommissionRate = (totalPrimaryCommission / totalOrderAmount) * 100;
+    
+    return parseFloat(primaryCommissionRate.toFixed(1));
   };
 
   // 处理搜索
@@ -143,10 +194,13 @@ const AdminSales = () => {
     }
   };
 
-  // 计算佣金金额
+  // 计算佣金金额（只计算config_confirmed=true的订单）
   const calculateCommissionAmount = (orders, commissionRate) => {
     if (!orders || orders.length === 0) return 0;
-    const validOrders = orders.filter(order => order.status === 'confirmed_configuration');
+    // 只计算config_confirmed=true且已配置确认的订单
+    const validOrders = orders.filter(order => 
+      order.status === 'confirmed_configuration' && order.config_confirmed === true
+    );
     const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     return (totalAmount * commissionRate) / 100;
   };
@@ -265,61 +319,6 @@ const AdminSales = () => {
       ),
     },
     {
-      title: '销售链接',
-      key: 'links',
-      width: 300,
-      render: (_, record) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {record.links && record.links.map((link, index) => (
-            <div key={index} style={{ 
-              padding: 8, 
-              border: '1px solid #e8e8e8', 
-              borderRadius: 4, 
-              backgroundColor: '#fafafa' 
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                marginBottom: 4 
-              }}>
-                <Tag color={link.type === 'sales_register' ? 'orange' : 'blue'}>
-                  {link.title}
-                </Tag>
-                <Space size="small">
-                  <Tooltip title="复制链接">
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      onClick={() => handleCopyLink(link.fullUrl)}
-                    />
-                  </Tooltip>
-                  <Tooltip title="复制代码">
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      onClick={() => handleCopyCode(link.code)}
-                    />
-                  </Tooltip>
-                </Space>
-              </div>
-              <div style={{ fontSize: 12, color: '#666' }}>
-                代码: {link.code}
-              </div>
-              <div style={{ fontSize: 11, color: '#999' }}>
-                {link.description}
-              </div>
-            </div>
-          ))}
-          {(!record.links || record.links.length === 0) && (
-            <span style={{ color: '#ccc' }}>暂无链接</span>
-          )}
-        </div>
-      )
-    },
-    {
       title: '总订单数',
       dataIndex: 'total_orders',
       key: 'total_orders',
@@ -331,7 +330,10 @@ const AdminSales = () => {
       key: 'valid_orders',
       width: 100,
       render: (_, record) => {
-        const validOrders = record.orders?.filter(order => order.status === 'confirmed_configuration') || [];
+        // 只计算config_confirmed=true且已配置确认的订单
+        const validOrders = record.orders?.filter(order => 
+          order.status === 'confirmed_configuration' && order.config_confirmed === true
+        ) || [];
         return validOrders.length;
       }
     },
@@ -341,7 +343,9 @@ const AdminSales = () => {
       key: 'total_amount',
       width: 100,
       render: (_, record) => {
-        const totalAmount = record.orders?.reduce((sum, order) => sum + (order.amount || 0), 0) || 0;
+        // 只计算config_confirmed=true的订单金额
+        const validOrders = record.orders?.filter(order => order.config_confirmed === true) || [];
+        const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
         return `$${totalAmount.toFixed(2)}`;
       }
     },
@@ -351,7 +355,15 @@ const AdminSales = () => {
       width: 120,
       render: (_, record) => {
         const salesId = record.sales?.id;
-        const autoRate = calculateAutoCommissionRate(record.orders);
+        
+        // 为一级销售使用新的佣金比率计算逻辑
+        let autoRate;
+        if (record.sales?.sales_type === 'primary') {
+          autoRate = calculatePrimaryCommissionRate(record);
+        } else {
+          autoRate = calculateAutoCommissionRate(record.orders);
+        }
+        
         const currentRate = editingCommissionRates[salesId] || record.sales?.commission_rate || autoRate;
         const finalRate = getFinalCommissionRate(record);
         
@@ -398,7 +410,10 @@ const AdminSales = () => {
       key: 'valid_order_amount',
       width: 120,
       render: (_, record) => {
-        const validOrders = record.orders?.filter(order => order.status === 'confirmed_configuration') || [];
+        // 只计算config_confirmed=true且已配置确认的订单金额
+        const validOrders = record.orders?.filter(order => 
+          order.status === 'confirmed_configuration' && order.config_confirmed === true
+        ) || [];
         const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
         return `$${totalAmount.toFixed(2)}`;
       }
@@ -477,6 +492,61 @@ const AdminSales = () => {
       key: 'created_at',
       width: 150,
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+    },
+    {
+      title: '销售链接',
+      key: 'links',
+      width: 300,
+      render: (_, record) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {record.links && record.links.map((link, index) => (
+            <div key={index} style={{ 
+              padding: 8, 
+              border: '1px solid #e8e8e8', 
+              borderRadius: 4, 
+              backgroundColor: '#fafafa' 
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                marginBottom: 4 
+              }}>
+                <Tag color={link.type === 'sales_register' ? 'orange' : 'blue'}>
+                  {link.title}
+                </Tag>
+                <Space size="small">
+                  <Tooltip title="复制链接">
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={() => handleCopyLink(link.fullUrl)}
+                    />
+                  </Tooltip>
+                  <Tooltip title="复制代码">
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={() => handleCopyCode(link.code)}
+                    />
+                  </Tooltip>
+                </Space>
+              </div>
+              <div style={{ fontSize: 12, color: '#666' }}>
+                代码: {link.code}
+              </div>
+              <div style={{ fontSize: 11, color: '#999' }}>
+                {link.description}
+              </div>
+            </div>
+          ))}
+          {(!record.links || record.links.length === 0) && (
+            <span style={{ color: '#ccc' }}>暂无链接</span>
+          )}
+        </div>
+      )
     }
   ];
 
@@ -486,48 +556,79 @@ const AdminSales = () => {
 
       {/* 搜索和筛选区域 */}
       <Card style={{ marginBottom: 16 }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={12} md={6}>
-            <span>销售类型：</span>
-            <Select
-              value={salesTypeFilter}
-              onChange={handleSalesTypeFilter}
-              style={{ width: '100%', marginTop: 8 }}
-              placeholder="选择销售类型"
-            >
-              <Option value="all">全部销售</Option>
-              <Option value="primary">一级销售</Option>
-              <Option value="secondary">二级销售</Option>
-            </Select>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Form.Item name="search" style={{ marginBottom: 0 }}>
-              <Input
-                placeholder="搜索微信号或链接代码"
-                prefix={<SearchOutlined />}
-                allowClear
-              />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Space>
-              <Button type="primary" onClick={handleSearch} icon={<SearchOutlined />}>
-                搜索
+        <Form form={form} layout="inline">
+          <Row gutter={[16, 16]} style={{ width: '100%' }}>
+            {/* 第一行 */}
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="sales_type" label="销售类型">
+                <Select 
+                  placeholder="选择销售类型" 
+                  allowClear
+                  value={salesTypeFilter}
+                  onChange={handleSalesTypeFilter}
+                >
+                  <Option value="all">全部销售</Option>
+                  <Option value="primary">一级销售</Option>
+                  <Option value="secondary">二级销售</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="wechat_name" label="销售微信号">
+                <Input placeholder="请输入销售微信号" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="link_code" label="链接代码">
+                <Input placeholder="请输入链接代码" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="payment_method" label="收款方式">
+                <Select placeholder="请选择收款方式" allowClear>
+                  <Option value="alipay">支付宝</Option>
+                  <Option value="crypto">线上地址码</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            
+            {/* 第二行 */}
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="create_date_range" label="创建时间">
+                <RangePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="commission_rate" label="佣金比率">
+                <Select placeholder="请选择佣金比率" allowClear>
+                  <Option value="30">30%</Option>
+                  <Option value="32">32%</Option>
+                  <Option value="35">35%</Option>
+                  <Option value="38">38%</Option>
+                  <Option value="40">40%</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Space>
+                <Button type="primary" onClick={handleSearch} icon={<SearchOutlined />}>
+                  搜索
+                </Button>
+                <Button onClick={handleReset}>重置</Button>
+              </Space>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Button 
+                type="primary" 
+                onClick={handleExport} 
+                icon={<ExportOutlined />}
+                style={{ float: 'right' }}
+              >
+                导出数据
               </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Button 
-              type="primary" 
-              onClick={handleExport} 
-              icon={<ExportOutlined />}
-              style={{ float: 'right' }}
-            >
-              导出数据
-            </Button>
-          </Col>
-        </Row>
+            </Col>
+          </Row>
+        </Form>
       </Card>
 
       {/* 销售列表 */}
