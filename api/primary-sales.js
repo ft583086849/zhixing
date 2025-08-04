@@ -250,22 +250,35 @@ async function handleCreatePrimarySales(req, res, connection) {
       secondary_registration_code: secondaryRegistrationCode
     };
 
-    // 正确的sales_code标准实现 - 直接存储到数据库字段
-    const [result] = await connection.execute(
-      `INSERT INTO primary_sales (
-        wechat_name, payment_method, payment_address, alipay_surname, chain_name, 
-        sales_code, secondary_registration_code, commission_rate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 40.00)`,
-      [
-        params.wechat_name, 
-        params.payment_method, 
-        params.payment_address, 
-        params.alipay_surname, 
-        params.chain_name,
-        params.sales_code,
-        params.secondary_registration_code
-      ]
-    );
+    // 临时简化版本 - 先测试基础字段
+    console.log('尝试插入数据:', params);
+    
+    try {
+      const [result] = await connection.execute(
+        `INSERT INTO primary_sales (
+          wechat_name, payment_method, payment_address, alipay_surname, chain_name, commission_rate
+        ) VALUES (?, ?, ?, ?, ?, 40.00)`,
+        [
+          params.wechat_name, 
+          params.payment_method, 
+          params.payment_address, 
+          params.alipay_surname, 
+          params.chain_name
+        ]
+      );
+      console.log('基础插入成功，现在尝试添加sales_code字段');
+      
+      // 如果基础插入成功，尝试更新sales_code字段
+      await connection.execute(
+        `UPDATE primary_sales SET sales_code = ?, secondary_registration_code = ? WHERE id = ?`,
+        [params.sales_code, params.secondary_registration_code, result.insertId]
+      );
+      console.log('sales_code字段更新成功');
+      
+    } catch (basicError) {
+      console.error('基础插入失败:', basicError);
+      throw basicError;
+    }
 
     const primarySalesId = result.insertId;
 
