@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { 
   Card, 
   Form, 
@@ -40,8 +40,12 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const PurchasePage = () => {
-  const { linkCode } = useParams();
+  const { linkCode: pathLinkCode } = useParams();
+  const [searchParams] = useSearchParams();
   const dispatch = useDispatch();
+  
+  // 获取链接代码，优先从查询参数获取，其次从路径参数获取
+  const linkCode = searchParams.get('sales_code') || pathLinkCode;
   const { currentSales, loading: salesLoading, error: salesError } = useSelector((state) => state.sales);
   const { loading: orderLoading, error: orderError, createdOrder } = useSelector((state) => state.orders);
 

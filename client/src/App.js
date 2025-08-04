@@ -100,6 +100,10 @@ function App() {
           {/* 二级销售注册页面 */}
           <Route path="/secondary-registration/:linkCode" element={<Suspense fallback={<div>加载中...</div>}><SecondarySalesRegistrationPage /></Suspense>} />
           
+          {/* 支持sales_code参数的路由 */}
+          <Route path="/secondary-sales" element={<Suspense fallback={<div>加载中...</div>}><SecondarySalesRegistrationPage /></Suspense>} />
+          <Route path="/purchase" element={<Suspense fallback={<div>加载中...</div>}><PurchasePage /></Suspense>} />
+          
           {/* 认证测试页面 */}
           <Route path="/auth-test" element={<Suspense fallback={<div>加载中...</div>}><AuthTestPage /></Suspense>} />
           

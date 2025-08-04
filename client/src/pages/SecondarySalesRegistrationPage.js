@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   Card, 
   Form, 
@@ -29,13 +29,17 @@ const { Title, Text } = Typography;
 const { Step } = Steps;
 
 const SecondarySalesRegistrationPage = () => {
-  const { registrationCode } = useParams();
+  const { linkCode } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [registrationData, setRegistrationData] = useState(null);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+
+  // 获取注册码，优先从查询参数获取，其次从路径参数获取
+  const registrationCode = searchParams.get('sales_code') || linkCode;
 
   useEffect(() => {
     if (registrationCode) {

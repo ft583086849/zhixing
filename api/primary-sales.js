@@ -282,8 +282,8 @@ async function handleCreatePrimarySales(req, res, connection) {
         wechat_name: params.wechat_name,
         secondary_registration_code: secondaryRegistrationCode,
         user_sales_code: userSalesCode,
-        secondary_registration_link: `https://zhixing-seven.vercel.app/#/secondary-registration/${secondaryRegistrationCode}`,
-        user_sales_link: `https://zhixing-seven.vercel.app/#/purchase/${userSalesCode}`
+        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${secondaryRegistrationCode}`,
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${userSalesCode}`
       }
     });
 
