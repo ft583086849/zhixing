@@ -223,11 +223,15 @@ async function handleRegisterSecondarySales(req, res, connection) {
       });
     }
 
-    // 正确的sales_code标准：直接验证primary_sales表的secondary_registration_code
-    const [primarySales] = await connection.execute(
-      'SELECT id FROM primary_sales WHERE secondary_registration_code = ?',
-      [registration_code]
-    );
+    // 临时兼容性实现：使用reg_格式验证（与验证函数逻辑一致）
+    let primarySales = [];
+    if (registration_code && registration_code.startsWith('reg_')) {
+      const primaryId = registration_code.replace('reg_', '');
+      [primarySales] = await connection.execute(
+        'SELECT id FROM primary_sales WHERE id = ?',
+        [primaryId]
+      );
+    }
 
     if (primarySales.length === 0) {
       return res.status(400).json({
