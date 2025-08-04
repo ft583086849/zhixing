@@ -240,7 +240,7 @@ async function handleCreateOrder(req, res, connection) {
       link_code, // 兼容性支持
       tradingview_username,
       customer_wechat,
-      duration,
+      duration: rawDuration,
       amount,
       payment_method,
       payment_time,
@@ -248,6 +248,21 @@ async function handleCreateOrder(req, res, connection) {
       alipay_amount,
       crypto_amount
     } = req.body;
+
+    // 标准化duration格式 - 支持数字转换为字符串格式
+    let duration;
+    if (typeof rawDuration === 'number') {
+      const durationMap = {
+        7: '7days',
+        30: '1month',
+        90: '3months',
+        180: '6months',
+        365: 'lifetime'
+      };
+      duration = durationMap[rawDuration] || `${rawDuration}days`;
+    } else {
+      duration = rawDuration;
+    }
 
     console.log('接收到的数据:', req.body);
     console.log('文件信息:', req.file);

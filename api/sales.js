@@ -534,3 +534,106 @@ async function handleGetSalesBySalesCode(req, res, connection, sales_code) {
     });
   }
 }
+
+// 移除二级销售
+async function handleRemoveSecondarySales(req, res, connection) {
+  try {
+    const { id } = req.query; // 二级销售ID
+    const { reason } = req.body; // 移除原因
+    
+    console.log('移除二级销售请求:', { id, reason });
+    
+    // 验证必需参数
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少必需的二级销售ID'
+      });
+    }
+    
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供移除原因'
+      });
+    }
+    
+    // 1. 检查二级销售是否存在
+    const [secondarySalesRows] = await connection.execute(
+      'SELECT id, wechat_name, primary_sales_id FROM secondary_sales WHERE id = ?',
+      [id]
+    );
+    
+    if (secondarySalesRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '二级销售不存在'
+      });
+    }
+    
+    const secondarySales = secondarySalesRows[0];
+    
+    // 2. 检查是否有关联的订单
+    const [orderRows] = await connection.execute(
+      'SELECT COUNT(*) as order_count FROM orders WHERE secondary_sales_id = ?',
+      [id]
+    );
+    
+    const orderCount = orderRows[0].order_count;
+    
+    // 3. 开始事务处理
+    await connection.beginTransaction();
+    
+    try {
+      if (orderCount > 0) {
+        // 如果有关联订单，不直接删除，而是设置为已移除状态
+        await connection.execute(
+          `UPDATE secondary_sales 
+           SET status = 'removed', 
+               removed_reason = ?, 
+               removed_at = NOW() 
+           WHERE id = ?`,
+          [reason, id]
+        );
+        
+        console.log(`二级销售 ${secondarySales.wechat_name} 已标记为移除，原因: ${reason}`);
+      } else {
+        // 如果没有关联订单，可以直接删除
+        await connection.execute(
+          'DELETE FROM secondary_sales WHERE id = ?',
+          [id]
+        );
+        
+        console.log(`二级销售 ${secondarySales.wechat_name} 已完全删除，原因: ${reason}`);
+      }
+      
+      // 提交事务
+      await connection.commit();
+      
+      // 返回成功响应
+      res.status(200).json({
+        success: true,
+        message: '二级销售移除成功',
+        data: {
+          id: parseInt(id),
+          wechat_name: secondarySales.wechat_name,
+          action: orderCount > 0 ? 'marked_removed' : 'deleted',
+          reason: reason,
+          order_count: orderCount
+        }
+      });
+      
+    } catch (error) {
+      // 回滚事务
+      await connection.rollback();
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('移除二级销售错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '移除失败: ' + error.message
+    });
+  }
+}

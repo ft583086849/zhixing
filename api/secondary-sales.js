@@ -137,10 +137,12 @@ async function handleValidateRegistrationCode(req, res, connection) {
     // 支持reg_格式临时注册码
     if (link_code && link_code.startsWith('reg_')) {
       const primaryId = link_code.replace('reg_', '');
+      console.log('🔍 查找一级销售ID:', primaryId);
       [rows] = await connection.execute(
         'SELECT id, wechat_name, payment_method FROM primary_sales WHERE id = ?',
         [primaryId]
       );
+      console.log('📊 查找结果:', rows.length, rows.length > 0 ? rows[0] : 'none');
     } else {
       // 兼容性：尝试查找legacy格式（一旦字段存在时恢复）
       [rows] = await connection.execute(
