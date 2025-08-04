@@ -369,17 +369,14 @@ async function handleCreateOrder(req, res, connection) {
       console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
     }
 
-      // 正确的sales_code标准：使用新的订单表结构
+      // 临时兼容性实现：移除不存在的字段，等待数据库字段添加
       const [result] = await connection.execute(
         `INSERT INTO orders (
-          sales_code, sales_type, tradingview_username, customer_wechat, duration, amount, 
+          tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
-          alipay_amount, crypto_amount, commission_rate, commission_amount, 
-          primary_sales_id, secondary_sales_id, screenshot_data, screenshot_expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          commission_rate, commission_amount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          finalSalesCode,
-          salesType,
           tradingview_username, 
           customer_wechat || null, 
           duration, 
@@ -389,14 +386,8 @@ async function handleCreateOrder(req, res, connection) {
           purchase_type, 
           formatDateForMySQL(effectiveTime), 
           formatDateForMySQL(expiryTime),
-          alipay_amount || null, 
-          crypto_amount || null,
           commissionRate,
-          commissionAmount,
-          salesType === 'primary' ? sales.id : null,      // primary_sales_id
-          salesType === 'secondary' ? sales.id : null,    // secondary_sales_id
-          screenshotData,
-          formatDateForMySQL(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 7天后过期
+          commissionAmount
         ]
       );
 
