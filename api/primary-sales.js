@@ -250,50 +250,40 @@ async function handleCreatePrimarySales(req, res, connection) {
       secondary_registration_code: secondaryRegistrationCode
     };
 
-    // 临时简化版本 - 先测试基础字段
-    console.log('尝试插入数据:', params);
-    
-    try {
-      const [result] = await connection.execute(
-        `INSERT INTO primary_sales (
-          wechat_name, payment_method, payment_address, alipay_surname, chain_name, commission_rate
-        ) VALUES (?, ?, ?, ?, ?, 40.00)`,
-        [
-          params.wechat_name, 
-          params.payment_method, 
-          params.payment_address, 
-          params.alipay_surname, 
-          params.chain_name
-        ]
-      );
-      console.log('基础插入成功，现在尝试添加sales_code字段');
-      
-      // 如果基础插入成功，尝试更新sales_code字段
-      await connection.execute(
-        `UPDATE primary_sales SET sales_code = ?, secondary_registration_code = ? WHERE id = ?`,
-        [params.sales_code, params.secondary_registration_code, result.insertId]
-      );
-      console.log('sales_code字段更新成功');
-      
-    } catch (basicError) {
-      console.error('基础插入失败:', basicError);
-      throw basicError;
-    }
+    // 暂时兼容性实现 - 等待数据库字段添加
+    const [result] = await connection.execute(
+      `INSERT INTO primary_sales (
+        wechat_name, payment_method, payment_address, alipay_surname, chain_name, 
+        commission_rate
+      ) VALUES (?, ?, ?, ?, ?, 40.00)`,
+      [
+        params.wechat_name, 
+        params.payment_method, 
+        params.payment_address, 
+        params.alipay_surname, 
+        params.chain_name
+      ]
+    );
 
     const primarySalesId = result.insertId;
 
-    // 返回成功响应（正确的sales_code标准）
+    // 暂时使用ID作为销售代码（等待数据库字段添加）
+    const tempSalesCode = `ps_${primarySalesId}`;
+    const tempRegCode = `reg_${primarySalesId}`;
+
+    // 返回成功响应（兼容性实现）
     res.status(201).json({
       success: true,
       message: '一级销售信息创建成功！',
       data: {
         primary_sales_id: primarySalesId,
         wechat_name: params.wechat_name,
-        sales_code: params.sales_code,
-        secondary_registration_code: params.secondary_registration_code,
-        user_sales_code: params.sales_code, // 保持兼容性
-        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${params.secondary_registration_code}`,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${params.sales_code}`
+        sales_code: tempSalesCode,
+        secondary_registration_code: tempRegCode,
+        user_sales_code: tempSalesCode, // 保持兼容性
+        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${tempRegCode}`,
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${tempSalesCode}`,
+        note: "临时代码，等待数据库字段添加后将使用真实的sales_code"
       }
     });
 

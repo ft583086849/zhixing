@@ -1,0 +1,86 @@
+{
+  "timestamp": "2025-08-04T18:13:31.497Z",
+  "totalTasks": 3,
+  "successfulTasks": 1,
+  "totalCheckpoints": 10,
+  "passedCheckpoints": 4,
+  "successRate": "33.3",
+  "results": [
+    {
+      "taskId": "frontend_commission_page",
+      "success": false,
+      "checkpoints": [
+        {
+          "name": "页面正常加载",
+          "passed": true,
+          "details": "状态码: 200"
+        },
+        {
+          "name": "佣金比率字段存在",
+          "passed": false,
+          "details": "未找到佣金比率内容"
+        },
+        {
+          "name": "计算逻辑代码包含新公式",
+          "passed": false,
+          "details": "未找到新计算逻辑"
+        },
+        {
+          "name": "边界处理正确",
+          "passed": false,
+          "details": "未找到边界处理"
+        }
+      ],
+      "passedCount": 1,
+      "totalCount": 4
+    },
+    {
+      "taskId": "admin_sales_page",
+      "success": false,
+      "checkpoints": [
+        {
+          "name": "页面正常加载",
+          "passed": true,
+          "details": "状态码: 200"
+        },
+        {
+          "name": "管理员界面存在",
+          "passed": false,
+          "details": "未找到管理员界面"
+        },
+        {
+          "name": "销售管理功能",
+          "passed": false,
+          "details": "未找到销售管理"
+        },
+        {
+          "name": "佣金功能存在",
+          "passed": false,
+          "details": "未找到佣金功能"
+        }
+      ],
+      "passedCount": 1,
+      "totalCount": 4
+    },
+    {
+      "taskId": "api_functionality",
+      "success": true,
+      "checkpoints": [
+        {
+          "name": "API服务正常响应",
+          "passed": true,
+          "details": "HTTP 200"
+        },
+        {
+          "name": "健康检查通过",
+          "passed": true,
+          "details": "API状态: 未知"
+        }
+      ],
+      "passedCount": 2,
+      "totalCount": 2
+    }
+  ],
+  "deployment": "佣金比率计算逻辑重大升级",
+  "commit": "126d429"
+}

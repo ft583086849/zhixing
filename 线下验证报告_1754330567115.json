@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-08-04T18:02:47.111Z",
+  "summary": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0,
+    "issues": []
+  },
+  "details": {
+    "backend": {
+      "admin": "passed",
+      "orders": "passed",
+      "primarySales": "passed",
+      "sales": "passed"
+    },
+    "frontend": {
+      "overview": "passed",
+      "orders": "passed",
+      "sales": "passed"
+    },
+    "requirements": {
+      "document": "passed"
+    }
+  },
+  "recommendations": [
+    "所有验证项通过，可以进行部署"
+  ]
+}

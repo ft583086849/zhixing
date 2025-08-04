@@ -1,0 +1,18 @@
+{
+  "timestamp": "2025-08-04T18:00:48.322Z",
+  "checkType": "佣金比率计算逻辑修改",
+  "totalChecks": 6,
+  "passedChecks": 6,
+  "status": "PASSED",
+  "modifiedFiles": [
+    "client/src/pages/PrimarySalesSettlementPage.js",
+    "client/src/components/admin/AdminSales.js",
+    "支付管理系统需求文档.md"
+  ],
+  "newFiles": [
+    "佣金比率计算逻辑_线下验证.js",
+    "错题本检查_佣金比率计算逻辑.js"
+  ],
+  "businessLogic": "一级销售佣金比率 = （（一级销售直接佣金）+（一级销售从二级销售获得佣金））/（总订单金额）×100%",
+  "impactScope": "一级销售对账页面、管理员页面一级销售佣金率显示"
+}

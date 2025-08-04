@@ -240,16 +240,7 @@ const AdminOverview = () => {
                 />
               </Card>
             </Col>
-            <Col xs={24} sm={12} lg={8}>
-              <Card role="region">
-                <Statistic
-                  title="活跃层级关系"
-                  value={stats?.active_hierarchies || 0}
-                  prefix={<CheckCircleOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Card>
-            </Col>
+
           </Row>
 
           {/* 订单分类统计 */}

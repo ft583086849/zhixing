@@ -166,9 +166,19 @@ const AdminOrders = () => {
     },
     {
       title: '销售微信号',
-      dataIndex: 'sales_wechat_name',
       key: 'sales_wechat_name',
       width: 120,
+      render: (_, record) => {
+        // 根据销售类型显示对应的微信号
+        if (record.sales_type === 'primary' && record.primary_sales_wechat) {
+          return record.primary_sales_wechat;
+        } else if (record.sales_type === 'secondary' && record.secondary_sales_wechat) {
+          return record.secondary_sales_wechat;
+        } else if (record.sales_wechat_name) {
+          return record.sales_wechat_name;
+        }
+        return '-';
+      }
     },
     {
       title: 'TradingView用户',
@@ -268,8 +278,9 @@ const AdminOrders = () => {
       render: (status) => {
         const statusMap = {
           'pending_payment': { text: '待付款确认', color: 'orange' },
+          'confirmed_payment': { text: '已付款确认', color: 'blue' },
           'pending_config': { text: '待配置确认', color: 'purple' },
-          'confirmed': { text: '已确认', color: 'green' },
+          'confirmed_configuration': { text: '已配置确认', color: 'green' },
           'active': { text: '已生效', color: 'green' },
           'expired': { text: '已过期', color: 'gray' },
           'cancelled': { text: '已取消', color: 'red' },
@@ -471,10 +482,13 @@ const AdminOrders = () => {
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="status" label="订单状态">
                 <Select placeholder="请选择状态" allowClear>
-                              <Option value="pending_payment">待付款确认</Option>
-            <Option value="pending_config">待配置确认</Option>
+                  <Option value="pending_payment">待付款确认</Option>
                   <Option value="confirmed_payment">已付款确认</Option>
+                  <Option value="pending_config">待配置确认</Option>
                   <Option value="confirmed_configuration">已配置确认</Option>
+                  <Option value="active">已生效</Option>
+                  <Option value="expired">已过期</Option>
+                  <Option value="cancelled">已取消</Option>
                   <Option value="rejected">已拒绝</Option>
                 </Select>
               </Form.Item>
@@ -497,6 +511,29 @@ const AdminOrders = () => {
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="expiry_date_range" label="到期时间">
                 <RangePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="amount_range" label="付款金额">
+                <Input.Group compact>
+                  <Input
+                    style={{ width: '40%', textAlign: 'center' }}
+                    placeholder="最小金额"
+                    name="min_amount"
+                    type="number"
+                  />
+                  <Input
+                    style={{ width: '20%', textAlign: 'center', borderLeft: 0, borderRight: 0, pointerEvents: 'none' }}
+                    placeholder="~"
+                    disabled
+                  />
+                  <Input
+                    style={{ width: '40%', textAlign: 'center', borderLeft: 0 }}
+                    placeholder="最大金额"
+                    name="max_amount"
+                    type="number"
+                  />
+                </Input.Group>
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>

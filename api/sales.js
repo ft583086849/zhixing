@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
   try {
     const connection = await mysql.createConnection(dbConfig);
-    const { path, link_code } = req.query;
+    const { path, link_code, sales_code } = req.query;
 
     // 需要权限验证的端点
     const protectedEndpoints = ['list', 'filter', 'export'];
@@ -79,7 +79,11 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST' && path === 'create') {
       await handleCreateSales(req, res, connection);
+    } else if (req.method === 'GET' && sales_code) {
+      // 支持sales_code查询（新标准）
+      await handleGetSalesBySalesCode(req, res, connection, sales_code);
     } else if (req.method === 'GET' && link_code) {
+      // 支持link_code查询（兼容性）
       await handleGetSalesByLink(req, res, connection, link_code);
     } else if (req.method === 'GET' && (path === 'list' || !path)) {
       // 默认GET请求返回销售列表，支持销售类型筛选
@@ -401,6 +405,109 @@ async function handleFilterSales(req, res, connection) {
     res.status(500).json({
       success: false,
       message: '销售类型筛选失败'
+    });
+  }
+}
+
+// 根据sales_code查找销售信息（实现sales_code标准：先查一级销售，再查二级销售）
+async function handleGetSalesBySalesCode(req, res, connection, sales_code) {
+  try {
+    console.log('🔍 查找销售代码:', sales_code);
+    
+    // 1. 查找一级销售 - 支持临时代码格式 ps_123
+    let primary = [];
+    if (sales_code.startsWith('ps_')) {
+      const primaryId = sales_code.replace('ps_', '');
+      [primary] = await connection.execute(
+        'SELECT *, "primary" as sales_type FROM primary_sales WHERE id = ?', 
+        [primaryId]
+      );
+    } else {
+      [primary] = await connection.execute(
+        'SELECT *, "primary" as sales_type FROM primary_sales WHERE sales_code = ?', 
+        [sales_code]
+      );
+    }
+    
+    if (primary.length > 0) {
+      console.log('✅ 找到一级销售:', primary[0].wechat_name);
+      // 为临时代码添加销售代码字段
+      if (sales_code.startsWith('ps_')) {
+        primary[0].sales_code = sales_code;
+      }
+      return res.json({
+        success: true,
+        data: {
+          ...primary[0],
+          sales_type: 'primary'
+        }
+      });
+    }
+    
+    // 2. 查找二级销售
+    const [secondary] = await connection.execute(
+      'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE sales_code = ?', 
+      [sales_code]
+    );
+    
+    if (secondary.length > 0) {
+      console.log('✅ 找到二级销售:', secondary[0].wechat_name);
+      return res.json({
+        success: true,
+        data: {
+          ...secondary[0],
+          sales_type: 'secondary'
+        }
+      });
+    }
+    
+    // 3. 查找遗留的sales表（兼容性处理）- 检查多个字段
+    // 先查找 sales_code 字段（如果存在且匹配）
+    const [legacySalesCode] = await connection.execute(
+      'SELECT *, "legacy" as sales_type FROM sales WHERE sales_code = ?', 
+      [sales_code]
+    );
+    
+    if (legacySalesCode.length > 0) {
+      console.log('✅ 通过sales_code找到遗留销售:', legacySalesCode[0].wechat_name);
+      return res.json({
+        success: true,
+        data: {
+          ...legacySalesCode[0],
+          sales_type: 'legacy'
+        }
+      });
+    }
+    
+    // 再查找 link_code 字段
+    const [legacyLinkCode] = await connection.execute(
+      'SELECT *, "legacy" as sales_type FROM sales WHERE link_code = ?', 
+      [sales_code]
+    );
+    
+    if (legacyLinkCode.length > 0) {
+      console.log('✅ 通过link_code找到遗留销售:', legacyLinkCode[0].wechat_name);
+      return res.json({
+        success: true,
+        data: {
+          ...legacyLinkCode[0],
+          sales_type: 'legacy'
+        }
+      });
+    }
+    
+    // 4. 未找到销售信息 - 返回友好提示
+    console.log('❌ 未找到销售代码:', sales_code);
+    return res.status(404).json({
+      success: false,
+      message: '下单拥挤，请等待'
+    });
+    
+  } catch (error) {
+    console.error('根据sales_code查找销售信息错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '下单拥挤，请等待'
     });
   }
 }

@@ -32,16 +32,33 @@ const dbConfig = {
   }
 };
 
-// 正确的sales_code标准：统一销售代码查找函数
+// 修复版：统一销售代码查找函数（支持临时代码）
 async function findSalesByCode(sales_code, connection) {
   try {
-    // 1. 查找一级销售
-    const [primary] = await connection.execute(
-      'SELECT *, "primary" as sales_type FROM primary_sales WHERE sales_code = ?', 
-      [sales_code]
-    );
+    console.log('🔍 查找销售代码:', sales_code);
+    
+    // 1. 查找一级销售 - 支持临时代码格式 ps_123
+    let primary = [];
+    if (sales_code.startsWith('ps_')) {
+      const primaryId = sales_code.replace('ps_', '');
+      [primary] = await connection.execute(
+        'SELECT *, "primary" as sales_type FROM primary_sales WHERE id = ?', 
+        [primaryId]
+      );
+    } else {
+      [primary] = await connection.execute(
+        'SELECT *, "primary" as sales_type FROM primary_sales WHERE sales_code = ?', 
+        [sales_code]
+      );
+    }
+    console.log('📊 一级销售查询结果:', primary.length);
     
     if (primary.length > 0) {
+      console.log('✅ 找到一级销售');
+      // 为临时代码添加销售代码字段
+      if (sales_code.startsWith('ps_')) {
+        primary[0].sales_code = sales_code;
+      }
       return { sales: primary[0], type: 'primary' };
     }
     
@@ -50,26 +67,44 @@ async function findSalesByCode(sales_code, connection) {
       'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE sales_code = ?', 
       [sales_code]
     );
+    console.log('📊 二级销售查询结果:', secondary.length);
     
     if (secondary.length > 0) {
+      console.log('✅ 找到二级销售');
       return { sales: secondary[0], type: 'secondary' };
     }
     
-    // 3. 查找遗留的sales表（兼容性处理）
-    const [legacy] = await connection.execute(
+    // 3. 查找遗留的sales表（兼容性处理）- 检查多个字段
+    // 先查找 sales_code 字段（如果存在且匹配）
+    const [legacySalesCode] = await connection.execute(
+      'SELECT *, "legacy" as sales_type FROM sales WHERE sales_code = ?', 
+      [sales_code]
+    );
+    console.log('📊 遗留销售(sales_code)查询结果:', legacySalesCode.length);
+    
+    if (legacySalesCode.length > 0) {
+      console.log('✅ 通过sales_code找到遗留销售');
+      return { sales: legacySalesCode[0], type: 'legacy' };
+    }
+    
+    // 再查找 link_code 字段
+    const [legacyLinkCode] = await connection.execute(
       'SELECT *, "legacy" as sales_type FROM sales WHERE link_code = ?', 
       [sales_code]
     );
+    console.log('📊 遗留销售(link_code)查询结果:', legacyLinkCode.length);
     
-    if (legacy.length > 0) {
-      return { sales: legacy[0], type: 'legacy' };
+    if (legacyLinkCode.length > 0) {
+      console.log('✅ 通过link_code找到遗留销售');
+      return { sales: legacyLinkCode[0], type: 'legacy' };
     }
     
     // 4. 未找到
+    console.log('❌ 未找到任何销售记录');
     return null;
     
   } catch (error) {
-    console.error('查找销售代码错误:', error);
+    console.error('❌ 查找销售代码错误:', error);
     return null;
   }
 }

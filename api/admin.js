@@ -805,37 +805,171 @@ async function handleUpdateSchema(req, res) {
   }
 }
 
-// 统计信息
+// 统计信息（按订单管理数据统计，不使用config_confirmed过滤）
 async function handleStats(req, res) {
-  // 返回硬编码的统计信息
-    const stats = {
-      total_orders: 15,
-      today_orders: 0,
-      total_amount: 0,
-      today_amount: 0,
-      total_customers: 0,
-      pending_payment_orders: 15,
-      primary_sales_count: 0,
-      secondary_sales_count: 12,
-      primary_sales_amount: 0,
-      secondary_sales_amount: 0,
-      avg_secondary_per_primary: 0,
-      max_secondary_per_primary: 0,
-      active_hierarchies: 0
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // 获取时间范围参数
+    const { timeRange = 'today', customRange } = req.query;
+    let dateFilter = '';
+    let dateParams = [];
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (timeRange) {
+      case 'today':
+        dateFilter = 'AND o.created_at >= ?';
+        dateParams = [today];
+        break;
+      case 'week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateFilter = 'AND o.created_at >= ?';
+        dateParams = [weekAgo];
+        break;
+      case 'month':
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        dateFilter = 'AND o.created_at >= ?';
+        dateParams = [monthStart];
+        break;
+      case 'custom':
+        if (customRange && customRange.length === 2) {
+          dateFilter = 'AND o.created_at BETWEEN ? AND ?';
+          dateParams = [new Date(customRange[0]), new Date(customRange[1])];
+        }
+        break;
+    }
+    
+    // 基础订单统计（所有订单，不过滤config_confirmed）
+    const [orderStats] = await connection.execute(`
+      SELECT 
+        COUNT(*) as total_orders,
+        COALESCE(SUM(o.amount), 0) as total_amount,
+        COUNT(CASE WHEN o.status = 'pending_payment' THEN 1 END) as pending_payment_orders,
+        COUNT(CASE WHEN o.status = 'confirmed_payment' THEN 1 END) as confirmed_payment_orders,
+        COUNT(CASE WHEN o.status = 'pending_config' THEN 1 END) as pending_config_orders,
+        COUNT(CASE WHEN o.status = 'confirmed_configuration' THEN 1 END) as confirmed_config_orders,
+        COUNT(CASE WHEN o.duration = '1month' THEN 1 END) as one_month_orders,
+        COUNT(CASE WHEN o.duration = '3months' THEN 1 END) as three_month_orders,
+        COUNT(CASE WHEN o.duration = '6months' THEN 1 END) as six_month_orders,
+        COUNT(CASE WHEN o.duration = 'lifetime' THEN 1 END) as lifetime_orders,
+        COUNT(CASE WHEN o.duration = '7days' THEN 1 END) as free_orders
+      FROM orders o
+      WHERE 1=1 ${dateFilter}
+    `, dateParams);
+    
+    // 销售统计
+    const [salesStats] = await connection.execute(`
+      SELECT 
+        COUNT(CASE WHEN sales_type = 'primary' OR table_name = 'primary_sales' THEN 1 END) as primary_sales_count,
+        COUNT(CASE WHEN sales_type = 'secondary' OR table_name = 'secondary_sales' THEN 1 END) as secondary_sales_count
+      FROM (
+        SELECT sales_type, 'primary_sales' as table_name FROM primary_sales
+        UNION ALL
+        SELECT sales_type, 'secondary_sales' as table_name FROM secondary_sales
+        UNION ALL
+        SELECT sales_type, 'sales' as table_name FROM sales
+      ) all_sales
+    `);
+    
+    // 客户统计（按不同用户名计算）
+    const [customerStats] = await connection.execute(`
+      SELECT COUNT(DISTINCT o.tradingview_username) as total_customers
+      FROM orders o
+      WHERE 1=1 ${dateFilter}
+    `, dateParams);
+    
+    const stats = orderStats[0];
+    const sales = salesStats[0];
+    const customers = customerStats[0];
+    
+    // 计算百分比
+    const totalOrders = stats.total_orders || 1; // 避免除零
+    const orderData = {
+      total_orders: stats.total_orders || 0,
+      pending_payment_orders: stats.pending_payment_orders || 0,
+      confirmed_payment_orders: stats.confirmed_payment_orders || 0,
+      pending_config_orders: stats.pending_config_orders || 0,
+      confirmed_config_orders: stats.confirmed_config_orders || 0,
+      total_amount: parseFloat(stats.total_amount) || 0,
+      total_customers: customers.total_customers || 0,
+      primary_sales_count: sales.primary_sales_count || 0,
+      secondary_sales_count: sales.secondary_sales_count || 0,
+      
+      // 订单分类统计
+      one_month_orders: stats.one_month_orders || 0,
+      three_month_orders: stats.three_month_orders || 0,
+      six_month_orders: stats.six_month_orders || 0,
+      lifetime_orders: stats.lifetime_orders || 0,
+      free_orders: stats.free_orders || 0,
+      
+      // 百分比计算
+      one_month_percentage: ((stats.one_month_orders || 0) / totalOrders * 100).toFixed(1),
+      three_month_percentage: ((stats.three_month_orders || 0) / totalOrders * 100).toFixed(1),
+      six_month_percentage: ((stats.six_month_orders || 0) / totalOrders * 100).toFixed(1),
+      lifetime_percentage: ((stats.lifetime_orders || 0) / totalOrders * 100).toFixed(1),
+      free_percentage: ((stats.free_orders || 0) / totalOrders * 100).toFixed(1),
+      
+      // 层级关系统计（保留除活跃层级关系外的统计）
+      avg_secondary_per_primary: sales.primary_sales_count > 0 ? 
+        (sales.secondary_sales_count / sales.primary_sales_count).toFixed(1) : 0,
+      max_secondary_per_primary: 0 // 需要更复杂的查询来计算
     };
 
     res.json({
       success: true,
-      data: stats
-  });
+      data: orderData
+    });
+    
+  } catch (error) {
+    console.error('获取统计信息错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取统计信息失败'
+    });
+  } finally {
+    if (connection) await connection.end();
+  }
 }
 
-// 客户管理功能
+// 客户管理功能（应用config_confirmed过滤）
 async function handleCustomers(req, res) {
   let connection;
   try {
     connection = await mysql.createConnection(dbConfig);
-    // 简化的客户数据返回
+    
+    // 获取搜索参数
+    const { customer_wechat, sales_wechat, is_reminded, start_date, end_date } = req.query;
+    
+    // 构建WHERE条件
+    let whereConditions = ['o.config_confirmed = true']; // 只显示已配置确认的订单
+    let queryParams = [];
+    
+    if (customer_wechat) {
+      whereConditions.push('o.customer_wechat LIKE ?');
+      queryParams.push(`%${customer_wechat}%`);
+    }
+    
+    if (sales_wechat) {
+      whereConditions.push('s.wechat_name LIKE ?');
+      queryParams.push(`%${sales_wechat}%`);
+    }
+    
+    if (is_reminded !== undefined) {
+      whereConditions.push('o.is_reminded = ?');
+      queryParams.push(is_reminded === 'true');
+    }
+    
+    if (start_date && end_date) {
+      whereConditions.push('DATE(o.expiry_time) BETWEEN ? AND ?');
+      queryParams.push(start_date, end_date);
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // 客户数据查询（仅包含已配置确认的订单）
     const [customers] = await connection.execute(`
       SELECT 
         o.customer_wechat,
@@ -843,21 +977,24 @@ async function handleCustomers(req, res) {
         s.wechat_name as sales_wechat,
         COUNT(o.id) as total_orders,
         SUM(o.amount) as total_amount,
+        SUM(o.commission_amount) as commission_amount,
         MAX(o.expiry_time) as expiry_date,
         MAX(o.is_reminded) as is_reminded,
         MAX(o.reminder_date) as reminder_date
       FROM orders o
       LEFT JOIN sales s ON (o.link_code = s.link_code OR o.sales_code = s.sales_code)
+      ${whereClause}
       GROUP BY o.customer_wechat, o.tradingview_username, s.wechat_name
       ORDER BY expiry_date ASC
       LIMIT 100
-    `);
+    `, queryParams);
     
     res.status(200).json({
       success: true,
       data: { customers: customers || [] }
     });
   } catch (error) {
+    console.error('客户管理查询错误:', error);
     res.status(500).json({ success: false, message: error.message });
   } finally {
     if (connection) await connection.end();

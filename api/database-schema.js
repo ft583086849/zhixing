@@ -1,6 +1,7 @@
-// Vercel Serverless Function - 健康检查API
+// Vercel Serverless Function - 数据库Schema管理API
 const mysql = require('mysql2/promise');
 
+// 数据库连接配置
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -25,106 +26,120 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 支持GET和POST请求
-  if (req.method !== 'GET' && req.method !== 'POST') {
+  // 只允许POST请求
+  if (req.method !== 'POST') {
     return res.status(405).json({
       success: false,
-      message: '只支持GET和POST请求'
+      message: '只允许POST请求'
     });
   }
 
+  let connection;
   try {
-    // 处理POST请求 - Schema修复功能
-    if (req.method === 'POST') {
-      const { action } = req.body;
-      
-      if (action === 'fix_schema') {
-        return await handleSchemaFix(req, res);
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: '未知的操作类型，支持的操作: fix_schema'
-        });
-      }
-    }
-
-    // GET请求 - 健康检查
-    // 测试数据库连接
-    let dbStatus = { connected: false, error: null, message: '数据库连接失败' };
+    console.log('🔧 开始数据库Schema修复...');
+    connection = await mysql.createConnection(dbConfig);
     
-    try {
-      const connection = await mysql.createConnection(dbConfig);
-      await connection.execute('SELECT 1');
-      await connection.end();
-      
-      dbStatus = { 
-        connected: true, 
-        error: null, 
-        message: '数据库连接正常' 
-      };
-    } catch (dbError) {
-      dbStatus = { 
-        connected: false, 
-        error: dbError.message, 
-        message: '数据库连接失败' 
-      };
+    const { action } = req.body;
+    
+    if (action === 'add_sales_code_fields') {
+      return await addSalesCodeFields(connection, res);
+    } else if (action === 'check_schema') {
+      return await checkCurrentSchema(connection, res);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: '未知的操作类型'
+      });
     }
-
-    // 返回健康检查结果
-    res.status(200).json({
-      success: true,
-      message: '健康检查完成',
-      data: {
-        status: 'OK',
-        message: '知行财库服务运行正常',
-        timestamp: new Date().toISOString(),
-        platform: 'Vercel Serverless',
-        version: '2.1.0',
-        database: dbStatus
-      }
-    });
 
   } catch (error) {
-    console.error('健康检查错误:', error);
-    res.status(500).json({
+    console.error('❌ Schema管理失败:', error);
+    return res.status(500).json({
       success: false,
-      message: '健康检查失败',
+      message: 'Schema管理失败',
       error: error.message
     });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
 }
 
-// Schema修复处理函数
-async function handleSchemaFix(req, res) {
-  let connection;
+// 检查当前数据库schema
+async function checkCurrentSchema(connection, res) {
   try {
-    console.log('🔧 开始Schema修复...');
-    connection = await mysql.createConnection(dbConfig);
+    console.log('🔍 检查primary_sales表结构...');
     
+    const [columns] = await connection.execute('SHOW COLUMNS FROM primary_sales');
+    const existingColumns = columns.map(col => col.Field);
+    
+    console.log('📋 现有字段:', existingColumns.join(', '));
+    
+    const needsFields = {
+      sales_code: !existingColumns.includes('sales_code'),
+      secondary_registration_code: !existingColumns.includes('secondary_registration_code')
+    };
+    
+    // 检查secondary_sales表
+    let secondaryNeedsFields = { sales_code: false };
+    try {
+      const [secColumns] = await connection.execute('SHOW COLUMNS FROM secondary_sales');
+      const secExistingColumns = secColumns.map(col => col.Field);
+      secondaryNeedsFields.sales_code = !secExistingColumns.includes('sales_code');
+    } catch (error) {
+      console.log('⚠️  secondary_sales表不存在');
+    }
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        primary_sales: {
+          existing_columns: existingColumns,
+          needs_fields: needsFields
+        },
+        secondary_sales: {
+          needs_fields: secondaryNeedsFields
+        },
+        ready_for_fix: needsFields.sales_code || needsFields.secondary_registration_code
+      }
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
+// 添加销售代码字段
+async function addSalesCodeFields(connection, res) {
+  try {
     const results = [];
     
-    // 1. 添加primary_sales.sales_code字段
-    console.log('1️⃣ 添加primary_sales.sales_code字段...');
+    // 1. 检查并添加primary_sales.sales_code
+    console.log('1️⃣ 检查primary_sales.sales_code字段...');
     try {
-      await connection.execute(`
-        ALTER TABLE primary_sales 
-        ADD COLUMN sales_code VARCHAR(16) UNIQUE 
-        COMMENT '用户购买时使用的销售代码'
-      `);
-      console.log('✅ sales_code字段添加成功');
-      results.push({ field: 'primary_sales.sales_code', status: 'added' });
-    } catch (error) {
-      if (error.message.includes('Duplicate column name')) {
+      const [columns] = await connection.execute('SHOW COLUMNS FROM primary_sales');
+      const existingColumns = columns.map(col => col.Field);
+      
+      if (!existingColumns.includes('sales_code')) {
+        console.log('➕ 添加sales_code字段...');
+        await connection.execute(`
+          ALTER TABLE primary_sales 
+          ADD COLUMN sales_code VARCHAR(16) UNIQUE 
+          COMMENT '用户购买时使用的销售代码'
+        `);
+        console.log('✅ sales_code字段添加成功');
+        results.push({ field: 'primary_sales.sales_code', status: 'added' });
+      } else {
         console.log('ℹ️  sales_code字段已存在');
         results.push({ field: 'primary_sales.sales_code', status: 'exists' });
-      } else {
-        console.error('❌ 添加sales_code字段失败:', error.message);
-        results.push({ field: 'primary_sales.sales_code', status: 'failed', error: error.message });
       }
+    } catch (error) {
+      console.error('❌ 添加sales_code字段失败:', error.message);
+      results.push({ field: 'primary_sales.sales_code', status: 'failed', error: error.message });
     }
 
-    // 2. 添加primary_sales.secondary_registration_code字段
-    console.log('2️⃣ 添加primary_sales.secondary_registration_code字段...');
+    // 2. 检查并添加primary_sales.secondary_registration_code
+    console.log('2️⃣ 检查primary_sales.secondary_registration_code字段...');
     try {
       await connection.execute(`
         ALTER TABLE primary_sales 
@@ -143,8 +158,8 @@ async function handleSchemaFix(req, res) {
       }
     }
 
-    // 3. 添加secondary_sales.sales_code字段
-    console.log('3️⃣ 添加secondary_sales.sales_code字段...');
+    // 3. 检查并添加secondary_sales.sales_code
+    console.log('3️⃣ 检查secondary_sales.sales_code字段...');
     try {
       await connection.execute(`
         ALTER TABLE secondary_sales 
@@ -247,23 +262,14 @@ async function handleSchemaFix(req, res) {
         final_columns: finalColumnNames,
         has_required_fields: isSuccess,
         summary: {
-          sales_code_field: results.find(r => r.field === 'primary_sales.sales_code')?.status,
-          secondary_registration_code_field: results.find(r => r.field === 'primary_sales.secondary_registration_code')?.status,
+          sales_code_added: results.find(r => r.field === 'primary_sales.sales_code')?.status,
+          secondary_registration_code_added: results.find(r => r.field === 'primary_sales.secondary_registration_code')?.status,
           ready_for_use: isSuccess
         }
       }
     });
 
   } catch (error) {
-    console.error('❌ Schema修复失败:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Schema修复失败',
-      error: error.message
-    });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
+    throw error;
   }
-} 
+}
