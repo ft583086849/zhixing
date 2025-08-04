@@ -467,7 +467,8 @@ async function handleGetSalesBySalesCode(req, res, connection, sales_code) {
       [secondary] = await connection.execute(
         'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE sales_code = ?', 
         [sales_code]
-    );
+      );
+    }
     
     if (secondary.length > 0) {
       console.log('✅ 找到二级销售:', secondary[0].wechat_name);
