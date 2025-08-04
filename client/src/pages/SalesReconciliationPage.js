@@ -51,8 +51,8 @@ const SalesReconciliationPage = () => {
       // 模拟API调用 - 实际项目中需要替换为真实API
       const mockData = {
         sales: {
-          wechat_name: values.wechat_name || '测试销售',
-          link_code: values.link_code || 'test123',
+          wechat_name: values.wechat_name || '二级销售示例',
+          link_code: values.link_code || 'secondary_demo',
           total_orders: 15,
           total_amount: 12580,
           total_commission: 3774, // 返佣金额 = 订单金额 * 30%
@@ -61,8 +61,8 @@ const SalesReconciliationPage = () => {
         orders: [
           {
             id: 1,
-            tradingview_username: 'user001',
-            customer_wechat: 'customer001',
+            tradingview_username: 'demo_user_001',
+            customer_wechat: 'customer_demo_001',
             duration: '1month',
             amount: 188,
             commission: 56.4, // 188 * 30%
@@ -72,8 +72,8 @@ const SalesReconciliationPage = () => {
           },
           {
             id: 2,
-            tradingview_username: 'user002',
-            customer_wechat: 'customer002',
+            tradingview_username: 'demo_user_002',
+            customer_wechat: 'customer_demo_002',
             duration: '3months',
             amount: 488,
             commission: 146.4, // 488 * 30%

@@ -78,12 +78,12 @@ async function createPrimarySales() {
     
     if (result.data.success) {
       console.log(`   ✅ 一级销售创建成功: ${primaryData.wechat_name}`);
-      console.log(`   📱 二级销售注册链接: ${result.data.secondary_registration_link}`);
-      console.log(`   🛒 用户购买链接: ${result.data.user_sales_link}`);
+      console.log(`   📱 二级销售注册链接: ${result.data.data.secondary_registration_link}`);
+      console.log(`   🛒 用户购买链接: ${result.data.data.user_sales_link}`);
       return {
-        primary: result.data,
-        secondary_registration_code: result.data.secondary_registration_code,
-        user_sales_code: result.data.user_sales_code
+        primary: result.data.data,
+        secondary_registration_code: result.data.data.secondary_registration_code,
+        user_sales_code: result.data.data.user_sales_code
       };
     } else {
       console.log(`   ❌ 一级销售创建失败: ${result.data.message}`);
@@ -103,7 +103,7 @@ async function createSecondaryUnderPrimary(primaryCodes, count = 5) {
   for (let i = 0; i < count; i++) {
     const secondaryData = {
       wechat_name: generateWechatName('二级销售'),
-      secondary_registration_code: primaryCodes.secondary_registration_code, // 使用正确的字段名
+      registration_code: primaryCodes.secondary_registration_code, // 修正字段名
       ...generateRandomData()
     };
 
@@ -112,10 +112,11 @@ async function createSecondaryUnderPrimary(primaryCodes, count = 5) {
       
       if (result.data.success) {
         console.log(`   ✅ 二级销售 ${i+1} 创建成功: ${secondaryData.wechat_name}`);
-        console.log(`   📱 生成的sales_code: ${result.data.sales_code || result.data.link_code}`);
+        console.log(`   📱 生成的sales_code: ${result.data.data.sales_code}`);
         secondarySales.push({
-          ...result.data,
-          sales_code: result.data.sales_code || result.data.link_code // 确保有sales_code
+          ...result.data.data,
+          sales_code: result.data.data.sales_code,
+          wechat_name: result.data.data.wechat_name
         });
       } else {
         console.log(`   ❌ 二级销售 ${i+1} 创建失败: ${result.data.message}`);
@@ -146,10 +147,11 @@ async function createIndependentSecondarySales(count = 5) {
       
       if (result.data.success) {
         console.log(`   ✅ 独立二级销售 ${i+1} 创建成功: ${salesData.wechat_name}`);
-        console.log(`   📱 生成的sales_code: ${result.data.sales_code || result.data.link_code}`);
+        console.log(`   📱 生成的sales_code: ${result.data.link_code || result.data.sales_code}`);
         independentSales.push({
           ...result.data,
-          sales_code: result.data.sales_code || result.data.link_code // 确保有sales_code
+          sales_code: result.data.link_code || result.data.sales_code,
+          wechat_name: salesData.wechat_name
         });
       } else {
         console.log(`   ❌ 独立二级销售 ${i+1} 创建失败: ${result.data.message}`);
@@ -272,6 +274,11 @@ async function createComprehensiveTestData() {
   console.log('\\n🔗 重要链接:');
   console.log(`   📱 二级销售注册: ${primaryResult.primary.secondary_registration_link}`);
   console.log(`   🛒 用户购买链接: ${primaryResult.primary.user_sales_link}`);
+  console.log('\\n🔗 测试页面链接:');
+  console.log('   📱 管理员控制台: https://zhixing-seven.vercel.app/#/admin/dashboard');
+  console.log('   🏆 一级销售注册: https://zhixing-seven.vercel.app/#/primary-sales');
+  console.log('   📊 一级销售分销管理: https://zhixing-seven.vercel.app/#/sales/commission');
+  console.log('   💰 二级销售对账: https://zhixing-seven.vercel.app/#/sales/settlement');
   
   return {
     primary: primaryResult,
