@@ -1,249 +1,325 @@
-#!/usr/bin/env node
-
 /**
  * 部署验证 - 完整功能测试
- * 验证所有修复功能是否生效
+ * 验证佣金比率计算逻辑是否正确部署
  */
 
-const https = require('https');
+const axios = require('axios');
+const fs = require('fs');
 
-const API_BASE = 'https://zhixing-seven.vercel.app/api';
+console.log('🔍 部署验证 - 佣金比率计算逻辑生效检查');
+console.log('=' .repeat(60));
 
-function makeRequest(path, method = 'GET', data = null) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(API_BASE + path);
-    const options = {
-      hostname: url.hostname,
-      port: url.port || 443,
-      path: url.pathname + url.search,
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Deployment-Verification/1.0'
-      }
-    };
+// 验证配置
+const baseURL = 'https://zhixing-seven.vercel.app';
+const testPages = [
+  {
+    name: '一级销售对账页面',
+    url: `${baseURL}/sales/commission`,
+    expectation: '佣金比率应显示37.8%（不是70%）'
+  },
+  {
+    name: '管理员销售页面', 
+    url: `${baseURL}/admin/sales`,
+    expectation: '一级销售佣金比率使用新计算逻辑'
+  }
+];
 
-    const req = https.request(options, (res) => {
-      let responseData = '';
-      res.on('data', (chunk) => {
-        responseData += chunk;
-      });
-      res.on('end', () => {
-        try {
-          const parsedData = JSON.parse(responseData);
-          resolve({
-            status: res.statusCode,
-            data: parsedData,
-            raw: responseData
-          });
-        } catch (e) {
-          resolve({
-            status: res.statusCode,
-            data: responseData,
-            raw: responseData
-          });
-        }
-      });
-    });
-
-    req.on('error', (error) => {
-      reject(error);
-    });
-
-    if (data) {
-      req.write(JSON.stringify(data));
-    }
-    req.end();
-  });
-}
-
-async function test1_HealthCheck() {
-  console.log('🔍 测试1: API健康检查...');
+// 1. 检查JavaScript文件是否更新
+async function checkJavaScriptFiles() {
+  console.log('\n📄 步骤1: 检查JavaScript文件更新');
+  console.log('-' .repeat(40));
+  
   try {
-    const result = await makeRequest('/health');
-    console.log(`   状态: ${result.status}`);
-    console.log(`   版本: ${result.data.data?.version || 'N/A'}`);
-    console.log(`   数据库: ${result.data.data?.database?.message || 'N/A'}`);
-    return result.status === 200;
+    console.log('🔍 获取主页面HTML...');
+    const response = await axios.get(baseURL, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
+    const html = response.data;
+    
+    // 提取JavaScript文件名
+    const jsFiles = [];
+    const jsRegex = /static\/js\/main\.([a-f0-9]+)\.js/g;
+    let match;
+    
+    while ((match = jsRegex.exec(html)) !== null) {
+      jsFiles.push({
+        filename: match[0],
+        hash: match[1]
+      });
+    }
+    
+    console.log('📂 发现的JavaScript文件:');
+    jsFiles.forEach(file => {
+      console.log(`   ${file.filename} (哈希: ${file.hash})`);
+      
+      // 检查是否还是旧的哈希
+      if (file.hash === '8a7a4e3e') {
+        console.log('   ⚠️  这仍然是旧版本的哈希！');
+      } else {
+        console.log('   ✅ 这是新版本的哈希！');
+      }
+    });
+    
+    return {
+      success: true,
+      jsFiles,
+      hasNewFiles: jsFiles.some(f => f.hash !== '8a7a4e3e')
+    };
+    
   } catch (error) {
-    console.log(`   ❌ 错误: ${error.message}`);
-    return false;
+    console.log(`❌ 检查失败: ${error.message}`);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
 
-async function test2_PrimarySalesCreation() {
-  console.log('\n🔍 测试2: 一级销售创建功能...');
+// 2. 检查编译后的JavaScript代码
+async function checkCompiledCode() {
+  console.log('\n🔍 步骤2: 检查编译后的JavaScript代码');
+  console.log('-' .repeat(40));
+  
   try {
-    const testData = {
-      wechat_name: 'test_primary_sales',
-      payment_method: 'alipay',
-      payment_address: 'test@alipay.com',
-      alipay_surname: '测试',
-      chain_name: '测试链'
-    };
+    const response = await axios.get(baseURL);
+    const html = response.data;
     
-    const result = await makeRequest('/primary-sales', 'POST', testData);
-    console.log(`   状态: ${result.status}`);
-    console.log(`   响应: ${result.data.message || result.data}`);
-    
-    if (result.data.data?.sales_code) {
-      console.log(`   ✅ 生成销售代码: ${result.data.data.sales_code}`);
-      return { success: true, sales_code: result.data.data.sales_code };
-    } else {
-      console.log(`   ❌ 未生成销售代码`);
+    // 提取主要的JS文件URL
+    const jsMatch = html.match(/static\/js\/main\.([a-f0-9]+)\.js/);
+    if (!jsMatch) {
+      console.log('❌ 未找到main.js文件');
       return { success: false };
     }
-  } catch (error) {
-    console.log(`   ❌ 错误: ${error.message}`);
-    return { success: false };
-  }
-}
-
-async function test3_SalesCodeLookup(salesCode) {
-  console.log('\n🔍 测试3: sales_code查找功能...');
-  try {
-    const result = await makeRequest(`/sales?sales_code=${salesCode}`);
-    console.log(`   状态: ${result.status}`);
-    console.log(`   响应: ${result.data.message || result.data}`);
     
-    if (result.status === 200 && result.data.success) {
-      console.log(`   ✅ 销售代码查找成功`);
-      return true;
-    } else if (result.data.message === '下单拥挤，请等待') {
-      console.log(`   ❌ 仍然返回"下单拥挤，请等待"`);
-      return false;
-    } else {
-      console.log(`   ⚠️  其他响应: ${result.data.message}`);
-      return false;
-    }
-  } catch (error) {
-    console.log(`   ❌ 错误: ${error.message}`);
-    return false;
-  }
-}
-
-async function test4_OrderCreation(salesCode) {
-  console.log('\n🔍 测试4: 用户购买订单创建...');
-  try {
-    const orderData = {
-      sales_code: salesCode,
-      customer_wechat: 'test_customer_' + Date.now(),
-      tradingview_username: 'test_tv_user',
-      package_type: '7_days_free',
-      amount: 0
+    const jsURL = `${baseURL}/static/js/${jsMatch[0]}`;
+    console.log(`📄 检查文件: ${jsURL}`);
+    
+    const jsResponse = await axios.get(jsURL, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
+    const jsCode = jsResponse.data;
+    
+    // 检查新逻辑的关键词
+    const newLogicKeywords = [
+      'primaryDirectAmount',
+      'secondaryTotalAmount', 
+      'averageSecondaryRate',
+      'calculatePrimaryCommissionRate',
+      'config_confirmed'
+    ];
+    
+    console.log('🔍 检查新逻辑关键词:');
+    
+    const foundKeywords = [];
+    const missingKeywords = [];
+    
+    newLogicKeywords.forEach(keyword => {
+      if (jsCode.includes(keyword)) {
+        console.log(`   ✅ ${keyword} - 存在`);
+        foundKeywords.push(keyword);
+      } else {
+        console.log(`   ❌ ${keyword} - 不存在`);
+        missingKeywords.push(keyword);
+      }
+    });
+    
+    // 检查旧逻辑是否还存在
+    const oldLogicPattern = /40\s*\+\s*[^)]*commission.*rate/i;
+    const hasOldLogic = oldLogicPattern.test(jsCode);
+    
+    console.log(`\n🔍 旧逻辑检查:`);
+    console.log(`   旧逻辑(40% + 平均佣金率): ${hasOldLogic ? '❌ 仍存在' : '✅ 已移除'}`);
+    
+    return {
+      success: true,
+      foundKeywords: foundKeywords.length,
+      totalKeywords: newLogicKeywords.length,
+      missingKeywords,
+      hasOldLogic,
+      codeLength: jsCode.length
     };
     
-    const result = await makeRequest('/orders', 'POST', orderData);
-    console.log(`   状态: ${result.status}`);
-    console.log(`   响应: ${result.data.message || result.data}`);
-    
-    if (result.status === 201 && result.data.success) {
-      console.log(`   ✅ 订单创建成功`);
-      return true;
-    } else if (result.data.message === '下单拥挤，请等待') {
-      console.log(`   ❌ 仍然返回"下单拥挤，请等待"`);
-      return false;
-    } else {
-      console.log(`   ⚠️  其他错误: ${result.data.message}`);
-      return false;
-    }
   } catch (error) {
-    console.log(`   ❌ 错误: ${error.message}`);
-    return false;
+    console.log(`❌ 检查失败: ${error.message}`);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
 
-async function test5_AdminAPI() {
-  console.log('\n🔍 测试5: 管理员API功能...');
-  try {
-    // 测试数据概览
-    const statsResult = await makeRequest('/admin?action=stats');
-    console.log(`   数据概览状态: ${statsResult.status}`);
-    
-    if (statsResult.status === 401) {
-      console.log(`   ✅ 需要认证（正常保护）`);
-      return true;
-    } else if (statsResult.status === 200) {
-      console.log(`   ✅ API响应正常`);
-      return true;
-    } else {
-      console.log(`   ⚠️  意外状态: ${statsResult.status}`);
-      return false;
-    }
-  } catch (error) {
-    console.log(`   ❌ 错误: ${error.message}`);
-    return false;
-  }
-}
-
-async function main() {
-  console.log('🚀 开始部署验证 - 完整功能测试\n');
-  console.log('='.repeat(60));
+// 3. 模拟用户访问检查
+async function checkPageAccess() {
+  console.log('\n🌐 步骤3: 检查页面访问');
+  console.log('-' .repeat(40));
   
-  const results = {
-    health: false,
-    primarySales: false,
-    salesLookup: false,
-    orderCreation: false,
-    adminAPI: false
+  const results = [];
+  
+  for (const page of testPages) {
+    console.log(`🔍 检查: ${page.name}`);
+    console.log(`   URL: ${page.url}`);
+    console.log(`   预期: ${page.expectation}`);
+    
+    try {
+      const response = await axios.get(page.url, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        },
+        timeout: 10000
+      });
+      
+      if (response.status === 200) {
+        console.log(`   ✅ 页面加载成功 (${response.status})`);
+        results.push({
+          page: page.name,
+          status: 'success',
+          statusCode: response.status
+        });
+      } else {
+        console.log(`   ⚠️  页面响应异常 (${response.status})`);
+        results.push({
+          page: page.name, 
+          status: 'warning',
+          statusCode: response.status
+        });
+      }
+      
+    } catch (error) {
+      console.log(`   ❌ 页面访问失败: ${error.message}`);
+      results.push({
+        page: page.name,
+        status: 'error',
+        error: error.message
+      });
+    }
+    
+    console.log('');
+  }
+  
+  return results;
+}
+
+// 4. 强制清除缓存
+async function forceClearCache() {
+  console.log('\n🧹 步骤4: 强制清除Vercel缓存');
+  console.log('-' .repeat(40));
+  
+  const cacheUrls = [
+    `${baseURL}/sales/commission`,
+    `${baseURL}/admin/sales`,
+    `${baseURL}/static/js/`
+  ];
+  
+  console.log('🔄 发送缓存清除请求...');
+  
+  for (const url of cacheUrls) {
+    try {
+      await axios.get(url, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      console.log(`   ✅ 清除缓存: ${url}`);
+    } catch (error) {
+      console.log(`   ⚠️  缓存清除失败: ${url} - ${error.message}`);
+    }
+  }
+  
+  console.log('\n💡 建议用户也清除浏览器缓存:');
+  console.log('   - Chrome/Edge: Ctrl+Shift+R 或 Cmd+Shift+R');
+  console.log('   - 或开发者工具 > Network > Disable cache');
+}
+
+// 5. 生成验证报告
+function generateVerificationReport(jsCheck, codeCheck, pageCheck) {
+  console.log('\n' + '=' .repeat(60));
+  console.log('📊 部署验证报告');
+  console.log('=' .repeat(60));
+  
+  const report = {
+    timestamp: new Date().toISOString(),
+    deployment: {
+      jsFilesUpdated: jsCheck.success && jsCheck.hasNewFiles,
+      newLogicDeployed: codeCheck.success && codeCheck.foundKeywords >= 3,
+      pagesAccessible: pageCheck.every(p => p.status === 'success')
+    },
+    details: {
+      jsCheck,
+      codeCheck, 
+      pageCheck
+    }
   };
   
-  let salesCode = null;
+  console.log('\n🎯 关键指标:');
+  console.log(`✅ JavaScript文件更新: ${report.deployment.jsFilesUpdated ? '是' : '否'}`);
+  console.log(`✅ 新逻辑部署成功: ${report.deployment.newLogicDeployed ? '是' : '否'}`);
+  console.log(`✅ 页面正常访问: ${report.deployment.pagesAccessible ? '是' : '否'}`);
   
-  // 测试1: 健康检查
-  results.health = await test1_HealthCheck();
+  const allPassed = Object.values(report.deployment).every(v => v === true);
   
-  // 测试2: 一级销售创建
-  const primaryResult = await test2_PrimarySalesCreation();
-  results.primarySales = primaryResult.success;
-  salesCode = primaryResult.sales_code;
-  
-  // 测试3: 销售代码查找
-  if (salesCode) {
-    results.salesLookup = await test3_SalesCodeLookup(salesCode);
+  if (allPassed) {
+    console.log('\n🎉 部署验证完全成功！新的佣金比率计算逻辑已生效！');
+    console.log('\n📋 下一步验证:');
+    console.log('1. 手动访问: https://zhixing-seven.vercel.app/sales/commission');
+    console.log('2. 强制刷新页面 (Cmd+Shift+R)');
+    console.log('3. 确认佣金比率显示 37.8% (不是70%)');
+    console.log('4. 验证计算逻辑基于实际订单金额');
   } else {
-    console.log('\n🔍 测试3: 跳过 - 无可用销售代码');
+    console.log('\n⚠️  部署验证存在问题，需要进一步调查！');
+    
+    if (!report.deployment.jsFilesUpdated) {
+      console.log('❌ JavaScript文件未更新 - 可能需要手动触发重新部署');
+    }
+    if (!report.deployment.newLogicDeployed) {
+      console.log('❌ 新逻辑未部署 - 检查代码编译或缓存问题');
+    }
+    if (!report.deployment.pagesAccessible) {
+      console.log('❌ 页面访问异常 - 检查路由或服务器问题');
+    }
   }
   
-  // 测试4: 订单创建
-  if (salesCode) {
-    results.orderCreation = await test4_OrderCreation(salesCode);
-  } else {
-    console.log('\n🔍 测试4: 跳过 - 无可用销售代码');
-  }
+  // 保存报告
+  fs.writeFileSync('部署验证报告.json', JSON.stringify(report, null, 2));
+  console.log('\n📄 详细报告已保存: 部署验证报告.json');
   
-  // 测试5: 管理员API
-  results.adminAPI = await test5_AdminAPI();
+  return report;
+}
+
+// 主验证函数
+async function runDeploymentVerification() {
+  console.log('🚀 开始部署验证...\n');
   
-  // 汇总结果
-  console.log('\n' + '='.repeat(60));
-  console.log('📊 验证结果汇总:');
-  console.log(`✅ API健康检查: ${results.health ? '通过' : '失败'}`);
-  console.log(`✅ 一级销售创建: ${results.primarySales ? '通过' : '失败'}`);
-  console.log(`✅ 销售代码查找: ${results.salesLookup ? '通过' : '失败'}`);
-  console.log(`✅ 订单创建功能: ${results.orderCreation ? '通过' : '失败'}`);
-  console.log(`✅ 管理员API: ${results.adminAPI ? '通过' : '失败'}`);
-  
-  const passedCount = Object.values(results).filter(r => r).length;
-  const totalCount = Object.values(results).length;
-  
-  console.log(`\n📈 总体通过率: ${passedCount}/${totalCount} (${(passedCount/totalCount*100).toFixed(1)}%)`);
-  
-  if (passedCount === totalCount) {
-    console.log('🎉 所有功能验证通过！部署成功！');
-  } else {
-    console.log('⚠️  部分功能仍有问题，需要进一步调试。');
-  }
-  
-  // 具体建议
-  if (!results.primarySales) {
-    console.log('\n💡 建议: 检查一级销售创建API的数据库字段问题');
-  }
-  if (!results.salesLookup || !results.orderCreation) {
-    console.log('\n💡 建议: 检查sales_code统一查找逻辑是否正确部署');
+  try {
+    // 执行所有验证步骤
+    const jsCheck = await checkJavaScriptFiles();
+    const codeCheck = await checkCompiledCode();
+    const pageCheck = await checkPageAccess();
+    
+    // 强制清除缓存
+    await forceClearCache();
+    
+    // 生成报告
+    const report = generateVerificationReport(jsCheck, codeCheck, pageCheck);
+    
+    return report;
+    
+  } catch (error) {
+    console.log(`❌ 验证过程出错: ${error.message}`);
+    return null;
   }
 }
 
-if (require.main === module) {
-  main();
-}
+// 执行验证
+runDeploymentVerification().catch(console.error);

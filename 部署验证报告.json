@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-08-04T19:01:11.589Z",
+  "deployment": {
+    "jsFilesUpdated": true,
+    "newLogicDeployed": false,
+    "pagesAccessible": true
+  },
+  "details": {
+    "jsCheck": {
+      "success": true,
+      "jsFiles": [
+        {
+          "filename": "static/js/main.6922a46e.js",
+          "hash": "6922a46e"
+        }
+      ],
+      "hasNewFiles": true
+    },
+    "codeCheck": {
+      "success": true,
+      "foundKeywords": 0,
+      "totalKeywords": 5,
+      "missingKeywords": [
+        "primaryDirectAmount",
+        "secondaryTotalAmount",
+        "averageSecondaryRate",
+        "calculatePrimaryCommissionRate",
+        "config_confirmed"
+      ],
+      "hasOldLogic": false,
+      "codeLength": 492
+    },
+    "pageCheck": [
+      {
+        "page": "一级销售对账页面",
+        "status": "success",
+        "statusCode": 200
+      },
+      {
+        "page": "管理员销售页面",
+        "status": "success",
+        "statusCode": 200
+      }
+    ]
+  }
+}

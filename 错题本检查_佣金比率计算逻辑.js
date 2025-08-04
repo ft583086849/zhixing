@@ -21,7 +21,7 @@ const checkList = [
       return content.includes("一级销售的用户下单金额*40%") && 
              content.includes("二级销售订单总金额-二级销售分佣比率平均值") &&
              content.includes("primaryDirectAmount * 0.40") &&
-             content.includes("secondaryTotalAmount * (1 - averageSecondaryRate)");
+             content.includes("secondaryTotalAmount * ((40 - averageSecondaryRate * 100) / 100)");
     }
   },
   
@@ -34,7 +34,7 @@ const checkList = [
       return content.includes("calculatePrimaryCommissionRate") &&
              content.includes("record.sales?.sales_type === 'primary'") &&
              content.includes("primaryDirectAmount * 0.40") &&
-             content.includes("secondaryTotalAmount * (1 - averageSecondaryRate)") &&
+             content.includes("secondaryTotalAmount * ((40 - averageSecondaryRate * 100) / 100)") &&
              content.includes("一级销售的用户下单金额×40%");
     }
   },

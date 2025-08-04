@@ -115,7 +115,7 @@ const AdminSales = () => {
     
     // 5. 计算一级销售总佣金
     const primaryDirectCommission = primaryDirectAmount * 0.40; // 一级销售直接用户佣金：40%
-    const primaryFromSecondaryCommission = secondaryTotalAmount * (1 - averageSecondaryRate); // 一级销售从二级销售获得的佣金
+    const primaryFromSecondaryCommission = secondaryTotalAmount * ((40 - averageSecondaryRate * 100) / 100); // 一级销售从二级销售获得的佣金：(40%-二级销售平均佣金率)
     const totalPrimaryCommission = primaryDirectCommission + primaryFromSecondaryCommission;
     
     // 6. 计算一级销售佣金比率
