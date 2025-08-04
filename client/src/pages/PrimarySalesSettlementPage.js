@@ -164,32 +164,41 @@ const PrimarySalesSettlementPage = () => {
       };
       
       // 重新计算二级销售统计（仅计入配置确认的订单）
+      const updatedSecondarySales = mockStats.secondarySales.map(sales => {
+        // 仅计算该二级销售配置确认的订单
+        const confirmedOrdersForSales = confirmedOrders.filter(order => 
+          order.secondary_sales_name === sales.wechat_name
+        );
+        
+        const confirmedOrderCount = confirmedOrdersForSales.length;
+        const confirmedTotalAmount = confirmedOrdersForSales.reduce((sum, order) => sum + order.amount, 0);
+        const confirmedCommission = confirmedOrdersForSales.reduce((sum, order) => sum + order.commission_amount, 0);
+        
+        return {
+          ...sales,
+          // 业绩数据仅计入配置确认的订单
+          order_count: confirmedOrderCount,
+          total_orders: confirmedOrderCount,
+          total_amount: confirmedTotalAmount,
+          commission_earned: confirmedCommission,
+          total_commission: confirmedCommission,
+          // 佣金比率不受配置确认状态影响，保持原值
+          commission_rate: sales.commission_rate
+        };
+      });
+
+      // 计算总订单数：名下销售订单数 + 自己销售订单数
+      const secondarySalesTotalOrders = updatedSecondarySales.reduce((sum, sales) => sum + sales.order_count, 0);
+      const primarySalesOwnOrders = confirmedOrders.filter(order => !order.secondary_sales_name).length;
+      const calculatedTotalOrders = secondarySalesTotalOrders + primarySalesOwnOrders;
+
       const updatedStatsData = {
         ...mockStats,
         // 二级销售数量不受配置确认状态影响，保持原值
         total_secondary_sales: mockSalesData.total_secondary_sales,
-        secondarySales: mockStats.secondarySales.map(sales => {
-          // 仅计算该二级销售配置确认的订单
-          const confirmedOrdersForSales = confirmedOrders.filter(order => 
-            order.secondary_sales_name === sales.wechat_name
-          );
-          
-          const confirmedOrderCount = confirmedOrdersForSales.length;
-          const confirmedTotalAmount = confirmedOrdersForSales.reduce((sum, order) => sum + order.amount, 0);
-          const confirmedCommission = confirmedOrdersForSales.reduce((sum, order) => sum + order.commission_amount, 0);
-          
-          return {
-            ...sales,
-            // 业绩数据仅计入配置确认的订单
-            order_count: confirmedOrderCount,
-            total_orders: confirmedOrderCount,
-            total_amount: confirmedTotalAmount,
-            commission_earned: confirmedCommission,
-            total_commission: confirmedCommission,
-            // 佣金比率不受配置确认状态影响，保持原值
-            commission_rate: sales.commission_rate
-          };
-        })
+        // 重新计算总订单数
+        totalOrders: calculatedTotalOrders,
+        secondarySales: updatedSecondarySales
       };
 
       setSalesData(mockSalesData);
@@ -242,7 +251,21 @@ const PrimarySalesSettlementPage = () => {
         <Card>
           <Statistic
             title="佣金比率"
-            value={salesData ? (salesData.commission_rate * 100).toFixed(0) : 40}
+            value={(() => {
+              // 按需求文档计算：一级销售整体佣金比率 = 40% - 二级销售分佣比率平均值
+              if (!primarySalesStats?.secondarySales || primarySalesStats.secondarySales.length === 0) {
+                return 40; // 没有二级销售时，显示40%
+              }
+              
+              // 计算二级销售佣金比率平均值
+              const secondaryRates = primarySalesStats.secondarySales.map(sales => sales.commission_rate * 100);
+              const averageSecondaryRate = secondaryRates.reduce((sum, rate) => sum + rate, 0) / secondaryRates.length;
+              
+              // 一级销售佣金比率 = 40% - 二级销售平均佣金比率
+              const primaryRate = 40 - averageSecondaryRate;
+              
+              return primaryRate.toFixed(1);
+            })()}
             valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
             prefix={<DollarOutlined />}
             suffix="%"
@@ -375,16 +398,14 @@ const PrimarySalesSettlementPage = () => {
       width: 120,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="请您线下向用户催单后点击此按钮">
-            <Button 
-              type="link" 
-              size="small"
-              onClick={() => handleUrgeOrder(record)}
-              disabled={record.status !== 'pending_review'}
-            >
-              催单
-            </Button>
-          </Tooltip>
+          <Button 
+            type="primary"
+            size="small"
+            onClick={() => handleUrgeOrder(record)}
+            disabled={record.status !== 'pending_review'}
+          >
+            催单
+          </Button>
         </Space>
       )
     }
@@ -524,15 +545,19 @@ const PrimarySalesSettlementPage = () => {
   // 确认移除二级销售
   const handleRemoveConfirm = async () => {
     try {
-      await dispatch(removeSecondarySales(selectedSecondarySales.id)).unwrap();
+      await dispatch(removeSecondarySales({
+        secondarySalesId: selectedSecondarySales.id,
+        reason: '一级销售主动移除'
+      })).unwrap();
       message.success('二级销售移除成功');
       setRemoveModalVisible(false);
       
       // 刷新数据
-      dispatch(fetchPrimarySalesStats());
-      dispatch(fetchPrimarySalesOrders());
+      if (salesData) {
+        handleSearch();
+      }
     } catch (error) {
-      message.error('移除失败');
+      message.error('移除失败: ' + (error.message || error));
     }
   };
 
@@ -737,30 +762,6 @@ const PrimarySalesSettlementPage = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
-            <Card>
-              <Statistic
-                title="本月已催单"
-                value={primarySalesStats?.monthlyReminderCount || 0}
-                prefix={<UserOutlined />}
-                valueStyle={{ color: '#52c41a' }}
-                suffix="次"
-              />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card>
-              <Statistic
-                title="催单成功率"
-                value={primarySalesStats?.reminderSuccessRate || 0}
-                prefix={<ShoppingCartOutlined />}
-                valueStyle={{ color: '#1890ff' }}
-                suffix="%"
-                precision={1}
-              />
-            </Card>
-          </Col>
-
         </Row>
 
         {/* 待催单客户列表 */}

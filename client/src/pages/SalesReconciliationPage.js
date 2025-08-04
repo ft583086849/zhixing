@@ -341,14 +341,7 @@ const SalesReconciliationPage = () => {
                 aria-label="请输入链接代码"
               />
             </Form.Item>
-            <Form.Item name="payment_date_range" label="付款时间" >
-              <DatePicker.RangePicker 
-                style={{ width: 240 }}
-                placeholder={['开始时间', '结束时间']}
-                format="YYYY-MM-DD"
-                aria-label="选择付款时间范围"
-              />
-            </Form.Item>
+
             <Form.Item >
               <Space>
                 <Button 
@@ -412,7 +405,28 @@ const SalesReconciliationPage = () => {
             </Card>
 
             {/* 订单列表 */}
-            <Card title="订单列表" style={{ marginBottom: 24 }} role="region">
+            <Card 
+              title={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>订单列表</span>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <span style={{ marginRight: 8, fontSize: '14px', color: '#666' }}>付款时间:</span>
+                    <DatePicker.RangePicker 
+                      style={{ width: 240 }}
+                      placeholder={['开始时间', '结束时间']}
+                      format="YYYY-MM-DD"
+                      aria-label="选择付款时间范围"
+                      onChange={(dates) => {
+                        // 这里可以添加时间过滤逻辑
+                        console.log('付款时间范围:', dates);
+                      }}
+                    />
+                  </div>
+                </div>
+              }
+              style={{ marginBottom: 24 }} 
+              role="region"
+            >
               <Table
                 columns={orderColumns}
                 dataSource={orders}
