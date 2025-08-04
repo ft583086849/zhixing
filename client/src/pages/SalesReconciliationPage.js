@@ -13,7 +13,8 @@ import {
   Tag,
   message,
   Alert,
-  Divider
+  Divider,
+  DatePicker
 } from 'antd';
 import { 
   SearchOutlined,
@@ -41,8 +42,8 @@ const SalesReconciliationPage = () => {
   });
 
   const handleSearch = async (values) => {
-    if (!values.wechat_name && !values.link_code) {
-      message.error('请输入微信号或链接代码');
+    if (!values.wechat_name && !values.link_code && !values.payment_date_range) {
+      message.error('请输入微信号、链接代码或选择付款时间');
       return;
     }
 
@@ -68,6 +69,7 @@ const SalesReconciliationPage = () => {
             commission: 56.4, // 188 * 30%
             payment_time: '2025-01-27 10:00:00',
             status: 'confirmed_configuration',
+            config_confirmed: true,
             expiry_time: '2025-02-28 10:00:00'
           },
           {
@@ -79,6 +81,7 @@ const SalesReconciliationPage = () => {
             commission: 146.4, // 488 * 30%
             payment_time: '2025-01-26 15:30:00',
             status: 'confirmed_configuration',
+            config_confirmed: true,
             expiry_time: '2025-04-27 15:30:00'
           },
           {
@@ -90,7 +93,20 @@ const SalesReconciliationPage = () => {
             commission: 206.4, // 688 * 30%
             payment_time: '2025-01-25 09:15:00',
             status: 'confirmed_configuration',
+            config_confirmed: true,
             expiry_time: '2025-07-26 09:15:00'
+          },
+          {
+            id: 6,
+            tradingview_username: 'user006',
+            customer_wechat: 'customer006',
+            duration: '1month',
+            amount: 188,
+            commission: 56.4,
+            payment_time: '2025-01-24 16:30:00',
+            status: 'pending_config',
+            config_confirmed: false,
+            expiry_time: '2025-02-25 16:30:00'
           }
         ],
         reminderOrders: [
@@ -103,6 +119,7 @@ const SalesReconciliationPage = () => {
             commission: 56.4, // 188 * 30%
             payment_time: '2025-01-20 14:20:00',
             status: 'confirmed_configuration',
+            config_confirmed: true,
             expiry_time: '2025-02-21 14:20:00',
             daysUntilExpiry: 5
           },
@@ -115,21 +132,32 @@ const SalesReconciliationPage = () => {
             commission: 146.4, // 488 * 30%
             payment_time: '2025-01-15 11:45:00',
             status: 'confirmed_configuration',
+            config_confirmed: true,
             expiry_time: '2025-02-16 11:45:00',
             daysUntilExpiry: 2
           }
         ]
       };
 
+      // 只显示配置确认的订单
+      const confirmedOrders = mockData.orders.filter(order => order.config_confirmed === true);
+      const confirmedReminderOrders = mockData.reminderOrders.filter(order => order.config_confirmed === true);
+      
+      // 重新计算统计数据（仅计入配置确认的订单）
+      const confirmedStats = {
+        totalOrders: confirmedOrders.length,
+        totalAmount: confirmedOrders.reduce((sum, order) => sum + order.amount, 0),
+        totalCommission: confirmedOrders.reduce((sum, order) => sum + order.commission, 0),
+        pendingReminderCount: confirmedReminderOrders.length
+      };
+
+      // 销售基本信息（包括返佣比例）不受配置确认状态影响，保持原值
       setSalesData(mockData.sales);
-      setOrders(mockData.orders);
-      setReminderOrders(mockData.reminderOrders);
-      setStats({
-        totalOrders: mockData.orders.length,
-        totalAmount: mockData.orders.reduce((sum, order) => sum + order.amount, 0),
-        totalCommission: mockData.orders.reduce((sum, order) => sum + order.commission, 0),
-        pendingReminderCount: mockData.reminderOrders.length
-      });
+      // 订单列表仅显示配置确认的订单
+      setOrders(confirmedOrders);
+      setReminderOrders(confirmedReminderOrders);
+      // 统计数据仅计入配置确认的订单
+      setStats(confirmedStats);
 
       message.success('查询成功');
     } catch (error) {
@@ -313,6 +341,14 @@ const SalesReconciliationPage = () => {
                 aria-label="请输入链接代码"
               />
             </Form.Item>
+            <Form.Item name="payment_date_range" label="付款时间" >
+              <DatePicker.RangePicker 
+                style={{ width: 240 }}
+                placeholder={['开始时间', '结束时间']}
+                format="YYYY-MM-DD"
+                aria-label="选择付款时间范围"
+              />
+            </Form.Item>
             <Form.Item >
               <Space>
                 <Button 
@@ -372,14 +408,7 @@ const SalesReconciliationPage = () => {
                   />
                 </Col>
               </Row>
-              <Divider />
-              <Row>
-                <Col span={24}>
-                  <Text strong>销售信息：</Text>
-                  <Text>微信号：{salesData.wechat_name}</Text>
-                  <Text style={{ marginLeft: 16 }}>链接代码：{salesData.link_code}</Text>
-                </Col>
-              </Row>
+
             </Card>
 
             {/* 订单列表 */}

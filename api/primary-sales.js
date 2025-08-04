@@ -250,29 +250,26 @@ async function handleCreatePrimarySales(req, res, connection) {
       secondary_registration_code: secondaryRegistrationCode
     };
 
-    // 临时兼容版本 - 兼容现有数据库结构
+    // 正确的sales_code标准实现 - 直接存储到数据库字段
     const [result] = await connection.execute(
-      `INSERT INTO primary_sales (wechat_name, payment_method, payment_address, alipay_surname, chain_name, commission_rate) 
-       VALUES (?, ?, ?, ?, ?, 40.00)`,
-      [params.wechat_name, params.payment_method, params.payment_address, params.alipay_surname, params.chain_name]
+      `INSERT INTO primary_sales (
+        wechat_name, payment_method, payment_address, alipay_surname, chain_name, 
+        sales_code, secondary_registration_code, commission_rate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 40.00)`,
+      [
+        params.wechat_name, 
+        params.payment_method, 
+        params.payment_address, 
+        params.alipay_surname, 
+        params.chain_name,
+        params.sales_code,
+        params.secondary_registration_code
+      ]
     );
 
     const primarySalesId = result.insertId;
 
-    // 临时兼容：创建links表记录（直到数据库重构完成）
-    await connection.execute(
-      `INSERT INTO links (link_code, sales_id, link_type, created_at) 
-       VALUES (?, ?, 'secondary_registration', NOW())`,
-      [params.secondary_registration_code, primarySalesId]
-    );
-
-    await connection.execute(
-      `INSERT INTO links (link_code, sales_id, link_type, created_at) 
-       VALUES (?, ?, 'user_sales', NOW())`,
-      [params.sales_code, primarySalesId]
-    );
-
-    // 返回成功响应（重构版）
+    // 返回成功响应（正确的sales_code标准）
     res.status(201).json({
       success: true,
       message: '一级销售信息创建成功！',

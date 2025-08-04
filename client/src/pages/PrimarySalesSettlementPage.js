@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Tooltip, Typography, InputNumber } from 'antd';
+import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Tooltip, Typography, InputNumber, DatePicker } from 'antd';
 import { DollarOutlined, UserOutlined, ShoppingCartOutlined, TeamOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPrimarySalesStats, fetchPrimarySalesOrders, updateSecondarySalesCommission, removeSecondarySales } from '../store/slices/salesSlice';
@@ -21,6 +21,8 @@ const PrimarySalesSettlementPage = () => {
   const [selectedSecondarySales, setSelectedSecondarySales] = useState(null);
   const [commissionForm] = Form.useForm();
   const [removeForm] = Form.useForm();
+  const [secondarySalesSearchForm] = Form.useForm();
+  const [ordersSearchForm] = Form.useForm();
 
   // 搜索处理函数
   const handleSearch = async (values) => {
@@ -53,8 +55,12 @@ const PrimarySalesSettlementPage = () => {
             link_code: 'sec001',
             commission_rate: 0.30,
             total_orders: 3,
+            order_count: 3,
             total_amount: 1364,
-            commission_earned: 409.2
+            commission_earned: 409.2,
+            total_commission: 409.2,
+            payment_method: 'alipay',
+            created_at: '2025-01-10'
           },
           {
             id: 2,
@@ -62,8 +68,12 @@ const PrimarySalesSettlementPage = () => {
             link_code: 'sec002',
             commission_rate: 0.32,
             total_orders: 2,
+            order_count: 2,
             total_amount: 876,
-            commission_earned: 280.32
+            commission_earned: 280.32,
+            total_commission: 280.32,
+            payment_method: 'wechat',
+            created_at: '2025-01-12'
           },
           {
             id: 3,
@@ -71,8 +81,12 @@ const PrimarySalesSettlementPage = () => {
             link_code: 'sec003',
             commission_rate: 0.28,
             total_orders: 3,
+            order_count: 3,
             total_amount: 1348,
-            commission_earned: 377.44
+            commission_earned: 377.44,
+            total_commission: 377.44,
+            payment_method: 'crypto',
+            created_at: '2025-01-15'
           }
         ],
         pendingReminderCount: 2,
@@ -100,8 +114,13 @@ const PrimarySalesSettlementPage = () => {
             tradingview_username: 'user001',
             duration: '1month',
             amount: 188,
-            status: 'confirmed_configuration',
-            sales_wechat: '二级销售1'
+            commission_amount: 56.4,
+            status: 'confirmed',
+            config_confirmed: true,
+            secondary_sales_name: '二级销售1',
+            payment_method: 'alipay',
+            order_count: 1,
+            created_at: '2025-01-10 14:30:00'
           },
           {
             id: 2,
@@ -109,17 +128,73 @@ const PrimarySalesSettlementPage = () => {
             tradingview_username: 'user002',
             duration: '3months',
             amount: 488,
-            status: 'pending_payment',
-            sales_wechat: '二级销售2'
+            commission_amount: 156.16,
+            status: 'pending_config',
+            config_confirmed: false,
+            secondary_sales_name: '二级销售2',
+            payment_method: 'crypto',
+            order_count: 1,
+            created_at: '2025-01-12 09:15:00'
+          },
+          {
+            id: 3,
+            customer_wechat: 'customer003',
+            tradingview_username: 'user003',
+            duration: '1month',
+            amount: 188,
+            commission_amount: 52.64,
+            status: 'confirmed',
+            config_confirmed: true,
+            secondary_sales_name: '二级销售3',
+            payment_method: 'wechat',
+            order_count: 1,
+            created_at: '2025-01-15 16:45:00'
           }
         ],
         total: 8,
         page: 1
       };
 
+      // 只显示配置确认的订单
+      const confirmedOrders = mockOrders.data.filter(order => order.config_confirmed === true);
+      const filteredOrdersData = {
+        ...mockOrders,
+        data: confirmedOrders,
+        total: confirmedOrders.length
+      };
+      
+      // 重新计算二级销售统计（仅计入配置确认的订单）
+      const updatedStatsData = {
+        ...mockStats,
+        // 二级销售数量不受配置确认状态影响，保持原值
+        total_secondary_sales: mockSalesData.total_secondary_sales,
+        secondarySales: mockStats.secondarySales.map(sales => {
+          // 仅计算该二级销售配置确认的订单
+          const confirmedOrdersForSales = confirmedOrders.filter(order => 
+            order.secondary_sales_name === sales.wechat_name
+          );
+          
+          const confirmedOrderCount = confirmedOrdersForSales.length;
+          const confirmedTotalAmount = confirmedOrdersForSales.reduce((sum, order) => sum + order.amount, 0);
+          const confirmedCommission = confirmedOrdersForSales.reduce((sum, order) => sum + order.commission_amount, 0);
+          
+          return {
+            ...sales,
+            // 业绩数据仅计入配置确认的订单
+            order_count: confirmedOrderCount,
+            total_orders: confirmedOrderCount,
+            total_amount: confirmedTotalAmount,
+            commission_earned: confirmedCommission,
+            total_commission: confirmedCommission,
+            // 佣金比率不受配置确认状态影响，保持原值
+            commission_rate: sales.commission_rate
+          };
+        })
+      };
+
       setSalesData(mockSalesData);
-      setPrimarySalesStats(mockStats);
-      setPrimarySalesOrders(mockOrders);
+      setPrimarySalesStats(updatedStatsData);
+      setPrimarySalesOrders(filteredOrdersData);
       
       message.success('查询成功');
     } catch (error) {
@@ -414,20 +489,29 @@ const PrimarySalesSettlementPage = () => {
       const values = await commissionForm.validateFields();
       const commissionRate = values.commission_rate / 100;
       
-      await dispatch(updateSecondarySalesCommission({
-        secondarySalesId: selectedSecondarySales.id,
-        commissionRate
-      })).unwrap();
+      // 模拟更新本地数据
+      if (primarySalesStats && primarySalesStats.secondarySales) {
+        const updatedSecondarySales = primarySalesStats.secondarySales.map(sales => {
+          if (sales.id === selectedSecondarySales.id) {
+            return {
+              ...sales,
+              commission_rate: commissionRate
+            };
+          }
+          return sales;
+        });
+        
+        setPrimarySalesStats({
+          ...primarySalesStats,
+          secondarySales: updatedSecondarySales
+        });
+      }
       
       message.success('佣金率更新成功');
       setCommissionModalVisible(false);
       commissionForm.resetFields();
-      
-      // 刷新数据
-      dispatch(fetchPrimarySalesStats());
-      dispatch(fetchPrimarySalesOrders());
     } catch (error) {
-      message.error('佣金率更新失败');
+      message.error('佣金率更新失败: ' + (error.message || error));
     }
   };
 
@@ -466,6 +550,30 @@ const PrimarySalesSettlementPage = () => {
         }
       }
     });
+  };
+
+  // 二级销售搜索处理
+  const handleSecondarySalesSearch = (values) => {
+    if (values.payment_date_range) {
+      const [startDate, endDate] = values.payment_date_range;
+      message.info(`搜索付款时间: ${startDate.format('YYYY-MM-DD')} 至 ${endDate.format('YYYY-MM-DD')}`);
+      // 这里应该调用API进行筛选
+    } else {
+      // 重置搜索，显示全部数据
+      message.info('显示全部二级销售数据');
+    }
+  };
+
+  // 订单搜索处理
+  const handleOrdersSearch = (values) => {
+    if (values.payment_date_range) {
+      const [startDate, endDate] = values.payment_date_range;
+      message.info(`搜索付款时间: ${startDate.format('YYYY-MM-DD')} 至 ${endDate.format('YYYY-MM-DD')}`);
+      // 这里应该调用API进行筛选
+    } else {
+      // 重置搜索，显示全部数据
+      message.info('显示全部订单数据');
+    }
   };
 
   return (
@@ -533,6 +641,31 @@ const PrimarySalesSettlementPage = () => {
 
           {/* 二级销售管理 */}
           <Card title="二级销售管理" style={{ marginBottom: 24 }}>
+            {/* 二级销售搜索 */}
+            <div style={{ marginBottom: 16, padding: '16px', backgroundColor: '#fafafa', borderRadius: '6px' }}>
+              <Form form={secondarySalesSearchForm} layout="inline" onFinish={handleSecondarySalesSearch}>
+                <Form.Item name="payment_date_range" label="付款时间">
+                  <DatePicker.RangePicker 
+                    style={{ width: 240 }}
+                    placeholder={['开始时间', '结束时间']}
+                    format="YYYY-MM-DD"
+                  />
+                </Form.Item>
+                <Form.Item>
+                  <Space>
+                    <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
+                      搜索
+                    </Button>
+                    <Button onClick={() => {
+                      secondarySalesSearchForm.resetFields();
+                      handleSecondarySalesSearch({});
+                    }}>
+                      重置
+                    </Button>
+                  </Space>
+                </Form.Item>
+              </Form>
+            </div>
         <Table
           columns={secondarySalesColumns}
           dataSource={primarySalesStats?.secondarySales || []}
@@ -549,6 +682,31 @@ const PrimarySalesSettlementPage = () => {
 
       {/* 订单列表 */}
       <Card title="我的订单列表" style={{ marginBottom: 24 }}>
+        {/* 订单搜索 */}
+        <div style={{ marginBottom: 16, padding: '16px', backgroundColor: '#fafafa', borderRadius: '6px' }}>
+          <Form form={ordersSearchForm} layout="inline" onFinish={handleOrdersSearch}>
+            <Form.Item name="payment_date_range" label="付款时间">
+              <DatePicker.RangePicker 
+                style={{ width: 240 }}
+                placeholder={['开始时间', '结束时间']}
+                format="YYYY-MM-DD"
+              />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
+                  搜索
+                </Button>
+                <Button onClick={() => {
+                  ordersSearchForm.resetFields();
+                  handleOrdersSearch({});
+                }}>
+                  重置
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </div>
         <Table
           columns={orderColumns}
           dataSource={primarySalesOrders?.data || []}
