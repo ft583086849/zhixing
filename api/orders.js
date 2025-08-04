@@ -313,7 +313,7 @@ async function handleCreateOrder(req, res, connection) {
     }
 
     // 计算佣金 - 正确处理百分比到小数的转换
-    const rawCommissionRate = parseFloat(sales.commission_rate || 15); // sales表存储百分比，如40.00
+    const rawCommissionRate = parseFloat(sales.commission_rate || 30); // sales表存储百分比，独立二级销售默认30%，一级销售40%
     const commissionRate = Math.min(Math.max((rawCommissionRate / 100), 0.0000), 0.9999); // 转换为小数，限制在DECIMAL(5,4)范围内
     const commissionAmount = Math.round(parseFloat(amount) * commissionRate * 100) / 100; // 保留两位小数
 

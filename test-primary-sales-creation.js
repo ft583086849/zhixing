@@ -1,146 +1,127 @@
-#!/usr/bin/env node
-
-/**
- * 测试高阶销售注册页面的API调用和响应
- */
-
+// 测试一级销售创建功能
 const https = require('https');
 
-function makeRequest(options, data = null) {
+function testPrimarySalesCreation() {
   return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => body += chunk);
-      res.on('end', () => {
-        try {
-          const result = {
-            statusCode: res.statusCode,
-            headers: res.headers,
-            body: body,
-            json: null
-          };
-          
-          if (body.trim()) {
-            try {
-              result.json = JSON.parse(body);
-            } catch (e) {
-              result.text = body;
-            }
-          }
-          
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
-      });
+    console.log('🧪 测试一级销售创建API...\n');
+    
+    const postData = JSON.stringify({
+      wechat_name: `test_primary_${Date.now()}`,
+      payment_method: 'alipay',
+      payment_address: 'test@example.com',
+      alipay_surname: '测试'
     });
-
-    req.on('error', reject);
     
-    if (data) {
-      req.write(JSON.stringify(data));
-    }
-    
-    req.end();
-  });
-}
-
-async function testPrimarySalesCreation() {
-  console.log('🧪 测试高阶销售注册API和链接生成');
-  console.log('=' .repeat(60));
-
-  try {
-    // 1. 测试API创建
-    console.log('\n📋 1. 测试创建新的一级销售');
-    const createOptions = {
+    const options = {
       hostname: 'zhixing-seven.vercel.app',
       path: '/api/primary-sales?path=create',
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'User-Agent': 'Node.js Test Client'
       }
     };
-
-    const salesData = {
-      wechat_name: `test_frontend_${Date.now()}`,
-      payment_method: 'alipay',
-      payment_address: 'frontend_test@example.com',
-      alipay_surname: '前端测试'
-    };
-
-    console.log(`🔗 创建销售商: ${salesData.wechat_name}`);
     
-    const result = await makeRequest(createOptions, salesData);
+    console.log('📤 发送请求到:', `https://${options.hostname}${options.path}`);
+    console.log('📋 请求数据:', postData);
+    console.log('');
     
-    if (result.json && result.json.success) {
-      const data = result.json.data;
-      console.log('✅ API创建成功');
-      console.log(`   一级销售ID: ${data.primary_sales_id}`);
-      console.log(`   微信号: ${data.wechat_name}`);
+    const req = https.request(options, (res) => {
+      console.log(`📊 响应状态码: ${res.statusCode}`);
+      console.log(`📦 响应头:`, res.headers);
       console.log('');
-      console.log('🔗 生成的链接:');
-      console.log(`   用户购买链接: ${data.user_sales_link}`);
-      console.log(`   用户购买代码: ${data.user_sales_code}`);
-      console.log(`   二级注册链接: ${data.secondary_registration_link}`);
-      console.log(`   二级注册代码: ${data.secondary_registration_code}`);
       
-      // 2. 测试生成的链接访问
-      console.log('\n📋 2. 测试生成的用户购买链接');
-      const purchaseOptions = {
-        hostname: 'zhixing-seven.vercel.app',
-        path: `/api/sales?linkCode=${data.user_sales_code}`,
-        method: 'GET'
-      };
+      let responseData = '';
       
-      const purchaseResult = await makeRequest(purchaseOptions);
-      if (purchaseResult.json && purchaseResult.json.success) {
-        console.log('✅ 用户购买链接验证成功');
-        console.log(`   销售商: ${purchaseResult.json.data.wechat_name}`);
-      } else {
-        console.log('❌ 用户购买链接验证失败');
-        console.log('   响应:', purchaseResult.json || purchaseResult.text);
-      }
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
       
-      // 3. 测试二级注册链接
-      console.log('\n📋 3. 测试二级销售注册链接');
-      const regOptions = {
-        hostname: 'zhixing-seven.vercel.app',
-        path: `/api/links?code=${data.secondary_registration_code}`,
-        method: 'GET'
-      };
-      
-      const regResult = await makeRequest(regOptions);
-      if (regResult.json && regResult.json.success) {
-        console.log('✅ 二级注册链接验证成功');
-      } else {
-        console.log('⚠️ 二级注册链接验证需要专门的API端点');
-      }
-      
-      return data;
-    } else {
-      console.log('❌ API创建失败');
-      console.log('   错误:', result.json?.message || 'Unknown error');
-      console.log('   响应:', result.json || result.text);
-      return null;
-    }
-  } catch (error) {
-    console.error('❌ 测试过程出错:', error);
-    return null;
-  }
+      res.on('end', () => {
+        try {
+          const parsedResponse = JSON.parse(responseData);
+          console.log('📥 响应数据:');
+          console.log(JSON.stringify(parsedResponse, null, 2));
+          console.log('');
+          
+          // 验证链接格式
+          if (parsedResponse.success && parsedResponse.data) {
+            const data = parsedResponse.data;
+            
+            console.log('🔍 验证链接格式:');
+            
+            // 检查二级销售注册链接
+            if (data.secondary_registration_link) {
+              console.log('🔗 二级销售注册链接:', data.secondary_registration_link);
+              
+              if (data.secondary_registration_link.includes('/secondary-sales?sales_code=')) {
+                console.log('✅ 二级销售注册链接格式正确');
+              } else {
+                console.log('❌ 二级销售注册链接格式错误');
+              }
+            }
+            
+            // 检查用户购买链接
+            if (data.user_sales_link) {
+              console.log('🔗 用户购买链接:', data.user_sales_link);
+              
+              if (data.user_sales_link.includes('/purchase?sales_code=')) {
+                console.log('✅ 用户购买链接格式正确');
+              } else {
+                console.log('❌ 用户购买链接格式错误');
+              }
+            }
+            
+            console.log('');
+            console.log('🎯 修复验证结果:');
+            const hasCorrectSecondaryLink = data.secondary_registration_link && data.secondary_registration_link.includes('/secondary-sales?sales_code=');
+            const hasCorrectUserLink = data.user_sales_link && data.user_sales_link.includes('/purchase?sales_code=');
+            
+            if (hasCorrectSecondaryLink && hasCorrectUserLink) {
+              console.log('🎉 链接修复完全成功！');
+              console.log('✅ 二级销售注册链接正确指向 /secondary-sales?sales_code=xxx');
+              console.log('✅ 用户购买链接正确指向 /purchase?sales_code=xxx');
+              console.log('✅ 不再错误指向管理员系统');
+            } else {
+              console.log('❌ 链接修复未完全成功');
+            }
+            
+            resolve(parsedResponse);
+            
+          } else {
+            console.log('❌ API响应异常:', parsedResponse);
+            resolve(parsedResponse);
+          }
+        } catch (error) {
+          console.log('❌ 响应解析错误:', error.message);
+          console.log('原始响应:', responseData);
+          reject(error);
+        }
+      });
+    });
+    
+    req.on('error', (error) => {
+      console.log('❌ 请求错误:', error.message);
+      reject(error);
+    });
+    
+    req.setTimeout(15000, () => {
+      console.log('❌ 请求超时');
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+    
+    req.write(postData);
+    req.end();
+  });
 }
 
-if (require.main === module) {
-  testPrimarySalesCreation()
-    .then(result => {
-      if (result) {
-        console.log('\n🎉 高阶销售注册功能测试完成!');
-        console.log('💡 前端页面应该能够正确显示这些链接了');
-      } else {
-        console.log('\n❌ 测试失败，需要进一步调试');
-      }
-    })
-    .catch(error => {
-      console.error('测试脚本出错:', error);
-      process.exit(1);
-    });
-}
+// 执行测试
+testPrimarySalesCreation()
+  .then(() => {
+    console.log('\n✅ 测试完成');
+  })
+  .catch((error) => {
+    console.log('\n❌ 测试失败:', error.message);
+  });

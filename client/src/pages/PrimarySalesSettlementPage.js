@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Tooltip } from 'antd';
+import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Tooltip, Typography, InputNumber } from 'antd';
 import { DollarOutlined, UserOutlined, ShoppingCartOutlined, TeamOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPrimarySalesStats, fetchPrimarySalesOrders, updateSecondarySalesCommission, removeSecondarySales } from '../store/slices/salesSlice';
 
 const { Option } = Select;
+const { Title } = Typography;
 
 const PrimarySalesSettlementPage = () => {
   const dispatch = useDispatch();
@@ -217,14 +218,20 @@ const PrimarySalesSettlementPage = () => {
       dataIndex: 'amount',
       key: 'amount',
       width: 100,
-      render: (amount) => `¥${amount}`
+      render: (amount) => {
+        const value = parseFloat(amount || 0);
+        return `$${value.toFixed(2)}`;
+      }
     },
     {
       title: '佣金金额',
       dataIndex: 'commission_amount',
       key: 'commission_amount',
       width: 100,
-      render: (commission) => `¥${commission}`
+      render: (commission) => {
+        const value = parseFloat(commission || 0);
+        return `$${value.toFixed(2)}`;
+      }
     },
     {
       title: '二级销售',
@@ -241,9 +248,15 @@ const PrimarySalesSettlementPage = () => {
       render: (status) => {
         const statusMap = {
           'pending_review': { text: '待审核', color: 'orange' },
+          'pending_payment': { text: '待付款确认', color: 'orange' },
+          'pending_config': { text: '待配置确认', color: 'purple' },
+          'confirmed': { text: '已确认', color: 'green' },
           'approved': { text: '已通过', color: 'green' },
           'rejected': { text: '已拒绝', color: 'red' },
-          'completed': { text: '已完成', color: 'blue' }
+          'completed': { text: '已完成', color: 'blue' },
+          'active': { text: '已生效', color: 'green' },
+          'expired': { text: '已过期', color: 'gray' },
+          'cancelled': { text: '已取消', color: 'red' }
         };
         const statusInfo = statusMap[status] || { text: status, color: 'default' };
         return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
@@ -254,7 +267,12 @@ const PrimarySalesSettlementPage = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 150,
-      render: (date) => new Date(date).toLocaleString('zh-CN')
+      render: (date) => {
+        if (!date) return '-';
+        const dateObj = new Date(date);
+        if (isNaN(dateObj.getTime())) return '-';
+        return dateObj.toLocaleString('zh-CN');
+      }
     },
     {
       title: '操作',
@@ -294,7 +312,7 @@ const PrimarySalesSettlementPage = () => {
           'wechat': '微信',
           'crypto': '加密货币'
         };
-        return methodMap[method] || method;
+        return methodMap[method] || method || '-';
       }
     },
     {
@@ -309,20 +327,29 @@ const PrimarySalesSettlementPage = () => {
       dataIndex: 'total_commission',
       key: 'total_commission',
       width: 100,
-      render: (commission) => `¥${commission || 0}`
+      render: (commission) => {
+        const value = parseFloat(commission || 0);
+        return `$${value.toFixed(2)}`;
+      }
     },
     {
       title: '订单数量',
       dataIndex: 'order_count',
       key: 'order_count',
       width: 100,
+      render: (count) => count || 0,
     },
     {
       title: '注册时间',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 150,
-      render: (date) => new Date(date).toLocaleString('zh-CN')
+      render: (date) => {
+        if (!date) return '-';
+        const dateObj = new Date(date);
+        if (isNaN(dateObj.getTime())) return '-';
+        return dateObj.toLocaleString('zh-CN');
+      }
     },
     {
       title: '操作',
@@ -421,7 +448,7 @@ const PrimarySalesSettlementPage = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1 style={{ marginBottom: 24 }}>一级销售分销管理和对账</h1>
+      <Title level={2} style={{ marginBottom: 24 }}>一级销售分销管理和对账</Title>
       
       {/* 搜索查询功能 */}
       <Card title="查询一级销售信息" style={{ marginBottom: 24 }}>
@@ -486,7 +513,7 @@ const PrimarySalesSettlementPage = () => {
                   <span><strong>微信号：</strong>{salesData.wechat_name}</span>
                   <span><strong>销售代码：</strong>{salesData.sales_code}</span>
                   <span><strong>佣金比率：</strong>{(salesData.commission_rate * 100).toFixed(0)}%</span>
-                  <span><strong>下属销售：</strong>{salesData.total_secondary_sales}个</span>
+  
                 </Space>
               </Col>
             </Row>
@@ -532,7 +559,7 @@ const PrimarySalesSettlementPage = () => {
       {/* 催单功能版块 */}
       <Card title="催单数据统计" style={{ marginBottom: 24 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={6}>
+          <Col span={8}>
             <Card>
               <Statistic
                 title="待催单客户数"
@@ -543,7 +570,7 @@ const PrimarySalesSettlementPage = () => {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col span={8}>
             <Card>
               <Statistic
                 title="本月已催单"
@@ -554,7 +581,7 @@ const PrimarySalesSettlementPage = () => {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col span={8}>
             <Card>
               <Statistic
                 title="催单成功率"
@@ -566,18 +593,7 @@ const PrimarySalesSettlementPage = () => {
               />
             </Card>
           </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="平均响应时间"
-                value={primarySalesStats?.avgResponseTime || 0}
-                prefix={<TeamOutlined />}
-                valueStyle={{ color: '#722ed1' }}
-                suffix="小时"
-                precision={1}
-              />
-            </Card>
-          </Col>
+
         </Row>
 
         {/* 待催单客户列表 */}
@@ -607,7 +623,10 @@ const PrimarySalesSettlementPage = () => {
               dataIndex: 'amount',
               key: 'amount',
               width: 100,
-              render: (amount) => `$${amount}`,
+              render: (amount) => {
+                const value = parseFloat(amount || 0);
+                return `$${value.toFixed(2)}`;
+              },
             },
             {
               title: '到期时间',
@@ -627,40 +646,17 @@ const PrimarySalesSettlementPage = () => {
                 </Tag>
               ),
             },
-            {
-              title: '操作',
-              key: 'action',
-              width: 120,
-              render: (_, record) => (
-                <Space>
-                  {!record.reminder_status && (
-                    <Button
-                      type="primary"
-                      size="small"
-                      onClick={() => handleUrgeOrder(record)}
-                    >
-                      催单
-                    </Button>
-                  )}
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => message.info(`联系客户：${record.customer_wechat}`)}
-                  >
-                    联系
-                  </Button>
-                </Space>
-              ),
-            },
+
           ]}
           dataSource={primarySalesStats?.pendingReminderOrders || []}
           rowKey="id"
           loading={loading}
           pagination={{
-            pageSize: 5,
-            showSizeChanger: false,
-            showQuickJumper: false,
-            showTotal: (total) => `待催单订单 ${total} 条`
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条记录`,
+            pageSizeOptions: ['5', '10', '20', '50']
           }}
         />
       </Card>
@@ -694,7 +690,15 @@ const PrimarySalesSettlementPage = () => {
               { type: 'number', min: 0, max: 100, message: '佣金率必须在0-100%之间' }
             ]}
           >
-            <Input type="number" placeholder="请输入佣金率" />
+            <InputNumber 
+              min={0} 
+              max={100} 
+              precision={2}
+              placeholder="请输入佣金率" 
+              style={{ width: '100%' }}
+              formatter={value => `${value}`}
+              parser={value => value?.replace('%', '')}
+            />
           </Form.Item>
         </Form>
       </Modal>
