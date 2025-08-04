@@ -369,14 +369,15 @@ async function handleCreateOrder(req, res, connection) {
       console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
     }
 
-      // 临时兼容性实现：移除不存在的字段，等待数据库字段添加
+      // 临时兼容性实现：添加必需的link_code字段
       const [result] = await connection.execute(
         `INSERT INTO orders (
-          tradingview_username, customer_wechat, duration, amount, 
+          link_code, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
           commission_rate, commission_amount
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          finalSalesCode, // 使用sales_code作为link_code的兼容值
           tradingview_username, 
           customer_wechat || null, 
           duration, 
