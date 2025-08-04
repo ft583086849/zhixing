@@ -9,8 +9,10 @@ export const createOrder = createAsyncThunk(
       const response = await ordersAPI.createOrder(orderData);
       return response.data;
     } catch (error) {
-      // 订单创建失败时显示友好提示
-      return rejectWithValue('下单拥挤，请等待');
+      // 显示更具体的错误信息，但保持用户友好性
+      console.error('订单创建失败:', error);
+      const errorMessage = error.response?.data?.message || error.message || '下单拥挤，请等待';
+      return rejectWithValue(errorMessage);
     }
   }
 );

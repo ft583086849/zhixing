@@ -62,15 +62,28 @@ async function findSalesByCode(sales_code, connection) {
       return { sales: primary[0], type: 'primary' };
     }
     
-    // 2. 查找二级销售
-    const [secondary] = await connection.execute(
-      'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE sales_code = ?', 
-      [sales_code]
-    );
+    // 2. 查找二级销售 - 支持临时代码格式 ss_123
+    let secondary = [];
+    if (sales_code.startsWith('ss_')) {
+      const secondaryId = sales_code.replace('ss_', '');
+      [secondary] = await connection.execute(
+        'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE id = ?', 
+        [secondaryId]
+      );
+    } else {
+      [secondary] = await connection.execute(
+        'SELECT *, "secondary" as sales_type FROM secondary_sales WHERE sales_code = ?', 
+        [sales_code]
+      );
+    }
     console.log('📊 二级销售查询结果:', secondary.length);
     
     if (secondary.length > 0) {
       console.log('✅ 找到二级销售');
+      // 为临时代码添加销售代码字段
+      if (sales_code.startsWith('ss_')) {
+        secondary[0].sales_code = sales_code;
+      }
       return { sales: secondary[0], type: 'secondary' };
     }
     

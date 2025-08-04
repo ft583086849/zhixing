@@ -131,11 +131,23 @@ async function handleValidateRegistrationCode(req, res, connection) {
       });
     }
 
-    // 正确的sales_code标准：直接查找primary_sales表的secondary_registration_code
-    const [rows] = await connection.execute(
-      'SELECT id, wechat_name, payment_method FROM primary_sales WHERE secondary_registration_code = ?',
-      [link_code]
-    );
+    // 临时兼容性实现：由于secondary_registration_code字段暂不存在，使用临时格式查找
+    let rows = [];
+    
+    // 支持reg_格式临时注册码
+    if (link_code && link_code.startsWith('reg_')) {
+      const primaryId = link_code.replace('reg_', '');
+      [rows] = await connection.execute(
+        'SELECT id, wechat_name, payment_method FROM primary_sales WHERE id = ?',
+        [primaryId]
+      );
+    } else {
+      // 兼容性：尝试查找legacy格式（一旦字段存在时恢复）
+      [rows] = await connection.execute(
+        'SELECT id, wechat_name, payment_method FROM primary_sales WHERE id = ?',
+        [0] // 暂时返回空结果，等待字段添加
+      );
+    }
 
     if (rows.length === 0) {
       return res.status(404).json({
@@ -242,17 +254,15 @@ async function handleRegisterSecondarySales(req, res, connection) {
     // 生成唯一销售代码
     const salesCode = uuidv4().replace(/-/g, '').substring(0, 16);
 
-    // 正确的sales_code标准：创建secondary_sales表记录
+    // 临时兼容性实现：移除不存在的字段，等待数据库字段添加
     const [result] = await connection.execute(
       `INSERT INTO secondary_sales (
-        wechat_name, sales_code, primary_sales_id, primary_registration_code,
+        wechat_name, primary_sales_id, 
         payment_method, payment_address, alipay_surname, chain_name, commission_rate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 30.00)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, 30.00)`,
       [
         wechat_name,
-        salesCode,
         validPrimarySalesId,
-        registration_code,
         payment_method,
         payment_address,
         alipay_surname || null,
@@ -260,16 +270,20 @@ async function handleRegisterSecondarySales(req, res, connection) {
       ]
     );
 
-    // 返回成功响应（正确的sales_code标准）
+    // 临时兼容性实现：生成临时销售代码格式
+    const tempSalesCode = `ss_${result.insertId}`; // secondary_sales格式
+    
+    // 返回成功响应（兼容性实现）
     res.status(201).json({
       success: true,
       message: '二级销售注册成功！',
       data: {
         secondary_sales_id: result.insertId,
         wechat_name: wechat_name,
-        sales_code: salesCode,
+        sales_code: tempSalesCode,
         primary_sales_id: validPrimarySalesId,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${salesCode}`
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${tempSalesCode}`,
+        note: "临时代码，等待数据库字段添加后将使用真实的sales_code"
       }
     });
 

@@ -194,8 +194,10 @@ const PurchasePage = () => {
       setPurchaseType('immediate');
       setEffectiveTime(null);
     } catch (error) {
-      // 用户购买失败友好提示 - 不显示技术错误信息
-      message.error('下单拥挤，请等待');
+      // 用户购买失败友好提示 - 显示具体错误但保持友好性
+      console.error('订单提交失败:', error);
+      const errorMessage = error.message || '下单拥挤，请等待';
+      message.error(errorMessage);
     }
   };
 
