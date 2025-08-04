@@ -64,6 +64,15 @@ const PrimarySalesSettlementPage = () => {
             total_orders: 2,
             total_amount: 876,
             commission_earned: 280.32
+          },
+          {
+            id: 3,
+            wechat_name: '二级销售3', 
+            link_code: 'sec003',
+            commission_rate: 0.28,
+            total_orders: 3,
+            total_amount: 1348,
+            commission_earned: 377.44
           }
         ],
         pendingReminderCount: 2,
@@ -130,7 +139,7 @@ const PrimarySalesSettlementPage = () => {
   // 佣金统计卡片
   const renderStatsCards = () => (
     <Row gutter={16} style={{ marginBottom: 24 }}>
-      <Col span={6}>
+      <Col span={4}>
         <Card>
           <Statistic
             title="总佣金收入"
@@ -142,7 +151,7 @@ const PrimarySalesSettlementPage = () => {
           />
         </Card>
       </Col>
-      <Col span={6}>
+      <Col span={4}>
         <Card>
           <Statistic
             title="本月佣金"
@@ -154,11 +163,22 @@ const PrimarySalesSettlementPage = () => {
           />
         </Card>
       </Col>
+      <Col span={4}>
+        <Card>
+          <Statistic
+            title="佣金比率"
+            value={salesData ? (salesData.commission_rate * 100).toFixed(0) : 40}
+            valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
+            prefix={<DollarOutlined />}
+            suffix="%"
+          />
+        </Card>
+      </Col>
       <Col span={6}>
         <Card>
           <Statistic
             title="二级销售数量"
-            value={primarySalesStats?.secondarySalesCount || 0}
+            value={primarySalesStats?.secondarySales?.length || 0}
             valueStyle={{ color: '#722ed1' }}
             prefix={<TeamOutlined />}
             suffix="人"
@@ -280,14 +300,16 @@ const PrimarySalesSettlementPage = () => {
       width: 120,
       render: (_, record) => (
         <Space size="small">
-          <Button 
-            type="link" 
-            size="small"
-            onClick={() => handleUrgeOrder(record)}
-            disabled={record.status !== 'pending_review'}
-          >
-            催单
-          </Button>
+          <Tooltip title="请您线下向用户催单后点击此按钮">
+            <Button 
+              type="link" 
+              size="small"
+              onClick={() => handleUrgeOrder(record)}
+              disabled={record.status !== 'pending_review'}
+            >
+              催单
+            </Button>
+          </Tooltip>
         </Space>
       )
     }
@@ -505,20 +527,7 @@ const PrimarySalesSettlementPage = () => {
       {/* 只有搜索到数据后才显示以下内容 */}
       {salesData && (
         <>
-          {/* 销售基本信息 */}
-          <Card title="销售信息" style={{ marginBottom: 24 }}>
-            <Row>
-              <Col span={24}>
-                <Space size="large">
-                  <span><strong>微信号：</strong>{salesData.wechat_name}</span>
-                  <span><strong>销售代码：</strong>{salesData.sales_code}</span>
-                  <span><strong>佣金比率：</strong>{(salesData.commission_rate * 100).toFixed(0)}%</span>
-  
-                </Space>
-              </Col>
-            </Row>
-          </Card>
-
+          
           {/* 统计卡片 */}
           {renderStatsCards()}
 

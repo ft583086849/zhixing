@@ -131,10 +131,23 @@ async function handleValidateRegistrationCode(req, res, connection) {
       });
     }
 
-    // 重构版：直接查找primary_sales表的secondary_registration_code
+    // 临时兼容版本：通过links表查找
+    const [linkRows] = await connection.execute(
+      'SELECT * FROM links WHERE link_code = ? AND link_type = ?',
+      [link_code, link_type]
+    );
+
+    if (linkRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '注册码无效或已过期'
+      });
+    }
+
+    // 通过sales_id查找primary_sales信息
     const [rows] = await connection.execute(
-      'SELECT id, wechat_name, payment_method FROM primary_sales WHERE secondary_registration_code = ?',
-      [link_code]
+      'SELECT id, wechat_name, payment_method FROM primary_sales WHERE id = ?',
+      [linkRows[0].sales_id]
     );
 
     if (rows.length === 0) {
@@ -209,27 +222,26 @@ async function handleRegisterSecondarySales(req, res, connection) {
       });
     }
 
-    // 验证注册码是否有效
-    const [primarySales] = await connection.execute(
-      'SELECT id FROM primary_sales WHERE secondary_registration_code = ?',
-      [registration_code]
+    // 临时兼容版本：通过links表验证注册码
+    const [linkRows] = await connection.execute(
+      'SELECT * FROM links WHERE link_code = ? AND link_type = ?',
+      [registration_code, 'secondary_registration']
     );
 
-    if (primarySales.length === 0) {
+    if (linkRows.length === 0) {
       return res.status(400).json({
         success: false,
         message: '注册码无效或已过期'
       });
     }
 
-    const validPrimarySalesId = primarySales[0].id;
+    const validPrimarySalesId = linkRows[0].sales_id;
 
-    // 检查微信号是否已存在（全局去重）
+    // 检查微信号是否已存在（兼容现有表结构）
     const [existingSales] = await connection.execute(
       `SELECT wechat_name FROM primary_sales WHERE wechat_name = ? 
-       UNION SELECT wechat_name FROM secondary_sales WHERE wechat_name = ? 
        UNION SELECT wechat_name FROM sales WHERE wechat_name = ?`,
-      [wechat_name, wechat_name, wechat_name]
+      [wechat_name, wechat_name]
     );
 
     if (existingSales.length > 0) {
@@ -242,25 +254,31 @@ async function handleRegisterSecondarySales(req, res, connection) {
     // 生成唯一销售代码
     const salesCode = uuidv4().replace(/-/g, '').substring(0, 16);
 
-    // 创建二级销售记录（重构版）
+    // 临时兼容版本：创建sales表记录（标记为二级销售）
     const [result] = await connection.execute(
-      `INSERT INTO secondary_sales (
-        wechat_name, sales_code, primary_sales_id, primary_registration_code,
-        payment_method, payment_address, alipay_surname, chain_name, commission_rate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 30.00)`,
+      `INSERT INTO sales (
+        wechat_name, payment_method, payment_address, alipay_surname, chain_name, 
+        link_code, sales_type, parent_sales_id
+      ) VALUES (?, ?, ?, ?, ?, ?, 'secondary', ?)`,
       [
         wechat_name,
-        salesCode,
-        validPrimarySalesId,
-        registration_code,
         payment_method,
         payment_address,
         alipay_surname || null,
-        chain_name || null
+        chain_name || null,
+        salesCode,
+        validPrimarySalesId
       ]
     );
 
-    // 返回成功响应
+    // 创建用户购买链接
+    await connection.execute(
+      `INSERT INTO links (link_code, sales_id, link_type, created_at) 
+       VALUES (?, ?, 'user_sales', NOW())`,
+      [salesCode, result.insertId]
+    );
+
+    // 返回成功响应（临时兼容版本）
     res.status(201).json({
       success: true,
       message: '二级销售注册成功！',
@@ -268,6 +286,7 @@ async function handleRegisterSecondarySales(req, res, connection) {
         secondary_sales_id: result.insertId,
         wechat_name: wechat_name,
         sales_code: salesCode,
+        link_code: salesCode, // 兼容性字段
         primary_sales_id: validPrimarySalesId,
         user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${salesCode}`
       }
