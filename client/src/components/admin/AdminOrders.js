@@ -338,111 +338,124 @@ const AdminOrders = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          {/* 待审核状态的操作 */}
-          {record.status === 'pending_review' && (
-            <>
-              <Button 
-                type="link" 
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleUpdateStatus(record.id, record.duration === '7days' ? 'pending_config' : 'pending_payment')}
-              >
-                审核通过
-              </Button>
-              <Button 
-                type="link" 
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => handleUpdateStatus(record.id, 'rejected')}
-              >
-                拒绝订单
-              </Button>
-            </>
-          )}
-          {/* 7天免费订单直接显示待配置确认 */}
-          {record.status === 'pending_config' && record.duration === '7days' && (
-            <>
-              <Button 
-                type="link" 
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
-              >
-                配置确认
-              </Button>
-              <Button 
-                type="link" 
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => handleUpdateStatus(record.id, 'rejected')}
-              >
-                拒绝订单
-              </Button>
-            </>
-          )}
-          {/* 付费订单的付款确认流程 */}
-          {record.status === 'pending_payment' && record.duration !== '7days' && (
-            <>
-              <Button 
-                type="link" 
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleUpdateStatus(record.id, 'confirmed_payment')}
-              >
-                付款确认
-              </Button>
-              <Button 
-                type="link" 
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => handleUpdateStatus(record.id, 'rejected')}
-              >
-                拒绝订单
-              </Button>
-            </>
-          )}
-          {record.status === 'confirmed_payment' && (
-            <>
-              <Button 
-                type="link" 
-                size="small"
-                icon={<CheckOutlined />} 
-                onClick={() => handleUpdateStatus(record.id, 'pending_config')}
-              >
-                待配置
-              </Button>
-            </>
-          )}
-          {/* 付费订单的配置确认流程 */}
-          {record.status === 'pending_config' && record.duration !== '7days' && (
-            <>
-              <Button 
-                type="link" 
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
-              >
-                配置确认
-              </Button>
-              <Button 
-                type="link" 
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => handleUpdateStatus(record.id, 'rejected')}
-              >
-                拒绝订单
-              </Button>
-            </>
-          )}
-        </Space>
-      )
+      width: 200,
+      render: (_, record) => {
+        const renderOperations = () => {
+          switch (record.status) {
+            case 'pending_payment':
+              return (
+                <>
+                  <Button 
+                    type="primary" 
+                    size="small"
+                    icon={<CheckOutlined />}
+                    onClick={() => handleUpdateStatus(record.id, 'confirmed_payment')}
+                  >
+                    确认付款
+                  </Button>
+                  <Button 
+                    type="link" 
+                    size="small"
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={() => handleUpdateStatus(record.id, 'rejected')}
+                  >
+                    拒绝
+                  </Button>
+                </>
+              );
+              
+            case 'confirmed_payment':
+              return (
+                <Button 
+                  type="primary" 
+                  size="small"
+                  icon={<CheckOutlined />}
+                  onClick={() => handleUpdateStatus(record.id, 'pending_config')}
+                >
+                  进入配置阶段
+                </Button>
+              );
+              
+            case 'pending_config':
+              return (
+                <>
+                  <Button 
+                    type="primary" 
+                    size="small"
+                    icon={<CheckOutlined />}
+                    onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
+                  >
+                    确认配置完成
+                  </Button>
+                  <Button 
+                    type="link" 
+                    size="small"
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={() => handleUpdateStatus(record.id, 'rejected')}
+                  >
+                    拒绝
+                  </Button>
+                </>
+              );
+              
+            case 'confirmed_configuration':
+              return (
+                <span style={{ color: '#52c41a', fontSize: '12px' }}>
+                  ✓ 已完成
+                </span>
+              );
+              
+            case 'active':
+              return (
+                <span style={{ color: '#52c41a', fontSize: '12px' }}>
+                  ✓ 已生效
+                </span>
+              );
+              
+            case 'expired':
+              return (
+                <span style={{ color: '#ff4d4f', fontSize: '12px' }}>
+                  ✗ 已过期
+                </span>
+              );
+              
+            case 'cancelled':
+              return (
+                <span style={{ color: '#ff4d4f', fontSize: '12px' }}>
+                  ✗ 已取消
+                </span>
+              );
+              
+            case 'rejected':
+              return (
+                <span style={{ color: '#ff4d4f', fontSize: '12px' }}>
+                  ✗ 已拒绝
+                </span>
+              );
+              
+            default:
+              return (
+                <Button 
+                  type="link" 
+                  size="small"
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={() => handleUpdateStatus(record.id, 'rejected')}
+                >
+                  拒绝订单
+                </Button>
+              );
+          }
+        };
+        
+        return (
+          <Space size="small" wrap>
+            {renderOperations()}
+          </Space>
+        );
+      }
     }
   ];
 

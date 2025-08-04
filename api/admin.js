@@ -131,6 +131,24 @@ export default async function handler(req, res) {
       return;
     }
 
+    // 处理订单状态更新
+    if (req.method === 'PUT' && path === 'update-order') {
+      await handleUpdateOrderStatus(req, res);
+      return;
+    }
+
+    // 处理佣金率更新
+    if (req.method === 'PUT' && path === 'update-commission') {
+      await handleUpdateCommissionRate(req, res);
+      return;
+    }
+
+    // 处理销售管理更新佣金
+    if (req.method === 'POST' && path === 'update-sales-commission') {
+      await handleUpdateSalesCommission(req, res);
+      return;
+    }
+
     // 如果没有匹配的路径，返回404
     res.status(404).json({
       success: false,
@@ -204,34 +222,103 @@ async function handleOverview(req, res) {
   }
 }
 
-// 订单管理功能
+// 订单管理功能 - 重构版支持新的数据库结构
 async function handleOrders(req, res) {
   let connection;
   
   try {
     connection = await mysql.createConnection(dbConfig);
     
-    const { page = 1, limit = 10, status, search } = req.query;
+    const { 
+      page = 1, 
+      limit = 20, 
+      status, 
+      search,
+      sales_wechat,
+      tradingview_username,
+      start_date,
+      end_date,
+      payment_start_date,
+      payment_end_date,
+      config_start_date,
+      config_end_date,
+      expiry_start_date,
+      expiry_end_date,
+      amount_min,
+      amount_max,
+      purchase_type,
+      payment_method
+    } = req.query;
+    
     const offset = (page - 1) * limit;
     
-    let whereClause = '';
+    // 构建WHERE条件
+    let whereConditions = [];
     const params = [];
     
     if (status) {
-      whereClause += ' WHERE o.status = ?';
+      whereConditions.push('o.status = ?');
       params.push(status);
     }
     
     if (search) {
-      const searchClause = whereClause ? ' AND' : ' WHERE';
-      whereClause += `${searchClause} (o.tradingview_username LIKE ? OR o.customer_wechat LIKE ?)`;
-      params.push(`%${search}%`, `%${search}%`);
+      whereConditions.push('(o.tradingview_username LIKE ? OR o.customer_wechat LIKE ? OR o.sales_code LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
     
-    // 获取订单列表
+    if (sales_wechat) {
+      whereConditions.push('(ps.wechat_name LIKE ? OR ss.wechat_name LIKE ? OR s.wechat_name LIKE ?)');
+      params.push(`%${sales_wechat}%`, `%${sales_wechat}%`, `%${sales_wechat}%`);
+    }
+    
+    if (tradingview_username) {
+      whereConditions.push('o.tradingview_username LIKE ?');
+      params.push(`%${tradingview_username}%`);
+    }
+    
+    if (start_date && end_date) {
+      whereConditions.push('DATE(o.created_at) BETWEEN ? AND ?');
+      params.push(start_date, end_date);
+    }
+    
+    if (payment_start_date && payment_end_date) {
+      whereConditions.push('DATE(o.payment_time) BETWEEN ? AND ?');
+      params.push(payment_start_date, payment_end_date);
+    }
+    
+    if (config_start_date && config_end_date) {
+      whereConditions.push('DATE(o.updated_at) BETWEEN ? AND ?');
+      params.push(config_start_date, config_end_date);
+    }
+    
+    if (expiry_start_date && expiry_end_date) {
+      whereConditions.push('DATE(o.expiry_time) BETWEEN ? AND ?');
+      params.push(expiry_start_date, expiry_end_date);
+    }
+    
+    if (amount_min && amount_max) {
+      whereConditions.push('o.amount BETWEEN ? AND ?');
+      params.push(parseFloat(amount_min), parseFloat(amount_max));
+    }
+    
+    if (purchase_type) {
+      whereConditions.push('o.purchase_type = ?');
+      params.push(purchase_type);
+    }
+    
+    if (payment_method) {
+      whereConditions.push('o.payment_method = ?');
+      params.push(payment_method);
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // 获取订单列表 - 支持新的多表关联
     const [orders] = await connection.execute(`
       SELECT 
         o.id,
+        o.sales_code,
+        o.sales_type,
         o.tradingview_username,
         o.customer_wechat,
         o.duration,
@@ -246,10 +333,52 @@ async function handleOrders(req, res) {
         o.created_at,
         o.payment_time,
         o.commission_amount,
+        o.commission_rate,
         o.screenshot_path,
-        s.wechat_name as sales_wechat_name
+        o.config_confirmed,
+        o.primary_sales_id,
+        o.secondary_sales_id,
+        
+        -- 销售微信号（优先级：一级销售 > 二级销售 > 遗留销售）
+        COALESCE(ps.wechat_name, ss.wechat_name, s.wechat_name) as sales_wechat_name,
+        
+        -- 销售信息
+        ps.wechat_name as primary_sales_wechat,
+        ss.wechat_name as secondary_sales_wechat,
+        s.wechat_name as legacy_sales_wechat,
+        
+        -- 销售类型信息
+        CASE 
+          WHEN ps.id IS NOT NULL THEN '一级销售'
+          WHEN ss.id IS NOT NULL THEN '二级销售'
+          WHEN s.id IS NOT NULL THEN '遗留销售'
+          ELSE '未知类型'
+        END as sales_type_display,
+        
+        -- 佣金相关
+        COALESCE(ps.commission_rate, ss.commission_rate, s.commission_rate, 0.30) as current_commission_rate
+      
       FROM orders o
-      LEFT JOIN sales s ON o.sales_id = s.id
+      
+      -- 关联一级销售表
+      LEFT JOIN primary_sales ps ON (
+        (o.sales_type = 'primary' AND o.primary_sales_id = ps.id) OR
+        (o.sales_code = ps.sales_code)
+      )
+      
+      -- 关联二级销售表
+      LEFT JOIN secondary_sales ss ON (
+        (o.sales_type = 'secondary' AND o.secondary_sales_id = ss.id) OR
+        (o.sales_code = ss.sales_code)
+      )
+      
+      -- 兼容遗留销售表
+      LEFT JOIN sales s ON (
+        o.sales_id = s.id OR 
+        o.sales_code = s.sales_code OR
+        o.link_code = s.link_code
+      )
+      
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT ? OFFSET ?
@@ -257,15 +386,44 @@ async function handleOrders(req, res) {
     
     // 获取总数
     const [countResult] = await connection.execute(`
-      SELECT COUNT(*) as total FROM orders o ${whereClause}
+      SELECT COUNT(*) as total 
+      FROM orders o
+      LEFT JOIN primary_sales ps ON (
+        (o.sales_type = 'primary' AND o.primary_sales_id = ps.id) OR
+        (o.sales_code = ps.sales_code)
+      )
+      LEFT JOIN secondary_sales ss ON (
+        (o.sales_type = 'secondary' AND o.secondary_sales_id = ss.id) OR
+        (o.sales_code = ss.sales_code)
+      )
+      LEFT JOIN sales s ON (
+        o.sales_id = s.id OR 
+        o.sales_code = s.sales_code OR
+        o.link_code = s.link_code
+      )
+      ${whereClause}
     `, params);
     
     const total = countResult[0]?.total || 0;
     
+    // 数据后处理 - 确保所有字段都有值
+    const processedOrders = orders.map(order => ({
+      ...order,
+      sales_wechat_name: order.sales_wechat_name || '-',
+      customer_wechat: order.customer_wechat || '-',
+      commission_amount: parseFloat(order.commission_amount || 0),
+      commission_rate: parseFloat(order.commission_rate || 0.30),
+      status: order.status || 'pending_payment',
+      purchase_type: order.purchase_type || 'immediate',
+      payment_method: order.payment_method || 'alipay'
+    }));
+    
+    console.log(`📊 订单查询完成: 共${total}条记录，当前页${page}，每页${limit}条`);
+    
     res.status(200).json({
       success: true,
       data: {
-        orders,
+        orders: processedOrders,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -276,7 +434,7 @@ async function handleOrders(req, res) {
     });
     
   } catch (error) {
-    console.error('订单管理错误:', error);
+    console.error('❌ 订单管理错误:', error);
     res.status(500).json({
       success: false,
       message: error.message || '获取订单数据失败'
@@ -288,73 +446,256 @@ async function handleOrders(req, res) {
   }
 }
 
-// 销售管理功能
+// 销售管理功能 - 重构版支持新的数据库结构
 async function handleSales(req, res) {
   let connection;
   
   try {
     connection = await mysql.createConnection(dbConfig);
     
-    const { page = 1, limit = 10, sales_type, search } = req.query;
+    const { 
+      page = 1, 
+      limit = 20, 
+      sales_type = 'all', 
+      search,
+      wechat_name,
+      commission_rate_filter,
+      payment_method,
+      start_date,
+      end_date
+    } = req.query;
+    
     const offset = (page - 1) * limit;
     
-    let whereClause = '';
+    // 构建WHERE条件
+    let whereConditions = [];
     const params = [];
     
+    // 销售类型筛选
     if (sales_type && sales_type !== 'all') {
-      whereClause += ' WHERE s.sales_type = ?';
-      params.push(sales_type);
+      if (sales_type === 'primary') {
+        whereConditions.push("sales_type = 'primary'");
+      } else if (sales_type === 'secondary') {
+        whereConditions.push("sales_type = 'secondary'");
+      }
+    }
+    
+    // 搜索条件
+    if (search) {
+      whereConditions.push('(wechat_name LIKE ? OR sales_code LIKE ? OR payment_address LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    
+    if (wechat_name) {
+      whereConditions.push('wechat_name LIKE ?');
+      params.push(`%${wechat_name}%`);
+    }
+    
+    if (commission_rate_filter) {
+      whereConditions.push('commission_rate = ?');
+      params.push(parseFloat(commission_rate_filter));
+    }
+    
+    if (payment_method) {
+      whereConditions.push('payment_method = ?');
+      params.push(payment_method);
+    }
+    
+    if (start_date && end_date) {
+      whereConditions.push('DATE(created_at) BETWEEN ? AND ?');
+      params.push(start_date, end_date);
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // 获取统一销售列表（一级 + 二级 + 遗留）
+    const [allSales] = await connection.execute(`
+      SELECT 
+        id,
+        wechat_name,
+        sales_code,
+        secondary_registration_code,
+        payment_method,
+        payment_address,
+        chain_name,
+        alipay_surname,
+        commission_rate,
+        'primary' as sales_type,
+        created_at,
+        updated_at
+      FROM primary_sales
+      
+      UNION ALL
+      
+      SELECT 
+        id,
+        wechat_name,
+        sales_code,
+        primary_registration_code as secondary_registration_code,
+        payment_method,
+        payment_address,
+        chain_name,
+        alipay_surname,
+        commission_rate,
+        'secondary' as sales_type,
+        created_at,
+        updated_at
+      FROM secondary_sales
+      
+      UNION ALL
+      
+      SELECT 
+        id,
+        wechat_name,
+        COALESCE(sales_code, CONCAT('legacy_', id)) as sales_code,
+        '' as secondary_registration_code,
+        payment_method,
+        payment_address,
+        chain_name,
+        alipay_surname,
+        commission_rate,
+        COALESCE(sales_type, 'legacy') as sales_type,
+        created_at,
+        updated_at
+      FROM sales
+      
+      ORDER BY created_at DESC
+    `);
+    
+    // 应用筛选条件
+    let filteredSales = allSales;
+    
+    if (sales_type && sales_type !== 'all') {
+      filteredSales = allSales.filter(sale => sale.sales_type === sales_type);
     }
     
     if (search) {
-      const searchClause = whereClause ? ' AND' : ' WHERE';
-      whereClause += `${searchClause} s.wechat_name LIKE ?`;
-      params.push(`%${search}%`);
+      const searchLower = search.toLowerCase();
+      filteredSales = filteredSales.filter(sale => 
+        sale.wechat_name?.toLowerCase().includes(searchLower) ||
+        sale.sales_code?.toLowerCase().includes(searchLower) ||
+        sale.payment_address?.toLowerCase().includes(searchLower)
+      );
     }
     
-    // 获取销售列表
-    const [sales] = await connection.execute(`
-      SELECT 
-        s.id,
-        s.wechat_name,
-        s.payment_method,
-        s.sales_type,
-        s.commission_rate,
-        s.created_at,
-        s.updated_at,
-        COUNT(o.id) as order_count,
-        SUM(o.amount) as total_amount,
-        SUM(o.commission_amount) as total_commission
-      FROM sales s
-      LEFT JOIN orders o ON s.id = o.sales_id
-      ${whereClause}
-      GROUP BY s.id
-      ORDER BY s.created_at DESC
-      LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
+    if (wechat_name) {
+      const wechatLower = wechat_name.toLowerCase();
+      filteredSales = filteredSales.filter(sale => 
+        sale.wechat_name?.toLowerCase().includes(wechatLower)
+      );
+    }
     
-    // 获取总数
-    const [countResult] = await connection.execute(`
-      SELECT COUNT(*) as total FROM sales s ${whereClause}
-    `, params);
+    if (commission_rate_filter) {
+      const targetRate = parseFloat(commission_rate_filter);
+      filteredSales = filteredSales.filter(sale => 
+        Math.abs(parseFloat(sale.commission_rate || 0) - targetRate) < 0.01
+      );
+    }
     
-    const total = countResult[0]?.total || 0;
+    if (payment_method) {
+      filteredSales = filteredSales.filter(sale => sale.payment_method === payment_method);
+    }
+    
+    // 分页处理
+    const total = filteredSales.length;
+    const paginatedSales = filteredSales.slice(offset, offset + parseInt(limit));
+    
+    // 为每个销售获取订单统计
+    const salesWithStats = await Promise.all(
+      paginatedSales.map(async (sale) => {
+        try {
+          // 根据销售类型查询订单
+          let orderQuery;
+          let orderParams = [];
+          
+          if (sale.sales_type === 'primary') {
+            orderQuery = `
+              SELECT COUNT(*) as order_count, 
+                     COALESCE(SUM(amount), 0) as total_amount, 
+                     COALESCE(SUM(commission_amount), 0) as total_commission
+              FROM orders 
+              WHERE (sales_code = ? OR primary_sales_id = ?) 
+                AND config_confirmed = true
+            `;
+            orderParams = [sale.sales_code, sale.id];
+          } else if (sale.sales_type === 'secondary') {
+            orderQuery = `
+              SELECT COUNT(*) as order_count, 
+                     COALESCE(SUM(amount), 0) as total_amount, 
+                     COALESCE(SUM(commission_amount), 0) as total_commission
+              FROM orders 
+              WHERE (sales_code = ? OR secondary_sales_id = ?) 
+                AND config_confirmed = true
+            `;
+            orderParams = [sale.sales_code, sale.id];
+          } else {
+            // 遗留销售
+            orderQuery = `
+              SELECT COUNT(*) as order_count, 
+                     COALESCE(SUM(amount), 0) as total_amount, 
+                     COALESCE(SUM(commission_amount), 0) as total_commission
+              FROM orders 
+              WHERE (sales_id = ? OR sales_code = ?)
+            `;
+            orderParams = [sale.id, sale.sales_code];
+          }
+          
+          const [orderStats] = await connection.execute(orderQuery, orderParams);
+          const stats = orderStats[0] || { order_count: 0, total_amount: 0, total_commission: 0 };
+          
+          return {
+            ...sale,
+            order_count: stats.order_count || 0,
+            total_amount: parseFloat(stats.total_amount || 0),
+            total_commission: parseFloat(stats.total_commission || 0),
+            commission_rate: parseFloat(sale.commission_rate || 0.30),
+            // 生成销售链接
+            user_sales_link: sale.sales_code ? `/purchase?sales_code=${sale.sales_code}` : '',
+            secondary_registration_link: (sale.sales_type === 'primary' && sale.secondary_registration_code) ? 
+              `/secondary-sales?sales_code=${sale.secondary_registration_code}` : '',
+            // 销售类型显示
+            sales_type_display: {
+              'primary': '一级销售',
+              'secondary': '二级销售',
+              'legacy': '遗留销售'
+            }[sale.sales_type] || '未知类型'
+          };
+        } catch (error) {
+          console.error(`获取销售${sale.id}统计失败:`, error);
+          return {
+            ...sale,
+            order_count: 0,
+            total_amount: 0,
+            total_commission: 0,
+            commission_rate: parseFloat(sale.commission_rate || 0.30)
+          };
+        }
+      })
+    );
+    
+    console.log(`📊 销售管理查询完成: 共${total}条记录，当前页${page}，每页${limit}条`);
     
     res.status(200).json({
       success: true,
       data: {
-        sales,
+        sales: salesWithStats,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
           pages: Math.ceil(total / limit)
+        },
+        stats: {
+          total_sales: total,
+          primary_sales: allSales.filter(s => s.sales_type === 'primary').length,
+          secondary_sales: allSales.filter(s => s.sales_type === 'secondary').length,
+          legacy_sales: allSales.filter(s => s.sales_type === 'legacy').length
         }
       }
     });
     
   } catch (error) {
-    console.error('销售管理错误:', error);
+    console.error('❌ 销售管理错误:', error);
     res.status(500).json({
       success: false,
       message: error.message || '获取销售数据失败'
@@ -934,14 +1275,27 @@ async function handleStats(req, res) {
   }
 }
 
-// 客户管理功能（应用config_confirmed过滤）
+// 客户管理功能 - 重构版支持新的数据库结构
 async function handleCustomers(req, res) {
   let connection;
   try {
     connection = await mysql.createConnection(dbConfig);
     
     // 获取搜索参数
-    const { customer_wechat, sales_wechat, is_reminded, start_date, end_date } = req.query;
+    const { 
+      customer_wechat, 
+      sales_wechat, 
+      tradingview_username,
+      is_reminded, 
+      start_date, 
+      end_date,
+      duration_filter,
+      reminder_status,
+      page = 1,
+      limit = 50
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
     
     // 构建WHERE条件
     let whereConditions = ['o.config_confirmed = true']; // 只显示已配置确认的订单
@@ -952,14 +1306,32 @@ async function handleCustomers(req, res) {
       queryParams.push(`%${customer_wechat}%`);
     }
     
+    if (tradingview_username) {
+      whereConditions.push('o.tradingview_username LIKE ?');
+      queryParams.push(`%${tradingview_username}%`);
+    }
+    
     if (sales_wechat) {
-      whereConditions.push('s.wechat_name LIKE ?');
-      queryParams.push(`%${sales_wechat}%`);
+      whereConditions.push('(ps.wechat_name LIKE ? OR ss.wechat_name LIKE ? OR s.wechat_name LIKE ?)');
+      queryParams.push(`%${sales_wechat}%`, `%${sales_wechat}%`, `%${sales_wechat}%`);
     }
     
     if (is_reminded !== undefined) {
       whereConditions.push('o.is_reminded = ?');
       queryParams.push(is_reminded === 'true');
+    }
+    
+    if (reminder_status) {
+      if (reminder_status === 'reminded') {
+        whereConditions.push('o.is_reminded = true');
+      } else if (reminder_status === 'not_reminded') {
+        whereConditions.push('(o.is_reminded = false OR o.is_reminded IS NULL)');
+      }
+    }
+    
+    if (duration_filter) {
+      whereConditions.push('o.duration = ?');
+      queryParams.push(duration_filter);
     }
     
     if (start_date && end_date) {
@@ -969,32 +1341,144 @@ async function handleCustomers(req, res) {
     
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
-    // 客户数据查询（仅包含已配置确认的订单）
+    // 客户数据查询 - 支持新的多表关联
     const [customers] = await connection.execute(`
       SELECT 
         o.customer_wechat,
         o.tradingview_username,
-        s.wechat_name as sales_wechat,
+        o.duration,
+        
+        -- 销售微信号（优先级：一级 > 二级 > 遗留）
+        COALESCE(ps.wechat_name, ss.wechat_name, s.wechat_name) as sales_wechat,
+        
+        -- 销售类型
+        CASE 
+          WHEN ps.id IS NOT NULL THEN '一级销售'
+          WHEN ss.id IS NOT NULL THEN '二级销售'
+          WHEN s.id IS NOT NULL THEN '遗留销售'
+          ELSE '未知类型'
+        END as sales_type,
+        
+        -- 订单统计
         COUNT(o.id) as total_orders,
         SUM(o.amount) as total_amount,
         SUM(o.commission_amount) as commission_amount,
+        
+        -- 时间信息
         MAX(o.expiry_time) as expiry_date,
+        MIN(o.created_at) as first_order_date,
+        MAX(o.created_at) as last_order_date,
+        
+        -- 催单信息
         MAX(o.is_reminded) as is_reminded,
-        MAX(o.reminder_date) as reminder_date
+        MAX(o.reminder_date) as reminder_date,
+        
+        -- 订单状态统计
+        COUNT(CASE WHEN o.status = 'confirmed_configuration' THEN 1 END) as confirmed_orders,
+        COUNT(CASE WHEN o.status = 'pending_config' THEN 1 END) as pending_orders,
+        
+        -- 到期状态
+        CASE 
+          WHEN MAX(o.expiry_time) < NOW() THEN '已过期'
+          WHEN MAX(o.expiry_time) < DATE_ADD(NOW(), INTERVAL 7 DAY) THEN '即将过期'
+          ELSE '正常'
+        END as expiry_status
+        
       FROM orders o
-      LEFT JOIN sales s ON (o.link_code = s.link_code OR o.sales_code = s.sales_code)
+      
+      -- 关联一级销售表
+      LEFT JOIN primary_sales ps ON (
+        (o.sales_type = 'primary' AND o.primary_sales_id = ps.id) OR
+        (o.sales_code = ps.sales_code)
+      )
+      
+      -- 关联二级销售表
+      LEFT JOIN secondary_sales ss ON (
+        (o.sales_type = 'secondary' AND o.secondary_sales_id = ss.id) OR
+        (o.sales_code = ss.sales_code)
+      )
+      
+      -- 兼容遗留销售表
+      LEFT JOIN sales s ON (
+        o.sales_id = s.id OR 
+        o.sales_code = s.sales_code OR
+        o.link_code = s.link_code
+      )
+      
       ${whereClause}
-      GROUP BY o.customer_wechat, o.tradingview_username, s.wechat_name
-      ORDER BY expiry_date ASC
-      LIMIT 100
+      GROUP BY o.customer_wechat, o.tradingview_username, 
+               COALESCE(ps.wechat_name, ss.wechat_name, s.wechat_name)
+      ORDER BY 
+        CASE 
+          WHEN MAX(o.expiry_time) < NOW() THEN 1          -- 已过期的最先
+          WHEN MAX(o.expiry_time) < DATE_ADD(NOW(), INTERVAL 7 DAY) THEN 2  -- 即将过期的其次
+          ELSE 3                                          -- 正常的最后
+        END,
+        MAX(o.expiry_time) ASC
+      LIMIT ? OFFSET ?
+    `, [...queryParams, parseInt(limit), offset]);
+    
+    // 获取总数
+    const [countResult] = await connection.execute(`
+      SELECT COUNT(DISTINCT CONCAT(o.customer_wechat, '_', o.tradingview_username)) as total
+      FROM orders o
+      LEFT JOIN primary_sales ps ON (
+        (o.sales_type = 'primary' AND o.primary_sales_id = ps.id) OR
+        (o.sales_code = ps.sales_code)
+      )
+      LEFT JOIN secondary_sales ss ON (
+        (o.sales_type = 'secondary' AND o.secondary_sales_id = ss.id) OR
+        (o.sales_code = ss.sales_code)
+      )
+      LEFT JOIN sales s ON (
+        o.sales_id = s.id OR 
+        o.sales_code = s.sales_code OR
+        o.link_code = s.link_code
+      )
+      ${whereClause}
     `, queryParams);
+    
+    const total = countResult[0]?.total || 0;
+    
+    // 数据后处理
+    const processedCustomers = customers.map(customer => ({
+      ...customer,
+      customer_wechat: customer.customer_wechat || '-',
+      sales_wechat: customer.sales_wechat || '-',
+      total_amount: parseFloat(customer.total_amount || 0),
+      commission_amount: parseFloat(customer.commission_amount || 0),
+      is_reminded: Boolean(customer.is_reminded),
+      duration_display: {
+        '7days': '7天免费',
+        '1month': '1个月',
+        '3months': '3个月',
+        '6months': '6个月',
+        'lifetime': '终身'
+      }[customer.duration] || customer.duration
+    }));
+    
+    console.log(`📊 客户管理查询完成: 共${total}条记录，当前页${page}，每页${limit}条`);
     
     res.status(200).json({
       success: true,
-      data: { customers: customers || [] }
+      data: { 
+        customers: processedCustomers,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        },
+        stats: {
+          total_customers: total,
+          expired_customers: processedCustomers.filter(c => c.expiry_status === '已过期').length,
+          expiring_soon: processedCustomers.filter(c => c.expiry_status === '即将过期').length,
+          reminded_customers: processedCustomers.filter(c => c.is_reminded).length
+        }
+      }
     });
   } catch (error) {
-    console.error('客户管理查询错误:', error);
+    console.error('❌ 客户管理查询错误:', error);
     res.status(500).json({ success: false, message: error.message });
   } finally {
     if (connection) await connection.end();
@@ -1027,6 +1511,242 @@ async function handleRemindCustomer(req, res) {
       data: { affected_rows: result.affectedRows }
     });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+// 更新订单状态功能
+async function handleUpdateOrderStatus(req, res) {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const { id } = req.query;
+    const { status } = req.body;
+    
+    if (!id || !status) {
+      return res.status(400).json({
+        success: false,
+        message: "订单ID和状态不能为空"
+      });
+    }
+    
+    // 验证状态值
+    const validStatuses = [
+      'pending_payment', 
+      'confirmed_payment', 
+      'pending_config', 
+      'confirmed_configuration', 
+      'active', 
+      'expired', 
+      'cancelled', 
+      'rejected'
+    ];
+    
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `无效的状态值: ${status}`
+      });
+    }
+    
+    // 获取订单信息
+    const [orders] = await connection.execute(
+      'SELECT * FROM orders WHERE id = ?',
+      [id]
+    );
+    
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '订单不存在'
+      });
+    }
+    
+    const order = orders[0];
+    
+    // 更新订单状态
+    let updateQuery = 'UPDATE orders SET status = ?, updated_at = NOW()';
+    let updateParams = [status, id];
+    
+    // 根据状态更新相关字段
+    if (status === 'confirmed_configuration') {
+      updateQuery += ', config_confirmed = TRUE, config_confirmed_at = NOW()';
+    } else if (status === 'confirmed_payment') {
+      updateQuery += ', payment_confirmed = TRUE, payment_confirmed_at = NOW()';
+    }
+    
+    updateQuery += ' WHERE id = ?';
+    
+    const [result] = await connection.execute(updateQuery, updateParams);
+    
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '更新失败'
+      });
+    }
+    
+    console.log(`✅ 订单${id}状态更新为: ${status}`);
+    
+    res.status(200).json({
+      success: true,
+      message: '订单状态更新成功',
+      data: { 
+        order_id: id, 
+        new_status: status,
+        affected_rows: result.affectedRows 
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ 更新订单状态错误:', error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+// 更新佣金率功能
+async function handleUpdateCommissionRate(req, res) {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const { sales_id, sales_type } = req.query;
+    const { commission_rate } = req.body;
+    
+    if (!sales_id || !commission_rate || !sales_type) {
+      return res.status(400).json({
+        success: false,
+        message: "销售ID、佣金率和销售类型不能为空"
+      });
+    }
+    
+    const rate = parseFloat(commission_rate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "佣金率必须为0-100之间的数字"
+      });
+    }
+    
+    // 根据销售类型更新不同的表
+    let updateQuery;
+    let tableName;
+    
+    switch (sales_type) {
+      case 'primary':
+        tableName = 'primary_sales';
+        updateQuery = 'UPDATE primary_sales SET commission_rate = ?, updated_at = NOW() WHERE id = ?';
+        break;
+      case 'secondary':
+        tableName = 'secondary_sales';
+        updateQuery = 'UPDATE secondary_sales SET commission_rate = ?, updated_at = NOW() WHERE id = ?';
+        break;
+      case 'legacy':
+      default:
+        tableName = 'sales';
+        updateQuery = 'UPDATE sales SET commission_rate = ?, updated_at = NOW() WHERE id = ?';
+        break;
+    }
+    
+    const [result] = await connection.execute(updateQuery, [rate, sales_id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '销售不存在或更新失败'
+      });
+    }
+    
+    console.log(`✅ ${tableName}表中销售${sales_id}的佣金率更新为: ${rate}%`);
+    
+    res.status(200).json({
+      success: true,
+      message: '佣金率更新成功',
+      data: {
+        sales_id,
+        sales_type,
+        new_commission_rate: rate,
+        affected_rows: result.affectedRows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ 更新佣金率错误:', error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+// 销售管理更新佣金功能
+async function handleUpdateSalesCommission(req, res) {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const { salesId, commissionRate, salesType } = req.body;
+    
+    if (!salesId || commissionRate === undefined || !salesType) {
+      return res.status(400).json({
+        success: false,
+        message: "销售ID、佣金率和销售类型不能为空"
+      });
+    }
+    
+    const rate = parseFloat(commissionRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "佣金率必须为0-100之间的数字"
+      });
+    }
+    
+    // 根据销售类型更新不同的表
+    let updateQuery;
+    let tableName;
+    
+    switch (salesType) {
+      case 'primary':
+        tableName = 'primary_sales';
+        updateQuery = 'UPDATE primary_sales SET commission_rate = ?, updated_at = NOW() WHERE id = ?';
+        break;
+      case 'secondary':
+        tableName = 'secondary_sales';
+        updateQuery = 'UPDATE secondary_sales SET commission_rate = ?, updated_at = NOW() WHERE id = ?';
+        break;
+      case 'legacy':
+      default:
+        tableName = 'sales';
+        updateQuery = 'UPDATE sales SET commission_rate = ?, updated_at = NOW() WHERE id = ?';
+        break;
+    }
+    
+    const [result] = await connection.execute(updateQuery, [rate, salesId]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '销售不存在或更新失败'
+      });
+    }
+    
+    console.log(`✅ 销售管理更新: ${tableName}表中销售${salesId}的佣金率更新为: ${rate}%`);
+    
+    res.status(200).json({
+      success: true,
+      message: '佣金率更新成功',
+      data: {
+        salesId,
+        salesType,
+        newCommissionRate: rate,
+        affectedRows: result.affectedRows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ 销售管理更新佣金率错误:', error);
     res.status(500).json({ success: false, message: error.message });
   } finally {
     if (connection) await connection.end();
