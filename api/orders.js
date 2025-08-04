@@ -336,8 +336,8 @@ async function handleCreateOrder(req, res, connection) {
         `INSERT INTO orders (
           link_code, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
-          alipay_amount, crypto_amount, commission_amount, status, screenshot_data, screenshot_expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          alipay_amount, crypto_amount, commission_amount, screenshot_data, screenshot_expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           finalSalesCode, 
           tradingview_username, 
@@ -352,7 +352,6 @@ async function handleCreateOrder(req, res, connection) {
           alipay_amount || null, 
           crypto_amount || null,
           commissionAmount, 
-          duration === '7days' ? 'pending_config' : 'pending_payment',
           screenshotData,
           formatDateForMySQL(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 7天后过期
         ]
