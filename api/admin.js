@@ -1913,16 +1913,6 @@ async function handleFixMissingFields(req, res) {
         table: 'primary_sales',
         field: 'sales_type',
         definition: 'ENUM("primary", "secondary") DEFAULT "primary" COMMENT "销售类型"'
-      },
-      {
-        table: 'sales',
-        field: 'sales_code',
-        definition: 'VARCHAR(50) COMMENT "销售代码"'
-      },
-      {
-        table: 'sales',
-        field: 'sales_type',
-        definition: 'ENUM("primary", "secondary", "legacy") DEFAULT "legacy" COMMENT "销售类型"'
       }
     ];
     

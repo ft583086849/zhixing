@@ -6,19 +6,25 @@
  */
 
 const mysql = require('mysql2/promise');
-require('dotenv').config();
 
-// 数据库连接配置
+// 数据库连接配置 - 使用环境变量
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
-  ssl: process.env.NODE_ENV === 'production' ? {
+  ssl: {
     rejectUnauthorized: false
-  } : false
+  }
 };
+
+// 检查必要的环境变量
+if (!dbConfig.host || !dbConfig.user || !dbConfig.password || !dbConfig.database) {
+  console.log('❌ 缺少必要的数据库环境变量');
+  console.log('请确保设置了: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME');
+  process.exit(1);
+}
 
 async function executeSecondarySalesTableFix() {
   let connection = null;

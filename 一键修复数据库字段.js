@@ -40,15 +40,12 @@ async function oneClickFixDatabase() {
 
     // 步骤2: 调用修复API
     console.log('\n🔧 步骤2: 执行数据库字段修复...');
-    const fixResponse = await fetch(`${baseUrl}/api/admin`, {
+    const fixResponse = await fetch(`${baseUrl}/api/admin?path=fix-missing-fields`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        path: 'fix-missing-fields'
-      })
+      }
     });
     
     const fixData = await fixResponse.json();
