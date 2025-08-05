@@ -45,6 +45,12 @@ export default async function handler(req, res) {
       return await addSalesCodeFields(connection, res);
     } else if (action === 'check_schema') {
       return await checkCurrentSchema(connection, res);
+    } else if (action === 'add_orders_sales_fields') {
+      return await addOrdersSalesFields(connection, res);
+    } else if (action === 'check_orders_schema') {
+      return await checkOrdersSchema(connection, res);
+    } else if (action === 'execute_raw_sql') {
+      return await executeRawSQL(connection, res, req.body);
     } else {
       return res.status(400).json({
         success: false,
@@ -269,6 +275,127 @@ async function addSalesCodeFields(connection, res) {
       }
     });
 
+  } catch (error) {
+    throw error;
+  }
+}
+
+// 添加orders表销售身份字段
+async function addOrdersSalesFields(connection, res) {
+  try {
+    console.log('🔧 开始添加orders表销售身份字段...');
+    const results = [];
+    
+    // 1. 检查并添加sales_type字段
+    console.log('1️⃣ 添加sales_type字段...');
+    try {
+      await connection.execute(`
+        ALTER TABLE orders 
+        ADD COLUMN sales_type ENUM('primary', 'secondary', 'legacy') DEFAULT NULL 
+        COMMENT '销售类型：一级/二级/遗留'
+      `);
+      console.log('✅ sales_type字段添加成功');
+      results.push({ field: 'orders.sales_type', status: 'added' });
+    } catch (error) {
+      if (error.message.includes('Duplicate column name')) {
+        console.log('ℹ️ sales_type字段已存在');
+        results.push({ field: 'orders.sales_type', status: 'exists' });
+      } else {
+        console.error('❌ 添加sales_type字段失败:', error.message);
+        results.push({ field: 'orders.sales_type', status: 'failed', error: error.message });
+      }
+    }
+    
+    // 2. 检查并添加primary_sales_id字段
+    console.log('2️⃣ 添加primary_sales_id字段...');
+    try {
+      await connection.execute(`
+        ALTER TABLE orders 
+        ADD COLUMN primary_sales_id INT DEFAULT NULL 
+        COMMENT '一级销售ID'
+      `);
+      console.log('✅ primary_sales_id字段添加成功');
+      results.push({ field: 'orders.primary_sales_id', status: 'added' });
+    } catch (error) {
+      if (error.message.includes('Duplicate column name')) {
+        console.log('ℹ️ primary_sales_id字段已存在');
+        results.push({ field: 'orders.primary_sales_id', status: 'exists' });
+      } else {
+        console.error('❌ 添加primary_sales_id字段失败:', error.message);
+        results.push({ field: 'orders.primary_sales_id', status: 'failed', error: error.message });
+      }
+    }
+    
+    // 3. 检查并添加secondary_sales_id字段
+    console.log('3️⃣ 添加secondary_sales_id字段...');
+    try {
+      await connection.execute(`
+        ALTER TABLE orders 
+        ADD COLUMN secondary_sales_id INT DEFAULT NULL 
+        COMMENT '二级销售ID'
+      `);
+      console.log('✅ secondary_sales_id字段添加成功');
+      results.push({ field: 'orders.secondary_sales_id', status: 'added' });
+    } catch (error) {
+      if (error.message.includes('Duplicate column name')) {
+        console.log('ℹ️ secondary_sales_id字段已存在');
+        results.push({ field: 'orders.secondary_sales_id', status: 'exists' });
+      } else {
+        console.error('❌ 添加secondary_sales_id字段失败:', error.message);
+        results.push({ field: 'orders.secondary_sales_id', status: 'failed', error: error.message });
+      }
+    }
+    
+    const isSuccess = results.every(r => r.status === 'added' || r.status === 'exists');
+    
+    return res.status(200).json({
+      success: true,
+      message: `orders表销售身份字段${isSuccess ? '添加完成' : '部分完成'}`,
+      data: {
+        results: results,
+        summary: {
+          total_operations: results.length,
+          successful: results.filter(r => r.status === 'added' || r.status === 'exists').length,
+          failed: results.filter(r => r.status === 'failed').length
+        }
+      }
+    });
+    
+  } catch (error) {
+    throw error;
+  }
+}
+
+// 检查orders表结构
+async function checkOrdersSchema(connection, res) {
+  try {
+    console.log('🔍 检查orders表结构...');
+    
+    const [columns] = await connection.execute('SHOW COLUMNS FROM orders');
+    const existingColumns = columns.map(col => col.Field);
+    
+    console.log('📋 现有字段:', existingColumns.join(', '));
+    
+    const salesFields = ['sales_type', 'primary_sales_id', 'secondary_sales_id'];
+    const missingFields = salesFields.filter(field => !existingColumns.includes(field));
+    const existingFields = salesFields.filter(field => existingColumns.includes(field));
+    
+    return res.status(200).json({
+      success: true,
+      message: 'orders表结构检查完成',
+      data: {
+        table: 'orders',
+        total_columns: columns.length,
+        sales_fields: {
+          existing: existingFields,
+          missing: missingFields,
+          ready: missingFields.length === 0
+        },
+        columns: columns,
+        needs_fix: missingFields.length > 0
+      }
+    });
+    
   } catch (error) {
     throw error;
   }

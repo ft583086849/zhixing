@@ -434,7 +434,7 @@ async function handleCreateOrder(req, res, connection) {
       secondarySalesId = null; // 遗留销售没有新表ID
     }
 
-      // 后端字段适配：使用映射后的短值插入数据库，包含销售身份信息
+      // 🔧 修复完成：恢复销售身份字段，包含完整的字段列表和VALUES数组
       const [result] = await connection.execute(
         `INSERT INTO orders (
           link_code, tradingview_username, customer_wechat, duration, amount, 
@@ -454,7 +454,7 @@ async function handleCreateOrder(req, res, connection) {
           formatDateForMySQL(expiryTime),
           commissionRate,
           commissionAmount,
-          dbSalesType, // 销售类型：primary/secondary
+          dbSalesType, // 销售类型：primary/secondary/legacy
           primarySalesId, // 一级销售ID
           secondarySalesId // 二级销售ID
         ]
