@@ -119,6 +119,8 @@ export const salesAPI = {
   getPrimarySalesOrders: (params) => api.get('/primary-sales?path=orders', { params }),
   updateSecondarySalesCommission: (secondarySalesId, commissionRate) => api.put(`/primary-sales?path=update-commission&id=${secondarySalesId}`, { commissionRate }),
   urgeOrder: (orderId) => api.post(`/primary-sales?path=urge-order&id=${orderId}`),
+  // 二级销售对账API
+  getSecondarySalesSettlement: (params) => api.get('/secondary-sales?path=settlement', { params }),
 };
 
 // 订单API
@@ -160,6 +162,11 @@ export const adminAPI = {
     params,
     responseType: 'blob'
   }),
+};
+
+// 公开API（不需要认证）
+export const publicAPI = {
+  getPaymentConfig: () => api.get('/payment-config?path=public'),
 };
 
 // 永久授权限量API已移除

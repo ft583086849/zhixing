@@ -1,12 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { adminAPI } from '../../services/api';
+import { adminAPI, publicAPI } from '../../services/api';
 
-// 异步action：获取收款配置
+// 异步action：获取收款配置（公开访问）
 export const getPaymentConfig = createAsyncThunk(
   'paymentConfig/getPaymentConfig',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await adminAPI.getPaymentConfig();
+      const response = await publicAPI.getPaymentConfig();
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取收款配置失败');

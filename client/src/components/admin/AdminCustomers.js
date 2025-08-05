@@ -17,7 +17,8 @@ import {
   Button
 } from 'antd';
 import { 
-  SearchOutlined
+  SearchOutlined,
+  ExportOutlined
 } from '@ant-design/icons';
 import { Divider } from 'antd';
 import dayjs from 'dayjs';
@@ -184,6 +185,52 @@ const handleSearch = () => {
                   搜索
                 </Button>
                 <Button onClick={handleReset}>重置</Button>
+                <Button icon={<ExportOutlined />} onClick={() => {
+                  if (!customers || customers.length === 0) {
+                    message.warning('暂无数据可导出');
+                    return;
+                  }
+                  
+                  // 准备导出数据
+                  const exportData = customers.map(customer => ({
+                    '客户微信号': customer.customer_wechat || '',
+                    'TradingView用户名': customer.tradingview_username || '',
+                    '销售微信号': customer.sales_wechat || '',
+                    '订单金额': customer.amount ? `$${customer.amount}` : '',
+                    '订单时长': customer.duration_text || customer.duration || '',
+                    '到期时间': customer.expiry_time ? new Date(customer.expiry_time).toLocaleString('zh-CN') : '',
+                    '催单状态': customer.is_reminded ? '已催单' : '未催单',
+                    '订单状态': customer.status_text || customer.status || '',
+                    '创建时间': customer.created_at ? new Date(customer.created_at).toLocaleString('zh-CN') : ''
+                  }));
+
+                  if (exportData.length === 0) {
+                    message.warning('没有数据可导出');
+                    return;
+                  }
+
+                  // 生成CSV内容
+                  const headers = Object.keys(exportData[0]);
+                  const csvContent = [
+                    headers.join(','),
+                    ...exportData.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+                  ].join('\n');
+
+                  // 创建并下载文件
+                  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                  const link = document.createElement('a');
+                  const url = URL.createObjectURL(blob);
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', `客户数据_${new Date().toISOString().split('T')[0]}.csv`);
+                  link.style.visibility = 'hidden';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+
+                  message.success('客户数据导出成功');
+                }}>
+                  导出数据
+                </Button>
               </Space>
             </Col>
           </Row>

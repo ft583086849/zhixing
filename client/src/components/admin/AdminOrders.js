@@ -343,6 +343,31 @@ const AdminOrders = () => {
         const renderOperations = () => {
           switch (record.status) {
             case 'pending_payment':
+              // 7天免费订单跳过付款确认，直接进入配置确认
+              if (record.duration === '7days') {
+                return (
+                  <>
+                    <Button 
+                      type="primary" 
+                      size="small"
+                      icon={<CheckOutlined />}
+                      onClick={() => handleUpdateStatus(record.id, 'pending_config')}
+                    >
+                      进入配置确认
+                    </Button>
+                    <Button 
+                      type="link" 
+                      size="small"
+                      danger
+                      icon={<CloseOutlined />}
+                      onClick={() => handleUpdateStatus(record.id, 'rejected')}
+                    >
+                      拒绝订单
+                    </Button>
+                  </>
+                );
+              }
+              // 付费订单需要付款确认
               return (
                 <>
                   <Button 
@@ -360,21 +385,32 @@ const AdminOrders = () => {
                     icon={<CloseOutlined />}
                     onClick={() => handleUpdateStatus(record.id, 'rejected')}
                   >
-                    拒绝
+                    拒绝订单
                   </Button>
                 </>
               );
               
             case 'confirmed_payment':
               return (
-                <Button 
-                  type="primary" 
-                  size="small"
-                  icon={<CheckOutlined />}
-                  onClick={() => handleUpdateStatus(record.id, 'pending_config')}
-                >
-                  进入配置阶段
-                </Button>
+                <>
+                  <Button 
+                    type="primary" 
+                    size="small"
+                    icon={<CheckOutlined />}
+                    onClick={() => handleUpdateStatus(record.id, 'pending_config')}
+                  >
+                    进入配置确认
+                  </Button>
+                  <Button 
+                    type="link" 
+                    size="small"
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={() => handleUpdateStatus(record.id, 'rejected')}
+                  >
+                    拒绝订单
+                  </Button>
+                </>
               );
               
             case 'pending_config':
@@ -395,7 +431,7 @@ const AdminOrders = () => {
                     icon={<CloseOutlined />}
                     onClick={() => handleUpdateStatus(record.id, 'rejected')}
                   >
-                    拒绝
+                    拒绝订单
                   </Button>
                 </>
               );
@@ -477,11 +513,7 @@ const AdminOrders = () => {
                 <Input placeholder="请输入TradingView用户" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="link_code" label="链接代码">
-                <Input placeholder="请输入链接代码" />
-              </Form.Item>
-            </Col>
+
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="purchase_type" label="购买方式">
                 <Select placeholder="请选择购买方式" allowClear>

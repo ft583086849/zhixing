@@ -25,6 +25,7 @@ import {
   ExclamationCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { salesAPI } from '../services/api';
 
 const { Title, Text } = Typography;
 
@@ -42,126 +43,44 @@ const SalesReconciliationPage = () => {
   });
 
   const handleSearch = async (values) => {
-    if (!values.wechat_name && !values.link_code && !values.payment_date_range) {
-      message.error('请输入微信号、链接代码或选择付款时间');
+    if (!values.wechat_name && !values.payment_date_range) {
+      message.error('请输入微信号或选择付款时间');
       return;
     }
 
     setLoading(true);
     try {
-      // 模拟API调用 - 实际项目中需要替换为真实API
-      const mockData = {
-        sales: {
-          wechat_name: values.wechat_name || '二级销售示例',
-          link_code: values.link_code || 'secondary_demo',
-          total_orders: 15,
-          total_amount: 12580,
-          total_commission: 3774, // 返佣金额 = 订单金额 * 30%
-          commission_rate: 0.30
-        },
-        orders: [
-          {
-            id: 1,
-            tradingview_username: 'demo_user_001',
-            customer_wechat: 'customer_demo_001',
-            duration: '1month',
-            amount: 188,
-            commission: 56.4, // 188 * 30%
-            payment_time: '2025-01-27 10:00:00',
-            status: 'confirmed_configuration',
-            config_confirmed: true,
-            expiry_time: '2025-02-28 10:00:00'
-          },
-          {
-            id: 2,
-            tradingview_username: 'demo_user_002',
-            customer_wechat: 'customer_demo_002',
-            duration: '3months',
-            amount: 488,
-            commission: 146.4, // 488 * 30%
-            payment_time: '2025-01-26 15:30:00',
-            status: 'confirmed_configuration',
-            config_confirmed: true,
-            expiry_time: '2025-04-27 15:30:00'
-          },
-          {
-            id: 3,
-            tradingview_username: 'user003',
-            customer_wechat: 'customer003',
-            duration: '6months',
-            amount: 688,
-            commission: 206.4, // 688 * 30%
-            payment_time: '2025-01-25 09:15:00',
-            status: 'confirmed_configuration',
-            config_confirmed: true,
-            expiry_time: '2025-07-26 09:15:00'
-          },
-          {
-            id: 6,
-            tradingview_username: 'user006',
-            customer_wechat: 'customer006',
-            duration: '1month',
-            amount: 188,
-            commission: 56.4,
-            payment_time: '2025-01-24 16:30:00',
-            status: 'pending_config',
-            config_confirmed: false,
-            expiry_time: '2025-02-25 16:30:00'
-          }
-        ],
-        reminderOrders: [
-          {
-            id: 4,
-            tradingview_username: 'user004',
-            customer_wechat: 'customer004',
-            duration: '1month',
-            amount: 188,
-            commission: 56.4, // 188 * 30%
-            payment_time: '2025-01-20 14:20:00',
-            status: 'confirmed_configuration',
-            config_confirmed: true,
-            expiry_time: '2025-02-21 14:20:00',
-            daysUntilExpiry: 5
-          },
-          {
-            id: 5,
-            tradingview_username: 'user005',
-            customer_wechat: 'customer005',
-            duration: '3months',
-            amount: 488,
-            commission: 146.4, // 488 * 30%
-            payment_time: '2025-01-15 11:45:00',
-            status: 'confirmed_configuration',
-            config_confirmed: true,
-            expiry_time: '2025-02-16 11:45:00',
-            daysUntilExpiry: 2
-          }
-        ]
-      };
-
-      // 只显示配置确认的订单
-      const confirmedOrders = mockData.orders.filter(order => order.config_confirmed === true);
-      const confirmedReminderOrders = mockData.reminderOrders.filter(order => order.config_confirmed === true);
+      // 构建查询参数
+      const params = {};
       
-      // 重新计算统计数据（仅计入配置确认的订单）
-      const confirmedStats = {
-        totalOrders: confirmedOrders.length,
-        totalAmount: confirmedOrders.reduce((sum, order) => sum + order.amount, 0),
-        totalCommission: confirmedOrders.reduce((sum, order) => sum + order.commission, 0),
-        pendingReminderCount: confirmedReminderOrders.length
-      };
+      if (values.wechat_name) {
+        params.wechat_name = values.wechat_name;
+      }
+      
+      if (values.payment_date_range && values.payment_date_range.length === 2) {
+        const [startDate, endDate] = values.payment_date_range;
+        params.payment_date_range = `${startDate.format('YYYY-MM-DD')},${endDate.format('YYYY-MM-DD')}`;
+      }
 
-      // 销售基本信息（包括返佣比例）不受配置确认状态影响，保持原值
-      setSalesData(mockData.sales);
-      // 订单列表仅显示配置确认的订单
-      setOrders(confirmedOrders);
-      setReminderOrders(confirmedReminderOrders);
-      // 统计数据仅计入配置确认的订单
-      setStats(confirmedStats);
-
-      message.success('查询成功');
+      // 调用真实API
+      const response = await salesAPI.getSecondarySalesSettlement(params);
+      
+      if (response.data.success) {
+        const { sales, orders, reminderOrders, stats } = response.data.data;
+        
+        setSalesData(sales);
+        setOrders(orders);
+        setReminderOrders(reminderOrders);
+        setStats(stats);
+        
+        message.success('对账信息查询成功');
+      } else {
+        message.error(response.data.message || '查询失败');
+      }
     } catch (error) {
-      message.error('查询失败');
+      console.error('查询失败:', error);
+      const errorMessage = error.response?.data?.message || error.message || '查询失败，请重试';
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -333,14 +252,7 @@ const SalesReconciliationPage = () => {
                 aria-label="请输入微信号"
               />
             </Form.Item>
-            <Form.Item name="link_code" label="链接代码" >
-              <Input 
-                placeholder="请输入链接代码" 
-                style={{ width: 200 }}
-                allowClear
-                aria-label="请输入链接代码"
-              />
-            </Form.Item>
+
 
             <Form.Item >
               <Space>
@@ -486,7 +398,7 @@ const SalesReconciliationPage = () => {
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <UserOutlined style={{ fontSize: '48px', color: '#d9d9d9', marginBottom: '16px' }} />
               <Text type="secondary" style={{ fontSize: '16px' }}>
-                请输入微信号或链接代码查询销售信息
+                请输入微信号查询销售信息
               </Text>
             </div>
           </Card>

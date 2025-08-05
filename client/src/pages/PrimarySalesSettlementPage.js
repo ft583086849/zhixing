@@ -466,6 +466,16 @@ const PrimarySalesSettlementPage = () => {
       }
     },
     {
+      title: '总订单金额',
+      dataIndex: 'total_amount',
+      key: 'total_amount',
+      width: 120,
+      render: (amount) => {
+        const value = parseFloat(amount || 0);
+        return `$${value.toFixed(2)}`;
+      }
+    },
+    {
       title: '当前佣金率',
       dataIndex: 'commission_rate',
       key: 'commission_rate',

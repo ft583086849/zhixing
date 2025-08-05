@@ -149,6 +149,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    // 处理清空测试数据
+    if (req.method === 'DELETE' && path === 'clear-test-data') {
+      await handleClearTestData(req, res);
+      return;
+    }
+
     // 处理修复缺失数据库字段
     if (req.method === 'POST' && path === 'fix-missing-fields') {
       await handleFixMissingFields(req, res);
@@ -635,20 +641,18 @@ async function handleSales(req, res) {
                      COALESCE(SUM(amount), 0) as total_amount, 
                      COALESCE(SUM(commission_amount), 0) as total_commission
               FROM orders 
-              WHERE (sales_code = ? OR primary_sales_id = ?) 
-                AND config_confirmed = true
+              WHERE (primary_sales_id = ? OR (sales_code IS NOT NULL AND sales_code = ?))
             `;
-            orderParams = [sale.sales_code, sale.id];
+            orderParams = [sale.id, sale.sales_code || ''];
           } else if (sale.sales_type === 'secondary') {
             orderQuery = `
               SELECT COUNT(*) as order_count, 
                      COALESCE(SUM(amount), 0) as total_amount, 
                      COALESCE(SUM(commission_amount), 0) as total_commission
               FROM orders 
-              WHERE (sales_code = ? OR secondary_sales_id = ?) 
-                AND config_confirmed = true
+              WHERE (secondary_sales_id = ? OR (sales_code IS NOT NULL AND sales_code = ?))
             `;
-            orderParams = [sale.sales_code, sale.id];
+            orderParams = [sale.id, sale.sales_code || ''];
           } else {
             // 遗留销售
             orderQuery = `
@@ -1216,7 +1220,7 @@ async function handleStats(req, res) {
         COUNT(CASE WHEN o.duration = '1month' THEN 1 END) as one_month_orders,
         COUNT(CASE WHEN o.duration = '3months' THEN 1 END) as three_month_orders,
         COUNT(CASE WHEN o.duration = '6months' THEN 1 END) as six_month_orders,
-        COUNT(CASE WHEN o.duration = 'lifetime' THEN 1 END) as lifetime_orders,
+        COUNT(CASE WHEN o.duration = '1year' THEN 1 END) as lifetime_orders,
         COUNT(CASE WHEN o.duration = '7days' THEN 1 END) as free_orders
       FROM orders o
       WHERE 1=1 ${dateFilter}
@@ -1427,8 +1431,9 @@ async function handleCustomers(req, res) {
       )
       
       ${whereClause}
-      GROUP BY o.customer_wechat, o.tradingview_username, 
-               COALESCE(ps.wechat_name, ss.wechat_name, s.wechat_name)
+      GROUP BY o.customer_wechat, o.tradingview_username, o.duration,
+               COALESCE(ps.wechat_name, ss.wechat_name, s.wechat_name),
+               ps.id, ss.id, s.id
       ORDER BY 
         CASE 
           WHEN MAX(o.expiry_time) < NOW() THEN 1          -- 已过期的最先
@@ -2008,6 +2013,101 @@ async function handleFixMissingFields(req, res) {
   } finally {
     if (connection) {
       await connection.end();
+    }
+  }
+}
+
+// 清空测试数据功能
+async function handleClearTestData(req, res) {
+  let connection;
+  
+  try {
+    console.log('🧹 开始清空测试数据...');
+    connection = await mysql.createConnection(dbConfig);
+    
+    const clearedTables = [];
+    
+    // 清空订单表
+    console.log('清空 orders 表...');
+    const [ordersResult] = await connection.execute('SELECT COUNT(*) as count FROM orders');
+    const ordersCount = ordersResult[0].count;
+    await connection.execute('DELETE FROM orders');
+    clearedTables.push({ name: 'orders', count: ordersCount });
+    
+    // 清空一级销售表
+    console.log('清空 primary_sales 表...');
+    const [primaryResult] = await connection.execute('SELECT COUNT(*) as count FROM primary_sales');
+    const primaryCount = primaryResult[0].count;
+    await connection.execute('DELETE FROM primary_sales');
+    clearedTables.push({ name: 'primary_sales', count: primaryCount });
+    
+    // 清空二级销售表
+    console.log('清空 secondary_sales 表...');
+    const [secondaryResult] = await connection.execute('SELECT COUNT(*) as count FROM secondary_sales');
+    const secondaryCount = secondaryResult[0].count;
+    await connection.execute('DELETE FROM secondary_sales');
+    clearedTables.push({ name: 'secondary_sales', count: secondaryCount });
+    
+    // 清空sales表（如果存在）
+    try {
+      console.log('清空 sales 表...');
+      const [salesResult] = await connection.execute('SELECT COUNT(*) as count FROM sales');
+      const salesCount = salesResult[0].count;
+      await connection.execute('DELETE FROM sales');
+      clearedTables.push({ name: 'sales', count: salesCount });
+    } catch (error) {
+      console.log('sales 表不存在或已清空');
+    }
+    
+    // 清空links表（如果存在）
+    try {
+      console.log('清空 links 表...');
+      const [linksResult] = await connection.execute('SELECT COUNT(*) as count FROM links');
+      const linksCount = linksResult[0].count;
+      await connection.execute('DELETE FROM links');
+      clearedTables.push({ name: 'links', count: linksCount });
+    } catch (error) {
+      console.log('links 表不存在或已清空');
+    }
+    
+    // 重置自增ID
+    console.log('重置自增ID...');
+    await connection.execute('ALTER TABLE orders AUTO_INCREMENT = 1');
+    await connection.execute('ALTER TABLE primary_sales AUTO_INCREMENT = 1');
+    await connection.execute('ALTER TABLE secondary_sales AUTO_INCREMENT = 1');
+    
+    try {
+      await connection.execute('ALTER TABLE sales AUTO_INCREMENT = 1');
+      await connection.execute('ALTER TABLE links AUTO_INCREMENT = 1');
+    } catch (error) {
+      // 表不存在时忽略错误
+    }
+    
+    console.log('✅ 测试数据清空完成');
+    
+    res.json({
+      success: true,
+      message: '所有测试数据已成功清空',
+      data: {
+        clearedTables,
+        totalRecords: clearedTables.reduce((sum, table) => sum + table.count, 0)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ 清空测试数据错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '清空测试数据失败',
+      error: error.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (e) {
+        console.error('❌ 关闭连接失败:', e);
+      }
     }
   }
 }

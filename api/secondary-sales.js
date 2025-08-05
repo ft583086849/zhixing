@@ -63,6 +63,17 @@ export default async function handler(req, res) {
     const { path } = req.query;
     const bodyPath = req.body?.path;
 
+    // 处理二级销售对账（GET请求）- 优先处理
+    if (req.method === 'GET' && path === 'settlement') {
+      const connection = await mysql.createConnection(dbConfig);
+      try {
+        await handleSecondarySalesSettlement(req, res, connection);
+      } finally {
+        await connection.end();
+      }
+      return;
+    }
+
     // 处理二级销售注册验证（替代之前的/api/links调用）
     if (req.method === 'GET' && (path === 'validate' || !path)) {
       const connection = await mysql.createConnection(dbConfig);
@@ -385,6 +396,167 @@ async function handleGetSecondarySalesList(req, res, connection) {
     res.status(500).json({
       success: false,
       message: '获取二级销售列表失败'
+    });
+  }
+}
+
+// 处理二级销售对账查询
+async function handleSecondarySalesSettlement(req, res, connection) {
+  try {
+    const { wechat_name, sales_code, payment_date_range } = req.query;
+    
+    // 验证查询参数
+    if (!wechat_name && !sales_code && !payment_date_range) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供微信号、销售代码或付款时间范围'
+      });
+    }
+
+    // 构建查询条件
+    let whereConditions = ['ss.status = ?'];
+    let queryParams = ['active'];
+    
+    if (wechat_name) {
+      whereConditions.push('ss.wechat_name LIKE ?');
+      queryParams.push(`%${wechat_name}%`);
+    }
+    
+    if (sales_code) {
+      whereConditions.push('ss.sales_code LIKE ?');
+      queryParams.push(`%${sales_code}%`);
+    }
+
+    // 查询二级销售基本信息
+    const salesQuery = `
+      SELECT 
+        ss.id,
+        ss.wechat_name,
+        ss.sales_code,
+        ss.commission_rate,
+        ss.payment_method,
+        ss.created_at,
+        ss.primary_sales_id,
+        ps.wechat_name as primary_sales_name,
+        CASE WHEN ss.primary_sales_id IS NULL THEN '独立二级销售' ELSE '一级下属二级销售' END as sales_type
+      FROM secondary_sales ss
+      LEFT JOIN primary_sales ps ON ss.primary_sales_id = ps.id
+      WHERE ${whereConditions.join(' AND ')}
+      LIMIT 1
+    `;
+
+    const [salesRows] = await connection.execute(salesQuery, queryParams);
+
+    if (salesRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '未找到匹配的二级销售'
+      });
+    }
+
+    const salesData = salesRows[0];
+
+    // 构建订单查询条件
+    let orderWhereConditions = ['o.config_confirmed = true']; // 只查询已配置确认的订单
+    let orderQueryParams = [];
+
+    // 根据sales_code或secondary_sales_id查询订单
+    if (salesData.sales_code) {
+      orderWhereConditions.push('(o.secondary_sales_id = ? OR o.sales_code = ?)');
+      orderQueryParams.push(salesData.id, salesData.sales_code);
+    } else {
+      orderWhereConditions.push('o.secondary_sales_id = ?');
+      orderQueryParams.push(salesData.id);
+    }
+
+    // 添加时间范围过滤
+    if (payment_date_range) {
+      try {
+        const [startDate, endDate] = payment_date_range.split(',');
+        if (startDate && endDate) {
+          orderWhereConditions.push('DATE(o.payment_time) BETWEEN ? AND ?');
+          orderQueryParams.push(startDate, endDate);
+        }
+      } catch (error) {
+        console.warn('时间范围解析失败:', error);
+      }
+    }
+
+    // 查询订单列表
+    const ordersQuery = `
+      SELECT 
+        o.id,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.duration,
+        o.amount,
+        o.commission_amount as commission,
+        o.payment_time,
+        o.status,
+        o.config_confirmed,
+        o.expiry_time,
+        o.created_at
+      FROM orders o
+      WHERE ${orderWhereConditions.join(' AND ')}
+      ORDER BY o.payment_time DESC
+    `;
+
+    const [ordersRows] = await connection.execute(ordersQuery, orderQueryParams);
+
+    // 查询催单订单（status为pending的订单）
+    const reminderQuery = `
+      SELECT 
+        o.id,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.duration,
+        o.amount,
+        o.commission_amount as commission,
+        o.payment_time,
+        o.status,
+        o.config_confirmed,
+        o.expiry_time,
+        o.created_at
+      FROM orders o
+      WHERE ${orderWhereConditions.join(' AND ')}
+        AND o.status IN ('pending_payment', 'pending_config')
+      ORDER BY o.created_at DESC
+    `;
+
+    const [reminderRows] = await connection.execute(reminderQuery, orderQueryParams);
+
+    // 计算统计数据
+    const totalOrders = ordersRows.length;
+    const totalAmount = ordersRows.reduce((sum, order) => sum + parseFloat(order.amount || 0), 0);
+    const totalCommission = ordersRows.reduce((sum, order) => sum + parseFloat(order.commission || 0), 0);
+    const pendingReminderCount = reminderRows.length;
+
+    // 返回数据
+    res.status(200).json({
+      success: true,
+      data: {
+        sales: {
+          ...salesData,
+          total_orders: totalOrders,
+          total_amount: totalAmount,
+          total_commission: totalCommission
+        },
+        orders: ordersRows,
+        reminderOrders: reminderRows,
+        stats: {
+          totalOrders,
+          totalAmount,
+          totalCommission,
+          pendingReminderCount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('二级销售对账查询错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '对账查询失败'
     });
   }
 }

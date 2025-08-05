@@ -448,8 +448,8 @@ async function handleCreateOrder(req, res, connection) {
         `INSERT INTO orders (
           link_code, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
-          commission_rate, commission_amount, sales_type, primary_sales_id, secondary_sales_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          commission_rate, commission_amount, sales_type, primary_sales_id, secondary_sales_id, screenshot_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           finalSalesCode, // 使用sales_code作为link_code的兼容值
           tradingview_username, 
@@ -465,7 +465,8 @@ async function handleCreateOrder(req, res, connection) {
           commissionAmount,
           dbSalesType, // 销售类型：primary/secondary/legacy
           primarySalesId, // 一级销售ID
-          secondarySalesId // 二级销售ID
+          secondarySalesId, // 二级销售ID
+          req.body.screenshot_data || null // 保存Base64截图数据
         ]
       );
 

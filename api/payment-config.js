@@ -75,7 +75,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // 处理获取支付配置
+    // 处理公开获取支付配置（用于用户购买页面）- 优先处理
+    if (req.method === 'GET' && path === 'public') {
+      await handleGetPublicPaymentConfig(req, res);
+      return;
+    }
+
+    // 处理获取支付配置（管理员权限）
     if (req.method === 'GET' && (path === 'get' || !path)) {
       await handleGetPaymentConfig(req, res);
       return;
@@ -184,4 +190,42 @@ async function handleUpdatePaymentConfig(req, res) {
     success: true,
     message: '支付配置保存成功'
   });
+}
+
+// 公开获取支付配置（用于用户购买页面）
+async function handleGetPublicPaymentConfig(req, res) {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT alipay_qr_code, crypto_qr_code, alipay_account, alipay_surname, crypto_chain_name, crypto_address FROM payment_config ORDER BY id DESC LIMIT 1'
+    );
+    await connection.end();
+
+    if (rows.length === 0) {
+      // 如果没有配置，返回默认值（不包含敏感信息）
+      return res.json({
+        success: true,
+        data: {
+          alipay_account: '752304285@qq.com',
+          alipay_surname: '梁',
+          alipay_qr_code: '',
+          crypto_chain_name: 'TRC10/TRC20',
+          crypto_address: 'TDnNfU9GYcDbzFqf8LUNzBuTsaDbCh5LTo',
+          crypto_qr_code: ''
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: rows[0]
+    });
+
+  } catch (error) {
+    console.error('获取公开支付配置错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取支付配置失败'
+    });
+  }
 }

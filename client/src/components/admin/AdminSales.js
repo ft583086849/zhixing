@@ -44,10 +44,38 @@ const AdminSales = () => {
   const [editingCommissionRates, setEditingCommissionRates] = useState({});
   const [paidCommissionData, setPaidCommissionData] = useState({});
   const [salesTypeFilter, setSalesTypeFilter] = useState('all'); // 新增：销售类型筛选
+  const [commissionRateOptions, setCommissionRateOptions] = useState([]); // 动态佣金比率选项
 
   useEffect(() => {
     dispatch(getSales());
   }, [dispatch]);
+
+  // 动态生成佣金比率选项
+  useEffect(() => {
+    if (sales && sales.length > 0) {
+      const uniqueRates = new Set();
+      sales.forEach(sale => {
+        if (sale.sales?.commission_rate) {
+          uniqueRates.add(sale.sales.commission_rate);
+        }
+        // 为一级销售添加计算出的佣金比率
+        if (sale.sales_type === 'primary') {
+          const calculatedRate = calculatePrimaryCommissionRate(sale);
+          if (calculatedRate && calculatedRate > 0) {
+            uniqueRates.add(Math.round(calculatedRate));
+          }
+        }
+      });
+      
+      // 转换为选项数组并排序
+      const options = Array.from(uniqueRates)
+        .filter(rate => rate && rate > 0)
+        .sort((a, b) => a - b)
+        .map(rate => ({ value: rate, label: `${rate}%` }));
+      
+      setCommissionRateOptions(options);
+    }
+  }, [sales]);
 
   // 获取佣金率
   const fetchCommissionRates = async () => {
@@ -578,11 +606,7 @@ const AdminSales = () => {
                 <Input placeholder="请输入销售微信号" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="link_code" label="链接代码">
-                <Input placeholder="请输入链接代码" />
-              </Form.Item>
-            </Col>
+            
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="payment_method" label="收款方式">
                 <Select placeholder="请选择收款方式" allowClear>
@@ -601,11 +625,11 @@ const AdminSales = () => {
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="commission_rate" label="佣金比率">
                 <Select placeholder="请选择佣金比率" allowClear>
-                  <Option value="30">30%</Option>
-                  <Option value="32">32%</Option>
-                  <Option value="35">35%</Option>
-                  <Option value="38">38%</Option>
-                  <Option value="40">40%</Option>
+                  {commissionRateOptions.map(option => (
+                    <Option key={option.value} value={option.value}>
+                      {option.label}
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>

@@ -134,8 +134,8 @@ npm run client  # 启动前端服务
 
 ## 默认账户
 
-- 管理员用户名：admin
-- 管理员密码：admin123
+- 管理员用户名：知行
+- 管理员密码：Zhixing Universal Trading Signal
 
 ## 开发说明
 
