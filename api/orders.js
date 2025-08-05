@@ -249,37 +249,39 @@ async function handleCreateOrder(req, res, connection) {
       crypto_amount
     } = req.body;
 
-    // 后端字段适配 - 映射为数据库兼容的短值
+    // 🔧 修复字段映射 - 保持数据库枚举值格式
     let duration, mappedPaymentMethod, mappedPurchaseType;
     
-    // Duration映射 (字符串 -> 数字，数据库friendly)
+    // Duration映射 - 保持数据库枚举值格式
     if (typeof rawDuration === 'number') {
-      duration = rawDuration.toString();
-    } else {
-      const durationMap = {
-        '7days': '7',
-        '1month': '30',
-        '3months': '90', 
-        '6months': '180',
-        'lifetime': '365'
+      // 如果传入数字，转换为对应的枚举值
+      const numberToDurationMap = {
+        7: '7days',
+        30: '1month',
+        90: '3months',
+        180: '6months',
+        365: 'lifetime'
       };
-      duration = durationMap[rawDuration] || rawDuration;
+      duration = numberToDurationMap[rawDuration] || '7days';
+    } else {
+      // 如果传入字符串，确保是有效的枚举值
+      const validDurations = ['7days', '1month', '3months', '6months', '1year', 'lifetime'];
+      duration = validDurations.includes(rawDuration) ? rawDuration : '7days';
     }
     
-    // Payment method映射 (字符串 -> 数字编码)
-    const paymentMethodMap = {
-      'alipay': '1',
-      'crypto': '2',
-      'free': '0'
-    };
-    mappedPaymentMethod = paymentMethodMap[payment_method] || payment_method;
+    // Payment method映射 - 保持数据库枚举值格式
+    if (payment_method === 'free') {
+      // 7天免费版使用alipay但金额为0
+      mappedPaymentMethod = 'alipay';
+    } else {
+      // 确保是有效的枚举值
+      const validPaymentMethods = ['alipay', 'crypto'];
+      mappedPaymentMethod = validPaymentMethods.includes(payment_method) ? payment_method : 'alipay';
+    }
     
-    // Purchase type映射 (字符串 -> 数字编码)
-    const purchaseTypeMap = {
-      'immediate': '1',
-      'advance': '2'
-    };
-    mappedPurchaseType = purchaseTypeMap[purchase_type] || purchase_type;
+    // Purchase type映射 - 保持数据库枚举值格式
+    const validPurchaseTypes = ['immediate', 'advance'];
+    mappedPurchaseType = validPurchaseTypes.includes(purchase_type) ? purchase_type : 'immediate';
 
     console.log('接收到的数据:', req.body);
     console.log('文件信息:', req.file);
