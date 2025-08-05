@@ -169,36 +169,16 @@ const PurchasePage = () => {
         screenshotData = await fileToBase64(fileList[0]);
       }
 
-      // 数据库字段长度适配 - 映射长值为短值
-      const durationMap = {
-        '7days': '7days',
-        '1month': '1month', 
-        '3months': '3months',
-        '6months': '6months',
-        'lifetime': 'lifetime'
-      };
-      
-      const paymentMethodMap = {
-        'alipay': 'alipay',
-        'crypto': 'crypto',
-        'free': 'free'
-      };
-      
-      const purchaseTypeMap = {
-        'immediate': 'immediate',
-        'advance': 'advance'
-      };
-
       const formData = {
         sales_code: linkCode, // 使用新的sales_code字段
         link_code: linkCode,  // 保持兼容性
         tradingview_username: values.tradingview_username,
         customer_wechat: values.customer_wechat,
-        duration: durationMap[selectedDuration] || selectedDuration,
+        duration: selectedDuration, // 发送原始值，后端负责映射
         amount: getSelectedPrice(), // 添加金额字段
-        payment_method: paymentMethodMap[paymentMethod] || paymentMethod,
+        payment_method: paymentMethod, // 发送原始值，后端负责映射
         payment_time: selectedDuration === '7days' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
-        purchase_type: purchaseTypeMap[purchaseType] || purchaseType,
+        purchase_type: purchaseType, // 发送原始值，后端负责映射
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
         screenshot_data: screenshotData,
         alipay_amount: paymentMethod === 'alipay' ? alipayAmount : null,

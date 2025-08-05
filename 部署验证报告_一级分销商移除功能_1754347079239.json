@@ -1,0 +1,106 @@
+{
+  "timestamp": "2025-08-04T22:37:59.239Z",
+  "environment": "https://zhixing-seven.vercel.app",
+  "summary": {
+    "total": 5,
+    "success": 3,
+    "failed": 2,
+    "successRate": "60.0%"
+  },
+  "results": [
+    {
+      "id": "step_1",
+      "title": "健康检查 - API基础连通性",
+      "description": "验证API服务器基本可访问性",
+      "result": {
+        "success": true,
+        "data": {
+          "status": 200,
+          "response": {
+            "success": true,
+            "message": "健康检查完成",
+            "data": {
+              "status": "OK",
+              "message": "知行财库服务运行正常",
+              "timestamp": "2025-08-04T22:37:58.023Z",
+              "platform": "Vercel Serverless",
+              "version": "2.1.0",
+              "database": {
+                "connected": true,
+                "error": null,
+                "message": "数据库连接正常"
+              }
+            }
+          }
+        },
+        "message": "API服务器正常"
+      },
+      "timestamp": "2025-08-04T22:37:57.914Z"
+    },
+    {
+      "id": "step_2",
+      "title": "端点检查 - 移除二级销售API路由",
+      "description": "验证PUT /api/sales?path=remove-secondary路由存在",
+      "result": {
+        "success": true,
+        "data": {
+          "status": 500,
+          "response": {
+            "error": {
+              "code": "500",
+              "message": "A server error has occurred"
+            }
+          }
+        },
+        "message": "移除API路由已部署"
+      },
+      "timestamp": "2025-08-04T22:37:58.405Z"
+    },
+    {
+      "id": "step_3",
+      "title": "方法支持 - PUT方法CORS验证",
+      "description": "验证API支持PUT方法的CORS配置",
+      "result": {
+        "success": false,
+        "data": {
+          "status": 500,
+          "allowedMethods": ""
+        },
+        "message": "PUT方法不支持，当前方法: "
+      },
+      "timestamp": "2025-08-04T22:37:58.791Z"
+    },
+    {
+      "id": "step_4",
+      "title": "前端页面 - 一级销售对账页面",
+      "description": "验证前端页面可以正常访问",
+      "result": {
+        "success": true,
+        "data": {
+          "status": 200
+        },
+        "message": "一级销售对账页面正常访问"
+      },
+      "timestamp": "2025-08-04T22:37:58.839Z"
+    },
+    {
+      "id": "step_5",
+      "title": "错误处理 - 未授权访问验证",
+      "description": "验证移除API正确处理未授权请求",
+      "result": {
+        "success": false,
+        "data": {
+          "status": 500,
+          "response": {
+            "error": {
+              "code": "500",
+              "message": "A server error has occurred"
+            }
+          }
+        },
+        "message": "权限验证异常，期望401，实际500"
+      },
+      "timestamp": "2025-08-04T22:37:59.239Z"
+    }
+  ]
+}

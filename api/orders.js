@@ -249,20 +249,37 @@ async function handleCreateOrder(req, res, connection) {
       crypto_amount
     } = req.body;
 
-    // 标准化duration格式 - 支持数字转换为字符串格式
-    let duration;
+    // 后端字段适配 - 映射为数据库兼容的短值
+    let duration, mappedPaymentMethod, mappedPurchaseType;
+    
+    // Duration映射 (字符串 -> 数字，数据库friendly)
     if (typeof rawDuration === 'number') {
-      const durationMap = {
-        7: '7days',
-        30: '1month',
-        90: '3months',
-        180: '6months',
-        365: 'lifetime'
-      };
-      duration = durationMap[rawDuration] || `${rawDuration}days`;
+      duration = rawDuration.toString();
     } else {
-      duration = rawDuration;
+      const durationMap = {
+        '7days': '7',
+        '1month': '30',
+        '3months': '90', 
+        '6months': '180',
+        'lifetime': '365'
+      };
+      duration = durationMap[rawDuration] || rawDuration;
     }
+    
+    // Payment method映射 (字符串 -> 数字编码)
+    const paymentMethodMap = {
+      'alipay': '1',
+      'crypto': '2',
+      'free': '0'
+    };
+    mappedPaymentMethod = paymentMethodMap[payment_method] || payment_method;
+    
+    // Purchase type映射 (字符串 -> 数字编码)
+    const purchaseTypeMap = {
+      'immediate': '1',
+      'advance': '2'
+    };
+    mappedPurchaseType = purchaseTypeMap[purchase_type] || purchase_type;
 
     console.log('接收到的数据:', req.body);
     console.log('文件信息:', req.file);
@@ -397,7 +414,7 @@ async function handleCreateOrder(req, res, connection) {
       console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
     }
 
-      // 临时兼容性实现：添加必需的link_code字段
+      // 后端字段适配：使用映射后的短值插入数据库
       const [result] = await connection.execute(
         `INSERT INTO orders (
           link_code, tradingview_username, customer_wechat, duration, amount, 
@@ -408,11 +425,11 @@ async function handleCreateOrder(req, res, connection) {
           finalSalesCode, // 使用sales_code作为link_code的兼容值
           tradingview_username, 
           customer_wechat || null, 
-          duration, 
+          duration, // 已映射为短值 (7, 30, 90, etc.)
           amount,
-          payment_method, 
+          mappedPaymentMethod, // 已映射为数字编码 (1, 2, 0)
           formatDateForMySQL(new Date(payment_time)), 
-          purchase_type, 
+          mappedPurchaseType, // 已映射为数字编码 (1, 2)
           formatDateForMySQL(effectiveTime), 
           formatDateForMySQL(expiryTime),
           commissionRate,
