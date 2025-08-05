@@ -109,7 +109,7 @@ export const authAPI = {
 export const salesAPI = {
   createSales: (data) => api.post('/sales?path=create', data),
   createPrimarySales: (data) => api.post('/primary-sales?path=create', data),
-  getSalesByLink: (linkCode) => api.get(`/sales?link_code=${linkCode}`),
+  getSalesByLink: (linkCode) => api.get(`/sales?sales_code=${linkCode}`),
   getAllSales: () => api.get('/sales?path=list'),
   getPrimarySalesSettlement: (primarySalesId) => api.get(`/sales?path=primary-settlement&id=${primarySalesId}`),
   updateSecondaryCommissionRate: (secondarySalesId, commissionRate) => api.put(`/sales?path=update-secondary-commission&id=${secondarySalesId}`, { commissionRate }),
