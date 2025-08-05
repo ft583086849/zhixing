@@ -12,7 +12,7 @@ const SalesReconciliationPage = lazy(() => import('./pages/SalesReconciliationPa
 const AuthTestPage = lazy(() => import('./pages/AuthTestPage'));
 const PrimarySalesPage = lazy(() => import('./pages/PrimarySalesPage'));
 const PrimarySalesSettlementPage = lazy(() => import('./pages/PrimarySalesSettlementPage'));
-const SecondarySalesRegistrationPage = lazy(() => import('./pages/SecondarySalesRegistrationPage'));
+const UnifiedSecondarySalesPage = lazy(() => import('./pages/UnifiedSecondarySalesPage'));
 
 // 组件
 import LoadingSpinner from './components/LoadingSpinner';
@@ -97,11 +97,11 @@ function App() {
           {/* 一级销售订单结算页面（备用路径） */}
           <Route path="/primary-sales-settlement" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesSettlementPage /></Suspense>} />
           
-          {/* 二级销售注册页面 */}
-          <Route path="/secondary-registration/:linkCode" element={<Suspense fallback={<div>加载中...</div>}><SecondarySalesRegistrationPage /></Suspense>} />
+          {/* 二级销售注册页面 - 统一页面支持独立注册和关联注册 */}
+          <Route path="/secondary-registration/:linkCode" element={<Suspense fallback={<div>加载中...</div>}><UnifiedSecondarySalesPage /></Suspense>} />
           
-          {/* 支持sales_code参数的路由 */}
-          <Route path="/secondary-sales" element={<Suspense fallback={<div>加载中...</div>}><SecondarySalesRegistrationPage /></Suspense>} />
+          {/* 二级销售注册页面 - 支持sales_code参数的统一路由 */}
+          <Route path="/secondary-sales" element={<Suspense fallback={<div>加载中...</div>}><UnifiedSecondarySalesPage /></Suspense>} />
           <Route path="/purchase" element={<Suspense fallback={<div>加载中...</div>}><PurchasePage /></Suspense>} />
           
           {/* 认证测试页面 */}

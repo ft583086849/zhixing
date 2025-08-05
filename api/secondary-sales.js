@@ -85,6 +85,19 @@ export default async function handler(req, res) {
       return;
     }
 
+    // 处理独立二级销售注册
+    if (req.method === 'POST' && (path === 'register-independent' || bodyPath === 'register-independent')) {
+      const connection = await mysql.createConnection(dbConfig);
+      try {
+        // 设置independent标志为true
+        req.body.independent = true;
+        await handleRegisterSecondarySales(req, res, connection);
+      } finally {
+        await connection.end();
+      }
+      return;
+    }
+
     // 处理二级销售列表（管理员权限）
     if (req.method === 'GET' && path === 'list') {
       const authResult = await verifyAdminAuth(req, res);
@@ -131,24 +144,27 @@ async function handleValidateRegistrationCode(req, res, connection) {
       });
     }
 
-    // 临时兼容性实现：由于secondary_registration_code字段暂不存在，使用临时格式查找
+    // 标准实现：查找SR开头的secondary_registration_code
     let rows = [];
     
-    // 支持reg_格式临时注册码
-    if (link_code && link_code.startsWith('reg_')) {
+    if (link_code && link_code.startsWith('SR')) {
+      console.log('🔍 查找二级销售注册代码:', link_code);
+      [rows] = await connection.execute(
+        'SELECT id, wechat_name, payment_method FROM primary_sales WHERE secondary_registration_code = ?',
+        [link_code]
+      );
+      console.log('📊 查找结果:', rows.length, rows.length > 0 ? rows[0] : 'none');
+    } else if (link_code && link_code.startsWith('reg_')) {
+      // 兼容性：支持旧的reg_格式
       const primaryId = link_code.replace('reg_', '');
-      console.log('🔍 查找一级销售ID:', primaryId);
+      console.log('🔍 查找一级销售ID (兼容模式):', primaryId);
       [rows] = await connection.execute(
         'SELECT id, wechat_name, payment_method FROM primary_sales WHERE id = ?',
         [primaryId]
       );
       console.log('📊 查找结果:', rows.length, rows.length > 0 ? rows[0] : 'none');
     } else {
-      // 兼容性：尝试查找legacy格式（一旦字段存在时恢复）
-      [rows] = await connection.execute(
-        'SELECT id, wechat_name, payment_method FROM primary_sales WHERE id = ?',
-        [0] // 暂时返回空结果，等待字段添加
-      );
+      console.log('❌ 无效的注册码格式:', link_code);
     }
 
     if (rows.length === 0) {
@@ -188,14 +204,21 @@ async function handleRegisterSecondarySales(req, res, connection) {
       alipay_surname,
       chain_name,
       registration_code,
-      primary_sales_id
+      primary_sales_id,
+      independent = false
     } = req.body;
 
-    // 验证必填字段
-    if (!wechat_name || !payment_method || !payment_address || !registration_code) {
+    // 验证必填字段（独立注册时不需要registration_code）
+    const missingFields = [];
+    if (!wechat_name) missingFields.push('微信号');
+    if (!payment_method) missingFields.push('收款方式');
+    if (!payment_address) missingFields.push('收款地址');
+    if (!independent && !registration_code) missingFields.push('注册码');
+    
+    if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
-        message: '微信号、收款方式、收款地址和注册码为必填项'
+        message: `以下字段为必填项: ${missingFields.join('、')}`
       });
     }
 
@@ -223,24 +246,36 @@ async function handleRegisterSecondarySales(req, res, connection) {
       });
     }
 
-    // 临时兼容性实现：使用reg_格式验证（与验证函数逻辑一致）
-    let primarySales = [];
-    if (registration_code && registration_code.startsWith('reg_')) {
-      const primaryId = registration_code.replace('reg_', '');
-      [primarySales] = await connection.execute(
-        'SELECT id FROM primary_sales WHERE id = ?',
-        [primaryId]
-      );
-    }
+    // 验证一级销售（仅对非独立注册）
+    let validPrimarySalesId = null;
+    
+    if (!independent) {
+      // 标准实现：支持SR开头的secondary_registration_code
+      let primarySales = [];
+      
+      if (registration_code && registration_code.startsWith('SR')) {
+        [primarySales] = await connection.execute(
+          'SELECT id FROM primary_sales WHERE secondary_registration_code = ?',
+          [registration_code]
+        );
+      } else if (registration_code && registration_code.startsWith('reg_')) {
+        // 兼容性：支持旧的reg_格式
+        const primaryId = registration_code.replace('reg_', '');
+        [primarySales] = await connection.execute(
+          'SELECT id FROM primary_sales WHERE id = ?',
+          [primaryId]
+        );
+      }
 
-    if (primarySales.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: '注册码无效或已过期'
-      });
-    }
+      if (primarySales.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: '注册码无效或已过期'
+        });
+      }
 
-    const validPrimarySalesId = primarySales[0].id;
+      validPrimarySalesId = primarySales[0].id;
+    }
 
     // 检查微信号是否已存在（全局去重）
     const [existingSales] = await connection.execute(
