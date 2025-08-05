@@ -313,8 +313,15 @@ async function handleOrders(req, res) {
     
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
+    // 🔍 调试日志 - 查看WHERE条件构建
+    console.log('🔍 [DEBUG] Orders API WHERE条件调试:');
+    console.log('   whereConditions数组:', whereConditions);
+    console.log('   whereClause:', whereClause);
+    console.log('   params数组:', params);
+    console.log('   查询参数:', req.query);
+    
     // 获取订单列表 - 支持新的多表关联
-    const [orders] = await connection.execute(`
+    const ordersSQL = `
       SELECT 
         o.id,
         o.sales_code,
@@ -382,7 +389,15 @@ async function handleOrders(req, res) {
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
+    `;
+    
+    const finalParams = [...params, parseInt(limit), offset];
+    
+    console.log('🔍 [DEBUG] 完整SQL查询:');
+    console.log('   SQL:', ordersSQL);
+    console.log('   最终参数:', finalParams);
+    
+    const [orders] = await connection.execute(ordersSQL, finalParams);
     
     // 获取总数
     const [countResult] = await connection.execute(`
