@@ -1077,7 +1077,58 @@ async function handleUpdateSchema(req, res) {
       errors.push(`创建销售业绩视图失败: ${error.message}`);
     }
     
-    // 8. 创建索引优化
+    // 8. 添加缺失的sales_code字段
+    try {
+      // 检查并添加primary_sales.sales_code字段
+      const [primarySalesCodeColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'primary_sales' AND COLUMN_NAME = 'sales_code'
+      `, [process.env.DB_NAME]);
+      
+      if (primarySalesCodeColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE primary_sales 
+          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL COMMENT '一级销售代码'
+        `);
+        console.log('✅ 添加primary_sales.sales_code字段成功');
+      }
+      
+      // 检查并添加secondary_sales.sales_code字段
+      const [secondarySalesCodeColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'secondary_sales' AND COLUMN_NAME = 'sales_code'
+      `, [process.env.DB_NAME]);
+      
+      if (secondarySalesCodeColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE secondary_sales 
+          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL COMMENT '二级销售代码'
+        `);
+        console.log('✅ 添加secondary_sales.sales_code字段成功');
+      }
+      
+      // 添加payment_address字段到secondary_sales
+      const [paymentAddressColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'secondary_sales' AND COLUMN_NAME = 'payment_address'
+      `, [process.env.DB_NAME]);
+      
+      if (paymentAddressColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE secondary_sales 
+          ADD COLUMN payment_address TEXT NULL COMMENT '收款地址'
+        `);
+        console.log('✅ 添加secondary_sales.payment_address字段成功');
+      }
+      
+    } catch (error) {
+      errors.push(`添加sales_code字段失败: ${error.message}`);
+    }
+    
+    // 9. 创建索引优化
     try {
       // 检查并创建索引
       const [indexes] = await connection.execute(`

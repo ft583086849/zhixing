@@ -187,35 +187,19 @@ async function handleCreatePrimarySales(req, res, connection) {
     chain_name 
   } = req.body;
 
-  // 验证必填字段
-  if (!wechat_name || !payment_method || !payment_address) {
+    // 验证必填字段
+  if (!wechat_name || !payment_method) {
     return res.status(400).json({
       success: false,
-              message: '微信号、收款方式和收款地址为必填项'
+      message: '微信号和收款方式为必填项'
     });
   }
 
   // 验证收款方式
-  if (!['alipay', 'crypto'].includes(payment_method)) {
+  if (!['wechat', 'alipay', 'bank'].includes(payment_method)) {
     return res.status(400).json({
       success: false,
-      message: '收款方式只能是支付宝或线上地址码'
-    });
-  }
-
-  // 支付宝收款验证
-  if (payment_method === 'alipay' && !alipay_surname) {
-    return res.status(400).json({
-      success: false,
-      message: '支付宝收款需要填写收款人姓氏'
-    });
-  }
-
-  // 线上地址码验证
-  if (payment_method === 'crypto' && !chain_name) {
-    return res.status(400).json({
-      success: false,
-      message: '线上地址码需要填写链名'
+      message: '收款方式只能是微信、支付宝或银行卡'
     });
   }
 
@@ -250,32 +234,28 @@ async function handleCreatePrimarySales(req, res, connection) {
       secondary_registration_code: secondaryRegistrationCode
     };
 
-    // 暂时兼容性实现 - 等待数据库字段添加
+    // 生成标准的销售代码
+    const tempId = Date.now();
+    const salesCode = `PS${String(tempId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
+    
+    // 使用实际存在的数据库字段插入
     const [result] = await connection.execute(
       `INSERT INTO primary_sales (
-        wechat_name, payment_method, payment_address, alipay_surname, chain_name, 
-        commission_rate
-      ) VALUES (?, ?, ?, ?, ?, 40.00)`,
+        wechat_name, payment_method, phone, email, sales_code
+      ) VALUES (?, ?, ?, ?, ?)`,
       [
         params.wechat_name, 
-        params.payment_method, 
-        params.payment_address, 
-        params.alipay_surname, 
-        params.chain_name
+        params.payment_method,
+        'temp_phone_' + tempId, // 临时phone，符合数据库要求
+        params.wechat_name + '@temp.com', // 临时email
+        salesCode
       ]
     );
 
     const primarySalesId = result.insertId;
 
-    // 生成标准的销售代码
-    const salesCode = `PS${String(primarySalesId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
+    // 生成二级销售注册代码
     const regCode = `SR${String(primarySalesId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
-
-    // 更新数据库记录，添加标准sales_code字段
-    await connection.execute(
-      'UPDATE primary_sales SET sales_code = ?, secondary_registration_code = ? WHERE id = ?',
-      [salesCode, regCode, primarySalesId]
-    );
 
     // 返回成功响应（标准实现）
     res.status(201).json({
@@ -329,13 +309,14 @@ async function handleGetPrimarySalesList(req, res, connection) {
         ps.id,
         ps.wechat_name,
         ps.payment_method,
-        ps.commission_rate,
+        ps.phone,
+        ps.email,
+        ps.sales_code,
         ps.created_at,
-        COUNT(ss.id) as secondary_sales_count,
-        SUM(CASE WHEN ss.status = 'active' THEN 1 ELSE 0 END) as active_secondary_count
+        COUNT(ss.id) as secondary_sales_count
        FROM primary_sales ps
        LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
-       GROUP BY ps.id
+       GROUP BY ps.id, ps.wechat_name, ps.payment_method, ps.phone, ps.email, ps.sales_code, ps.created_at
        ORDER BY ps.created_at DESC`
     );
 
