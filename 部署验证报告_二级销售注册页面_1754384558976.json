@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-08-05T09:02:38.601Z",
+  "tests": [
+    {
+      "testName": "独立二级销售注册 - 页面可访问",
+      "status": "PASS",
+      "details": "HTTP 200 - 页面加载成功",
+      "suggestion": "",
+      "timestamp": "2025-08-05T09:02:38.930Z"
+    },
+    {
+      "testName": "独立注册 - 页面标题",
+      "status": "FAIL",
+      "details": "标题未识别: \"知行财库\"",
+      "suggestion": "检查页面是否正确加载",
+      "timestamp": "2025-08-05T09:02:38.931Z"
+    },
+    {
+      "testName": "独立注册 - React应用",
+      "status": "FAIL",
+      "details": "页面可能未正确加载React应用",
+      "suggestion": "检查JavaScript是否正常加载",
+      "timestamp": "2025-08-05T09:02:38.931Z"
+    },
+    {
+      "testName": "独立注册 - 页面状态",
+      "status": "PASS",
+      "details": "页面状态正常",
+      "suggestion": "",
+      "timestamp": "2025-08-05T09:02:38.932Z"
+    },
+    {
+      "testName": "独立注册 - 表单内容",
+      "status": "FAIL",
+      "details": "未找到预期的表单元素",
+      "suggestion": "检查页面是否完全加载",
+      "timestamp": "2025-08-05T09:02:38.932Z"
+    },
+    {
+      "testName": "关联二级销售注册 - 页面可访问",
+      "status": "PASS",
+      "details": "HTTP 200 - 页面加载成功",
+      "suggestion": "",
+      "timestamp": "2025-08-05T09:02:38.975Z"
+    },
+    {
+      "testName": "关联注册 - 页面标题",
+      "status": "FAIL",
+      "details": "标题未识别: \"知行财库\"",
+      "suggestion": "检查页面是否正确加载",
+      "timestamp": "2025-08-05T09:02:38.975Z"
+    },
+    {
+      "testName": "关联注册 - React应用",
+      "status": "FAIL",
+      "details": "页面可能未正确加载React应用",
+      "suggestion": "检查JavaScript是否正常加载",
+      "timestamp": "2025-08-05T09:02:38.975Z"
+    },
+    {
+      "testName": "关联注册 - 页面状态",
+      "status": "PASS",
+      "details": "页面状态正常",
+      "suggestion": "",
+      "timestamp": "2025-08-05T09:02:38.975Z"
+    },
+    {
+      "testName": "关联注册 - 表单内容",
+      "status": "FAIL",
+      "details": "未找到预期的表单元素",
+      "suggestion": "检查页面是否完全加载",
+      "timestamp": "2025-08-05T09:02:38.975Z"
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 4,
+    "failed": 6
+  }
+}
