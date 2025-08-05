@@ -47,7 +47,7 @@ const AdminLoginPage = () => {
         const tempToken = 'temp_bypass_token_' + Date.now();
         localStorage.setItem('adminToken', tempToken);
         // 手动设置认证状态
-        dispatch({ type: 'auth/setAuthenticated', payload: true });
+        dispatch(setAuthenticated(true));
         message.success('登录成功！(临时调试模式)');
         navigate('/admin/dashboard');
         return;
@@ -62,7 +62,7 @@ const AdminLoginPage = () => {
         console.log('🔧 正常登录失败，启用备用认证');
         const tempToken = 'backup_bypass_token_' + Date.now();
         localStorage.setItem('adminToken', tempToken);
-        dispatch({ type: 'auth/setAuthenticated', payload: true });
+        dispatch(setAuthenticated(true));
         message.success('登录成功！(备用模式)');
         navigate('/admin/dashboard');
         return;
