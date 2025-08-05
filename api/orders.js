@@ -295,7 +295,14 @@ async function handleCreateOrder(req, res, connection) {
     if (!finalSalesCode) missingFields.push('sales_code/link_code');
     if (!tradingview_username) missingFields.push('tradingview_username');
     if (!duration) missingFields.push('duration');
-    if (amount === undefined || amount === null || amount === '' || (typeof amount === 'string' && amount.trim() === '')) missingFields.push('amount');
+    // 检查amount字段：7天免费订单允许为0，其他订单必须大于0
+    if (amount === undefined || amount === null || amount === '') {
+      missingFields.push('amount');
+    } else if (typeof amount === 'string' && amount.trim() === '') {
+      missingFields.push('amount'); 
+    } else if (duration !== '7days' && amount <= 0) {
+      missingFields.push('amount');
+    }
     if (!payment_method) missingFields.push('payment_method');
     if (!payment_time) missingFields.push('payment_time');
     
@@ -336,8 +343,8 @@ async function handleCreateOrder(req, res, connection) {
     );
 
     // 如果是七天免费订单，检查是否已经使用过免费期
-    if (duration === '7days' && existingOrders.length > 0) {
-      // 检查是否有七天免费订单记录
+    if (duration === '7days') {
+      // 只检查是否有七天免费订单记录，不管其他订单
       const [freeOrders] = await connection.execute(
         'SELECT * FROM orders WHERE tradingview_username = ? AND duration = "7days" AND status != "cancelled"',
         [tradingview_username]
