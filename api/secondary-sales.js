@@ -276,20 +276,26 @@ async function handleRegisterSecondarySales(req, res, connection) {
       ]
     );
 
-    // 临时兼容性实现：生成临时销售代码格式
-    const tempSalesCode = `ss_${result.insertId}`; // secondary_sales格式
+    // 标准实现：生成标准销售代码
+    const standardSalesCode = `SS${Date.now().toString(36).slice(-8).toUpperCase()}${Math.random().toString(36).slice(-4).toUpperCase()}`;
     
-    // 返回成功响应（兼容性实现）
+    // 更新数据库记录，添加标准sales_code字段
+    await connection.execute(
+      'UPDATE secondary_sales SET sales_code = ? WHERE id = ?',
+      [standardSalesCode, result.insertId]
+    );
+    
+    // 返回成功响应（标准实现）
     res.status(201).json({
       success: true,
       message: '二级销售注册成功！',
       data: {
         secondary_sales_id: result.insertId,
         wechat_name: wechat_name,
-        sales_code: tempSalesCode,
+        sales_code: standardSalesCode,
         primary_sales_id: validPrimarySalesId,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${tempSalesCode}`,
-        note: "临时代码，等待数据库字段添加后将使用真实的sales_code"
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${standardSalesCode}`,
+        note: "标准sales_code实现"
       }
     });
 
