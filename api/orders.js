@@ -303,8 +303,9 @@ async function handleCreateOrder(req, res, connection) {
     } else if (duration !== '7days' && amount <= 0) {
       missingFields.push('amount');
     }
-    if (!payment_method) missingFields.push('payment_method');
-    if (!payment_time) missingFields.push('payment_time');
+    // 7天免费订单不需要payment_method和payment_time
+    if (duration !== '7days' && !payment_method) missingFields.push('payment_method');
+    if (duration !== '7days' && !payment_time) missingFields.push('payment_time');
     
     if (missingFields.length > 0) {
       await connection.end();

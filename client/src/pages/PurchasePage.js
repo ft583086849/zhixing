@@ -645,7 +645,7 @@ const PurchasePage = () => {
                 block
                 disabled={
                   !selectedDuration || 
-                  !paymentMethod || 
+                  (selectedDuration !== '7days' && !paymentMethod) || 
                   (paymentMethod === 'alipay' && selectedDuration !== '7days' && !alipayAmount) ||
                   (paymentMethod === 'crypto' && selectedDuration !== '7days' && !cryptoAmount) ||
                   (purchaseType === 'advance' && !effectiveTime)
