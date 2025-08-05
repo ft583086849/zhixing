@@ -646,8 +646,8 @@ const PurchasePage = () => {
                 disabled={
                   !selectedDuration || 
                   !paymentMethod || 
-                  (paymentMethod === 'alipay' && !alipayAmount) ||
-                  (paymentMethod === 'crypto' && !cryptoAmount) ||
+                  (paymentMethod === 'alipay' && selectedDuration !== '7days' && !alipayAmount) ||
+                  (paymentMethod === 'crypto' && selectedDuration !== '7days' && !cryptoAmount) ||
                   (purchaseType === 'advance' && !effectiveTime)
                 }
                 style={{
