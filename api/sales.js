@@ -217,7 +217,8 @@ async function handleCreateSales(req, res, connection) {
       data: {
         sales_id: result.insertId,
         link_code: linkCode,
-        full_link: `${req.headers.origin || 'https://zhixing-seven.vercel.app'}/purchase/${linkCode}`
+        user_sales_link: `${req.headers.origin || 'https://zhixing-seven.vercel.app'}/purchase?sales_code=${linkCode}`,
+        user_sales_code: linkCode
       }
     });
   } catch (dbError) {

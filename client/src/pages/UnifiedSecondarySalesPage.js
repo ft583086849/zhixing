@@ -201,16 +201,7 @@ const UnifiedSecondarySalesPage = () => {
             销售注册
           </Title>
 
-          {/* 关联模式成功提示 */}
-          {isLinkedMode && registrationData && (
-            <Alert
-              message="注册码验证成功"
-              description="您的注册信息已验证通过，请继续填写销售收款信息。"
-              type="success"
-              showIcon
-              style={{ marginBottom: 24 }}
-            />
-          )}
+
 
           <Form
             form={form}

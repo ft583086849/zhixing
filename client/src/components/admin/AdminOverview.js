@@ -254,7 +254,7 @@ const AdminOverview = () => {
                     status="active"
                     strokeColor="#108ee9"
                   />
-                  <p>{stats?.one_month_orders || 0}笔，占比{(stats?.one_month_percentage || 0).toFixed(1)}%</p>
+                  <p>{stats?.one_month_orders || 0}笔，占比{(Number(stats?.one_month_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
               <Col xs={24} sm={12} lg={6}>
@@ -265,7 +265,7 @@ const AdminOverview = () => {
                     status="active"
                     strokeColor="#87d068"
                   />
-                  <p>{stats?.three_month_orders || 0}笔，占比{(stats?.three_month_percentage || 0).toFixed(1)}%</p>
+                  <p>{stats?.three_month_orders || 0}笔，占比{(Number(stats?.three_month_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
               <Col xs={24} sm={12} lg={6}>
@@ -276,7 +276,7 @@ const AdminOverview = () => {
                     status="active"
                     strokeColor="#fa8c16"
                   />
-                  <p>{stats?.six_month_orders || 0}笔，占比{(stats?.six_month_percentage || 0).toFixed(1)}%</p>
+                  <p>{stats?.six_month_orders || 0}笔，占比{(Number(stats?.six_month_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
               <Col xs={24} sm={12} lg={6}>
@@ -287,7 +287,7 @@ const AdminOverview = () => {
                     status="active"
                     strokeColor="#722ed1"
                   />
-                  <p>{stats?.lifetime_orders || 0}笔，占比{(stats?.lifetime_percentage || 0).toFixed(1)}%</p>
+                  <p>{stats?.lifetime_orders || 0}笔，占比{(Number(stats?.lifetime_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
             </Row>

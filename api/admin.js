@@ -1267,16 +1267,16 @@ async function handleStats(req, res) {
       lifetime_orders: stats.lifetime_orders || 0,
       free_orders: stats.free_orders || 0,
       
-      // 百分比计算
-      one_month_percentage: ((stats.one_month_orders || 0) / totalOrders * 100).toFixed(1),
-      three_month_percentage: ((stats.three_month_orders || 0) / totalOrders * 100).toFixed(1),
-      six_month_percentage: ((stats.six_month_orders || 0) / totalOrders * 100).toFixed(1),
-      lifetime_percentage: ((stats.lifetime_orders || 0) / totalOrders * 100).toFixed(1),
-      free_percentage: ((stats.free_orders || 0) / totalOrders * 100).toFixed(1),
+      // 百分比计算 - 返回数字供前端格式化
+      one_month_percentage: ((stats.one_month_orders || 0) / totalOrders * 100),
+      three_month_percentage: ((stats.three_month_orders || 0) / totalOrders * 100),
+      six_month_percentage: ((stats.six_month_orders || 0) / totalOrders * 100),
+      lifetime_percentage: ((stats.lifetime_orders || 0) / totalOrders * 100),
+      free_percentage: ((stats.free_orders || 0) / totalOrders * 100),
       
       // 层级关系统计（保留除活跃层级关系外的统计）
       avg_secondary_per_primary: sales.primary_sales_count > 0 ? 
-        (sales.secondary_sales_count / sales.primary_sales_count).toFixed(1) : 0,
+        (sales.secondary_sales_count / sales.primary_sales_count) : 0,
       max_secondary_per_primary: 0 // 需要更复杂的查询来计算
     };
 
