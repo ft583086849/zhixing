@@ -434,7 +434,7 @@ const PrimarySalesSettlementPage = () => {
             type="primary"
             size="small"
             onClick={() => handleUrgeOrder(record)}
-            disabled={record.status !== 'pending_review'}
+            disabled={record.status === 'cancelled' || record.status === 'refunded'}
           >
             催单
           </Button>

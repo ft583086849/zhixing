@@ -414,13 +414,33 @@ async function handleCreateOrder(req, res, connection) {
       console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
     }
 
-      // 后端字段适配：使用映射后的短值插入数据库
+    // 设置销售身份信息
+    let dbSalesType = null;
+    let primarySalesId = null;
+    let secondarySalesId = null;
+    
+    if (salesType === 'primary') {
+      dbSalesType = 'primary';
+      primarySalesId = sales.id;
+      secondarySalesId = null;
+    } else if (salesType === 'secondary') {
+      dbSalesType = 'secondary';
+      primarySalesId = sales.primary_sales_id || null; // 二级销售可能有上级一级销售
+      secondarySalesId = sales.id;
+    } else if (salesType === 'legacy') {
+      // 遗留销售默认视为二级销售
+      dbSalesType = 'secondary';
+      primarySalesId = null;
+      secondarySalesId = null; // 遗留销售没有新表ID
+    }
+
+      // 后端字段适配：使用映射后的短值插入数据库，包含销售身份信息
       const [result] = await connection.execute(
         `INSERT INTO orders (
           link_code, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
-          commission_rate, commission_amount
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          commission_rate, commission_amount, sales_type, primary_sales_id, secondary_sales_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           finalSalesCode, // 使用sales_code作为link_code的兼容值
           tradingview_username, 
@@ -433,7 +453,10 @@ async function handleCreateOrder(req, res, connection) {
           formatDateForMySQL(effectiveTime), 
           formatDateForMySQL(expiryTime),
           commissionRate,
-          commissionAmount
+          commissionAmount,
+          dbSalesType, // 销售类型：primary/secondary
+          primarySalesId, // 一级销售ID
+          secondarySalesId // 二级销售ID
         ]
       );
 
