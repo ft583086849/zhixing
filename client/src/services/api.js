@@ -149,8 +149,8 @@ export const adminAPI = {
   updateOrderStatus: (orderId, status) => api.put(`/admin?path=update-order&id=${orderId}`, { status }),
   updateCommissionRate: (salesId, commissionRate, salesType) => api.put(`/admin?path=update-commission&sales_id=${salesId}&sales_type=${salesType}`, { commission_rate: commissionRate }),
   updateSalesCommission: (salesId, commissionRate, salesType) => api.post('/admin?path=update-sales-commission', { salesId, commissionRate, salesType }),
-  getPaymentConfig: () => api.get('/payment-config'),
-  savePaymentConfig: (data) => api.post('/payment-config', data),
+  getPaymentConfig: () => api.get('/payment-config?path=get'),
+  savePaymentConfig: (data) => api.put('/payment-config?path=update', data),
   getSalesHierarchyStats: (params) => api.get('/admin?path=sales-hierarchy-stats', { params }),
   downloadCommissionData: (params) => api.get('/admin?path=commission-export', { 
     params,

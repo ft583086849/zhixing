@@ -39,8 +39,7 @@ const AdminPaymentConfig = () => {
         alipay_account: config.alipay_account,
         alipay_surname: config.alipay_surname,
         crypto_chain_name: config.crypto_chain_name,
-        crypto_address: config.crypto_address,
-        is_active: config.is_active
+        crypto_address: config.crypto_address
       });
       setAlipayQRCode(config.alipay_qr_code);
       setCryptoQRCode(config.crypto_qr_code);
@@ -49,14 +48,16 @@ const AdminPaymentConfig = () => {
 
   const handleSave = async (values) => {
     try {
-      const formData = new FormData();
-      formData.append('alipay_account', values.alipay_account);
-      formData.append('alipay_surname', values.alipay_surname);
-      formData.append('crypto_chain_name', values.crypto_chain_name);
-      formData.append('crypto_address', values.crypto_address);
-      formData.append('is_active', values.is_active);
+      const configData = {
+        alipay_account: values.alipay_account,
+        alipay_surname: values.alipay_surname,
+        alipay_qr_code: alipayQRCode, // 包含二维码图片数据
+        crypto_chain_name: values.crypto_chain_name,
+        crypto_address: values.crypto_address,
+        crypto_qr_code: cryptoQRCode // 包含二维码图片数据
+      };
 
-      await dispatch(updatePaymentConfig(formData)).unwrap();
+      await dispatch(updatePaymentConfig(configData)).unwrap();
       message.success('配置保存成功');
     } catch (error) {
       message.error('配置保存失败');

@@ -149,6 +149,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    // 处理修复缺失数据库字段
+    if (req.method === 'POST' && path === 'fix-missing-fields') {
+      await handleFixMissingFields(req, res);
+      return;
+    }
+
     // 如果没有匹配的路径，返回404
     res.status(404).json({
       success: false,
@@ -1765,5 +1771,233 @@ async function handleUpdateSalesCommission(req, res) {
     res.status(500).json({ success: false, message: error.message });
   } finally {
     if (connection) await connection.end();
+  }
+}
+
+// 修复缺失的数据库字段
+async function handleFixMissingFields(req, res) {
+  let connection;
+  
+  try {
+    console.log('🔧 开始修复缺失的数据库字段...');
+    
+    connection = await mysql.createConnection(dbConfig);
+    
+    const fieldsAdded = [];
+    const fieldsSkipped = [];
+    const errors = [];
+    
+    // 定义需要添加的字段
+    const missingFields = [
+      {
+        table: 'orders',
+        field: 'sales_code',
+        definition: 'VARCHAR(50) COMMENT "销售代码"'
+      },
+      {
+        table: 'orders', 
+        field: 'sales_type',
+        definition: 'ENUM("primary", "secondary") COMMENT "销售类型"'
+      },
+      {
+        table: 'orders',
+        field: 'customer_wechat', 
+        definition: 'VARCHAR(100) COMMENT "客户微信号"'
+      },
+      {
+        table: 'orders',
+        field: 'purchase_type',
+        definition: 'ENUM("immediate", "advance") DEFAULT "immediate" COMMENT "购买方式"'
+      },
+      {
+        table: 'orders',
+        field: 'effective_time',
+        definition: 'DATETIME COMMENT "生效时间"'
+      },
+      {
+        table: 'orders',
+        field: 'expiry_time', 
+        definition: 'DATETIME COMMENT "到期时间"'
+      },
+      {
+        table: 'orders',
+        field: 'alipay_amount',
+        definition: 'DECIMAL(10,2) COMMENT "支付宝付款金额"'
+      },
+      {
+        table: 'orders',
+        field: 'crypto_amount',
+        definition: 'DECIMAL(10,2) COMMENT "加密货币付款金额"'
+      },
+      {
+        table: 'orders',
+        field: 'commission_rate',
+        definition: 'DECIMAL(5,4) DEFAULT 0.3000 COMMENT "佣金比率"'
+      },
+      {
+        table: 'orders',
+        field: 'commission_amount',
+        definition: 'DECIMAL(10,2) DEFAULT 0.00 COMMENT "佣金金额"'
+      },
+      {
+        table: 'orders',
+        field: 'primary_sales_id',
+        definition: 'INT COMMENT "一级销售ID"'
+      },
+      {
+        table: 'orders',
+        field: 'secondary_sales_id',
+        definition: 'INT COMMENT "二级销售ID"'
+      },
+      {
+        table: 'orders',
+        field: 'config_confirmed',
+        definition: 'BOOLEAN DEFAULT FALSE COMMENT "配置确认状态"'
+      },
+      {
+        table: 'orders',
+        field: 'is_reminded',
+        definition: 'BOOLEAN DEFAULT FALSE COMMENT "是否已催单"'
+      },
+      {
+        table: 'orders',
+        field: 'reminder_date',
+        definition: 'DATETIME COMMENT "催单时间"'
+      },
+      {
+        table: 'secondary_sales',
+        field: 'sales_code',
+        definition: 'VARCHAR(50) COMMENT "销售代码"'
+      },
+      {
+        table: 'secondary_sales', 
+        field: 'primary_sales_id',
+        definition: 'INT COMMENT "关联的一级销售ID"'
+      },
+      {
+        table: 'secondary_sales',
+        field: 'primary_registration_code',
+        definition: 'VARCHAR(50) COMMENT "注册时使用的一级销售代码"'
+      },
+      {
+        table: 'secondary_sales',
+        field: 'commission_rate',
+        definition: 'DECIMAL(5,2) DEFAULT 30.00 COMMENT "佣金比率"'
+      },
+      {
+        table: 'secondary_sales',
+        field: 'status',
+        definition: 'ENUM("active", "removed") DEFAULT "active" COMMENT "状态"'
+      },
+      {
+        table: 'secondary_sales',
+        field: 'sales_type',
+        definition: 'ENUM("primary", "secondary") DEFAULT "secondary" COMMENT "销售类型"'
+      },
+      {
+        table: 'primary_sales',
+        field: 'sales_code',
+        definition: 'VARCHAR(50) COMMENT "用户购买销售代码"'
+      },
+      {
+        table: 'primary_sales',
+        field: 'secondary_registration_code',
+        definition: 'VARCHAR(50) COMMENT "二级销售注册代码"'
+      },
+      {
+        table: 'primary_sales',
+        field: 'commission_rate',
+        definition: 'DECIMAL(5,2) DEFAULT 40.00 COMMENT "佣金比率"'
+      },
+      {
+        table: 'primary_sales',
+        field: 'sales_type',
+        definition: 'ENUM("primary", "secondary") DEFAULT "primary" COMMENT "销售类型"'
+      }
+    ];
+    
+    // 检查并添加每个字段
+    for (const fieldInfo of missingFields) {
+      try {
+        // 检查字段是否已存在
+        const [columns] = await connection.execute(`
+          SELECT COLUMN_NAME 
+          FROM INFORMATION_SCHEMA.COLUMNS 
+          WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+        `, [process.env.DB_NAME, fieldInfo.table, fieldInfo.field]);
+        
+        if (columns.length === 0) {
+          // 字段不存在，添加它
+          const alterSQL = `ALTER TABLE ${fieldInfo.table} ADD COLUMN ${fieldInfo.field} ${fieldInfo.definition}`;
+          await connection.execute(alterSQL);
+          
+          fieldsAdded.push(`${fieldInfo.table}.${fieldInfo.field}`);
+          console.log(`✅ 添加字段: ${fieldInfo.table}.${fieldInfo.field}`);
+        } else {
+          // 字段已存在
+          fieldsSkipped.push(`${fieldInfo.table}.${fieldInfo.field}`);
+          console.log(`⏭️  字段已存在: ${fieldInfo.table}.${fieldInfo.field}`);
+        }
+        
+      } catch (error) {
+        const errorMsg = `添加字段 ${fieldInfo.table}.${fieldInfo.field} 失败: ${error.message}`;
+        errors.push(errorMsg);
+        console.log(`❌ ${errorMsg}`);
+      }
+    }
+    
+    // 创建必要的索引
+    const indexes = [
+      'CREATE INDEX IF NOT EXISTS idx_orders_sales_code ON orders(sales_code)',
+      'CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)',
+      'CREATE INDEX IF NOT EXISTS idx_orders_config_confirmed ON orders(config_confirmed)',
+      'CREATE INDEX IF NOT EXISTS idx_orders_is_reminded ON orders(is_reminded)',
+      'CREATE INDEX IF NOT EXISTS idx_secondary_sales_code ON secondary_sales(sales_code)',
+      'CREATE INDEX IF NOT EXISTS idx_primary_sales_code ON primary_sales(sales_code)'
+    ];
+    
+    const indexesCreated = [];
+    
+    for (const indexSQL of indexes) {
+      try {
+        await connection.execute(indexSQL);
+        const indexName = indexSQL.match(/idx_[a-zA-Z_]+/)[0];
+        indexesCreated.push(indexName);
+        console.log(`✅ 创建索引: ${indexName}`);
+      } catch (error) {
+        console.log(`⚠️  索引创建跳过: ${error.message}`);
+      }
+    }
+    
+    console.log('🎉 数据库字段修复完成！');
+    
+    res.json({
+      success: true,
+      message: '数据库字段修复成功',
+      data: {
+        fieldsAdded: fieldsAdded.length,
+        fieldsSkipped: fieldsSkipped.length,
+        indexesCreated: indexesCreated.length,
+        errors: errors.length,
+        details: {
+          fieldsAdded,
+          fieldsSkipped,
+          indexesCreated,
+          errors
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ 修复数据库字段错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '修复数据库字段失败',
+      error: error.message
+    });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
 }

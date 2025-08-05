@@ -83,6 +83,13 @@ export default async function handler(req, res) {
 
     // 处理更新支付配置
     if (req.method === 'PUT' && (path === 'update' || bodyPath === 'update')) {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
       await handleUpdatePaymentConfig(req, res);
       return;
     }

@@ -205,7 +205,7 @@ const UnifiedSecondarySalesPage = () => {
           {isLinkedMode && registrationData && (
             <Alert
               message="注册码验证成功"
-              description={`欢迎加入一级销售 ${registrationData.primary_sales_wechat} 的销售团队！`}
+              description="您的注册信息已验证通过，请继续填写销售收款信息。"
               type="success"
               showIcon
               style={{ marginBottom: 24 }}
