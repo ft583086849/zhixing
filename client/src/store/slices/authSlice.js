@@ -58,6 +58,14 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    // 🔧 临时设置认证状态
+    setAuthenticated: (state, action) => {
+      state.isAuthenticated = action.payload;
+      if (action.payload) {
+        state.admin = { username: 'admin', name: '系统管理员(临时)' };
+        state.token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -113,5 +121,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError } = authSlice.actions;
+export const { clearError, setAuthenticated } = authSlice.actions;
 export default authSlice.reducer; 

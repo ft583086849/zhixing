@@ -14,7 +14,7 @@ import {
   UserOutlined, 
   LockOutlined 
 } from '@ant-design/icons';
-import { login, clearError } from '../store/slices/authSlice';
+import { login, clearError, setAuthenticated } from '../store/slices/authSlice';
 
 const { Title, Text } = Typography;
 

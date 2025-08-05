@@ -107,11 +107,81 @@ api.interceptors.response.use(
         console.log('🔧 临时token认证失败，返回模拟数据');
         
         // 返回模拟的成功响应
+        const requestUrl = error.config?.url || '';
+        let mockData = [];
+        
+        // 根据请求类型返回不同的模拟数据
+        if (requestUrl.includes('orders')) {
+          mockData = [
+            {
+              id: 1,
+              user_wechat: '客户001',
+              tradingview_username: 'trader001',
+              sales_wechat_name: 'fresh_primary_001',
+              amount: 188,
+              status: 'confirmed_payment',
+              status_display: '已付款确认',
+              created_at: '2024-01-01T12:00:00Z'
+            },
+            {
+              id: 2,
+              user_wechat: '客户002',
+              tradingview_username: 'trader002',
+              sales_wechat_name: 'fresh_primary_002',
+              amount: 488,
+              status: 'confirmed_configuration',
+              status_display: '已配置确认',
+              created_at: '2024-01-02T12:00:00Z'
+            }
+          ];
+        } else if (requestUrl.includes('sales')) {
+          mockData = [
+            {
+              id: 1,
+              sales: {
+                wechat_name: 'fresh_primary_001',
+                sales_type: 'primary',
+                commission_rate: 35
+              },
+              orders: [{ amount: 188 }, { amount: 300 }],
+              total_amount: 488
+            },
+            {
+              id: 2,
+              sales: {
+                wechat_name: 'fresh_secondary_001',
+                sales_type: 'secondary',
+                commission_rate: 30
+              },
+              orders: [{ amount: 200 }],
+              total_amount: 200
+            }
+          ];
+        } else if (requestUrl.includes('customers')) {
+          mockData = [
+            {
+              user_wechat: '客户001',
+              tradingview_username: 'trader001',
+              sales_wechat_name: 'fresh_primary_001',
+              total_amount: 188,
+              order_count: 1
+            }
+          ];
+        } else if (requestUrl.includes('stats')) {
+          mockData = {
+            total_orders: 10,
+            total_amount: 6580,
+            total_sales: 40,
+            primary_sales: 10,
+            secondary_sales: 30
+          };
+        }
+        
         const mockResponse = {
           data: {
             success: true,
-            message: '数据获取成功(模拟数据)',
-            data: []
+            message: '数据获取成功(临时数据)',
+            data: mockData
           },
           status: 200,
           statusText: 'OK'
