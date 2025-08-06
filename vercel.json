@@ -7,7 +7,11 @@
   "installCommand": "cd client && npm install",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/static/(.*)",
+      "destination": "/static/$1"
+    },
+    {
+      "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
   ],
@@ -21,7 +25,5 @@
         }
       ]
     }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false
+  ]
 }
