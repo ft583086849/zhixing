@@ -185,22 +185,32 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST' && path === 'create') {
+      // 先关闭外部连接，在multer回调内重新创建
+      await connection.end();
+      
       // 使用multer处理文件上传
       upload(req, res, async (err) => {
-        if (err) {
-          console.error('文件上传错误:', err);
-          await connection.end();
-          return res.status(400).json({
-            success: false,
-            message: err.message || '文件上传失败'
-          });
-        }
-        
+        let innerConnection;
         try {
-          await handleCreateOrder(req, res, connection);
+          // 在multer回调内重新创建数据库连接
+          innerConnection = await mysql.createConnection(dbConfig);
+          
+          if (err) {
+            console.error('文件上传错误:', err);
+            await innerConnection.end();
+            return res.status(400).json({
+              success: false,
+              message: err.message || '文件上传失败'
+            });
+          }
+          
+          await handleCreateOrder(req, res, innerConnection);
+          await innerConnection.end();
         } catch (error) {
           console.error('创建订单错误:', error);
-          await connection.end();
+          if (innerConnection) {
+            await innerConnection.end();
+          }
           res.status(500).json({
             success: false,
             message: '服务器内部错误',
@@ -504,7 +514,7 @@ async function handleCreateOrder(req, res, connection) {
       [amount, finalSalesCode]
     );
 
-    await connection.end();
+    // 注意：不在这里关闭连接，由外部调用者负责关闭
 
     res.json({
       success: true,
@@ -519,12 +529,8 @@ async function handleCreateOrder(req, res, connection) {
     });
   } catch (error) {
     console.error('创建订单详细错误:', error);
-    await connection.end();
-    res.status(500).json({
-      success: false,
-      message: '服务器内部错误',
-      error: error.message
-    });
+    // 注意：不在这里关闭连接，由外部调用者负责关闭
+    throw error; // 将错误抛给外部处理
   }
 }
 
