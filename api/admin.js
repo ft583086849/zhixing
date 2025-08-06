@@ -1319,6 +1319,7 @@ async function handleStats(req, res) {
       SELECT 
         COUNT(*) as total_orders,
         COALESCE(SUM(o.amount), 0) as total_amount,
+        COALESCE(SUM(o.commission_amount), 0) as total_commission,
         COUNT(CASE WHEN o.status = 'pending_payment' THEN 1 END) as pending_payment_orders,
         COUNT(CASE WHEN o.status = 'confirmed_payment' THEN 1 END) as confirmed_payment_orders,
         COUNT(CASE WHEN o.status = 'pending_config' THEN 1 END) as pending_config_orders,
@@ -1366,6 +1367,7 @@ async function handleStats(req, res) {
       pending_config_orders: stats.pending_config_orders || 0,
       confirmed_config_orders: stats.confirmed_config_orders || 0,
       total_amount: parseFloat(stats.total_amount) || 0,
+      total_commission: parseFloat(stats.total_commission) || 0,
       total_customers: customers.total_customers || 0,
       primary_sales_count: sales.primary_sales_count || 0,
       secondary_sales_count: sales.secondary_sales_count || 0,
@@ -1428,8 +1430,8 @@ async function handleCustomers(req, res) {
     
     const offset = (page - 1) * limit;
     
-    // 构建WHERE条件
-    let whereConditions = ['o.config_confirmed = true']; // 只显示已配置确认的订单
+    // 构建WHERE条件 - 移除config_confirmed过滤，显示所有订单
+    let whereConditions = []; // 显示所有订单，不再过滤配置状态
     let queryParams = [];
     
     if (customer_wechat) {
@@ -1698,18 +1700,9 @@ async function handleUpdateOrderStatus(req, res) {
     
     const order = orders[0];
     
-    // 更新订单状态
-    let updateQuery = 'UPDATE orders SET status = ?, updated_at = NOW()';
-    let updateParams = [status, id];
-    
-    // 根据状态更新相关字段
-    if (status === 'confirmed_configuration') {
-      updateQuery += ', config_confirmed = TRUE, config_confirmed_at = NOW()';
-    } else if (status === 'confirmed_payment') {
-      updateQuery += ', payment_confirmed = TRUE, payment_confirmed_at = NOW()';
-    }
-    
-    updateQuery += ' WHERE id = ?';
+    // 更新订单状态（简化版，只更新status字段）
+    const updateQuery = 'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?';
+    const updateParams = [status, id];
     
     const [result] = await connection.execute(updateQuery, updateParams);
     
@@ -1726,8 +1719,8 @@ async function handleUpdateOrderStatus(req, res) {
       success: true,
       message: '订单状态更新成功',
       data: { 
-        order_id: id, 
-        new_status: status,
+        orderId: parseInt(id), 
+        status: status,
         affected_rows: result.affectedRows 
       }
     });

@@ -112,8 +112,8 @@ const AdminSales = () => {
       return 40; // 没有订单时，显示40%
     }
     
-    // 获取配置确认的订单
-    const confirmedOrders = record.orders.filter(order => order.config_confirmed === true);
+    // 获取所有订单（移除配置确认过滤）
+    const confirmedOrders = record.orders;
     
     if (confirmedOrders.length === 0) {
       return 40; // 没有配置确认的订单时，显示40%
@@ -222,12 +222,12 @@ const AdminSales = () => {
     }
   };
 
-  // 计算佣金金额（只计算config_confirmed=true的订单）
+  // 计算佣金金额（计算所有已配置确认的订单）
   const calculateCommissionAmount = (orders, commissionRate) => {
     if (!orders || orders.length === 0) return 0;
-    // 只计算config_confirmed=true且已配置确认的订单
+    // 计算已配置确认的订单（移除config_confirmed过滤）
     const validOrders = orders.filter(order => 
-      order.status === 'confirmed_configuration' && order.config_confirmed === true
+      order.status === 'confirmed_configuration'
     );
     const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     return (totalAmount * commissionRate) / 100;
@@ -358,9 +358,9 @@ const AdminSales = () => {
       key: 'valid_orders',
       width: 100,
       render: (_, record) => {
-        // 只计算config_confirmed=true且已配置确认的订单
+        // 计算已配置确认的订单（移除config_confirmed过滤）
         const validOrders = record.orders?.filter(order => 
-          order.status === 'confirmed_configuration' && order.config_confirmed === true
+          order.status === 'confirmed_configuration'
         ) || [];
         return validOrders.length;
       }
@@ -371,8 +371,8 @@ const AdminSales = () => {
       key: 'total_amount',
       width: 100,
       render: (_, record) => {
-        // 只计算config_confirmed=true的订单金额
-        const validOrders = record.orders?.filter(order => order.config_confirmed === true) || [];
+        // 计算所有订单金额（移除config_confirmed过滤）
+        const validOrders = record.orders || [];
         const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
         return `$${totalAmount.toFixed(2)}`;
       }
@@ -438,9 +438,9 @@ const AdminSales = () => {
       key: 'valid_order_amount',
       width: 120,
       render: (_, record) => {
-        // 只计算config_confirmed=true且已配置确认的订单金额
+        // 计算已配置确认的订单金额（移除config_confirmed过滤）
         const validOrders = record.orders?.filter(order => 
-          order.status === 'confirmed_configuration' && order.config_confirmed === true
+          order.status === 'confirmed_configuration'
         ) || [];
         const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
         return `$${totalAmount.toFixed(2)}`;

@@ -155,8 +155,8 @@ const PrimarySalesSettlementPage = () => {
         page: 1
       };
 
-      // 只显示配置确认的订单
-      const confirmedOrders = mockOrders.data.filter(order => order.config_confirmed === true);
+      // 显示所有订单（移除配置确认过滤）
+      const confirmedOrders = mockOrders.data;
       const filteredOrdersData = {
         ...mockOrders,
         data: confirmedOrders,
@@ -259,8 +259,8 @@ const PrimarySalesSettlementPage = () => {
                 return 40; // 没有订单时，显示40%
               }
               
-              // 获取配置确认的订单
-              const confirmedOrders = primarySalesOrders.data.filter(order => order.config_confirmed === true);
+              // 获取所有订单（移除配置确认过滤）
+              const confirmedOrders = primarySalesOrders.data;
               
               if (confirmedOrders.length === 0) {
                 return 40; // 没有配置确认的订单时，显示40%
