@@ -361,14 +361,41 @@ async function handleCreateOrder(req, res, connection) {
       }
     }
     
-    // 如果不是七天免费订单，但该账号已有其他订单，则不允许
+    // 如果不是七天免费订单，但该账号已有其他订单，检查是否为同一销售的续费
     if (duration !== '7days' && existingOrders.length > 0) {
-      await connection.end();
-      return res.status(400).json({
-        success: false,
-        message: '您的tradingview已通过销售绑定，不支持二次销售绑定',
-        tradingview_username
-      });
+      // 检查现有订单是否来自同一销售
+      let isSameSales = false;
+      
+      for (const existingOrder of existingOrders) {
+        // 检查多种销售代码匹配方式
+        const matchesSalesCode = existingOrder.sales_code === finalSalesCode || 
+                                existingOrder.link_code === finalSalesCode;
+        
+        // 检查销售ID匹配（一级销售或二级销售）
+        const matchesPrimarySales = salesType === 'primary' && 
+                                   existingOrder.primary_sales_id === sales.id;
+        const matchesSecondarySales = salesType === 'secondary' && 
+                                     existingOrder.secondary_sales_id === sales.id;
+        
+        if (matchesSalesCode || matchesPrimarySales || matchesSecondarySales) {
+          isSameSales = true;
+          break;
+        }
+      }
+      
+      // 如果不是同一销售的续费，则禁止跨销售绑定
+      if (!isSameSales) {
+        await connection.end();
+        return res.status(400).json({
+          success: false,
+          message: '您的tradingview已通过其他销售绑定，不支持跨销售绑定',
+          tradingview_username,
+          error_type: 'cross_sales_binding'
+        });
+      }
+      
+      // 同一销售下的续费，允许继续
+      console.log(`用户 ${tradingview_username} 在同一销售下续费，允许创建订单`);
     }
 
     // 计算生效时间和过期时间

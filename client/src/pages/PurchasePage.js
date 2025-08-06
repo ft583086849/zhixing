@@ -196,8 +196,22 @@ const PurchasePage = () => {
     } catch (error) {
       // 用户购买失败友好提示 - 显示具体错误但保持友好性
       console.error('订单提交失败:', error);
+      
+      // 特定业务错误直接显示，不使用通用提示
+      const specificErrors = [
+        '您的tradingview已通过其他销售绑定，不支持跨销售绑定',
+        '您的tradingview已通过销售绑定，不支持二次销售绑定',
+        '您已享受过免费期，请续费使用'
+      ];
+      
       const errorMessage = error.message || '下单拥挤，请等待';
-      message.error(errorMessage);
+      const isSpecificError = specificErrors.some(specificError => 
+        errorMessage.includes(specificError)
+      );
+      
+      // 如果是具体的业务错误，直接显示；否则显示通用提示
+      const displayMessage = isSpecificError ? errorMessage : '下单拥挤，请等待';
+      message.error(displayMessage);
     }
   };
 
