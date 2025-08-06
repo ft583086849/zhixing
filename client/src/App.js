@@ -100,11 +100,19 @@ function App() {
           {/* 一级销售订单结算页面（备用路径） */}
           <Route path="/primary-sales-settlement" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesSettlementPage /></Suspense>} />
           
+          {/* 一级销售对账页面 */}
+          <Route path="/primary-settlement" element={<Suspense fallback={<div>加载中...</div>}><PrimarySalesSettlementPage /></Suspense>} />
+          
+          {/* 二级销售对账页面 */}
+          <Route path="/secondary-settlement" element={<Suspense fallback={<div>加载中...</div>}><SalesReconciliationPage /></Suspense>} />
+          
           {/* 二级销售注册页面 - 统一页面支持独立注册和关联注册 */}
           <Route path="/secondary-registration/:linkCode" element={<Suspense fallback={<div>加载中...</div>}><UnifiedSecondarySalesPage /></Suspense>} />
           
           {/* 二级销售注册页面 - 支持sales_code参数的统一路由 */}
           <Route path="/secondary-sales" element={<Suspense fallback={<div>加载中...</div>}><UnifiedSecondarySalesPage /></Suspense>} />
+          
+          {/* 客户购买页面 */}
           <Route path="/purchase" element={<Suspense fallback={<div>加载中...</div>}><PurchasePage /></Suspense>} />
           
           {/* 认证测试页面 */}
