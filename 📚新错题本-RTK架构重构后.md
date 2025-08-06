@@ -129,6 +129,37 @@ export default paymentConfigSlice.reducer;
 - [Redux Toolkit createAsyncThunk API](https://redux-toolkit.js.org/api/createAsyncThunk)
 - [Modern Redux patterns](https://redux.js.org/usage/migrating-to-modern-redux)
 
+### ❌ 错误 #002 - ESLint Unreachable Code 错误
+**时间**: 2024年12月
+**错误**: `[eslint] src/store/slices/paymentConfigSlice.js Line 19:21: Unreachable code no-unreachable`
+
+#### 🔍 错误分析
+**问题描述**: 
+ESLint检测到代码中存在"不可达代码"(unreachable code)，导致构建失败。
+
+**错误原因**:
+1. **不必要的try-catch块** - getPaymentConfig函数中没有真正的异步操作，但使用了try-catch
+2. **ESLint no-useless-catch规则** - 检测到只是简单重新抛出错误的catch块
+3. **代码设计不当** - 对于简单的数据返回使用了复杂的错误处理
+
+#### ✅ 正确解决方案
+
+**根据ESLint官方文档和Redux Toolkit最佳实践:**
+
+1. **移除不必要的try-catch** - 对于简单的数据返回操作
+2. **使用适当的错误处理** - 只在真正可能抛出异常的地方使用try-catch
+3. **遵循createAsyncThunk模式** - 让Redux Toolkit处理promise rejection
+4. **简化代码结构** - 避免过度复杂的错误处理
+
+#### 📚 学到的教训
+1. **代码质量检查很重要** - ESLint能发现潜在的逻辑错误
+2. **try-catch结构要仔细** - 确保没有在return后写代码
+3. **生产构建更严格** - 开发环境可能不报错的代码，生产环境会失败
+
+#### 🔗 参考资料
+- [ESLint no-unreachable rule](https://eslint.org/docs/rules/no-unreachable)
+- [JavaScript Unreachable Code](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Unreachable_code_after_return_statement)
+
 ---
 
 ## 📝 使用说明

@@ -4,21 +4,18 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 export const getPaymentConfig = createAsyncThunk(
   'paymentConfig/getPaymentConfig',
   async (_, { rejectWithValue }) => {
-    try {
-      // 返回默认支付配置
-      return {
-        alipay: {
-          enabled: true,
-          account: '支付宝账户配置'
-        },
-        crypto: {
-          enabled: true,
-          address: '加密货币地址配置'
-        }
-      };
-    } catch (error) {
-      return rejectWithValue('获取支付配置失败');
-    }
+    // 返回默认支付配置
+    // 注意：这里没有使用try-catch因为没有真正的异步操作或可能抛出错误的代码
+    return {
+      alipay: {
+        enabled: true,
+        account: '支付宝账户配置'
+      },
+      crypto: {
+        enabled: true,
+        address: '加密货币地址配置'
+      }
+    };
   }
 );
 
@@ -26,15 +23,12 @@ export const getPaymentConfig = createAsyncThunk(
 export const updatePaymentConfig = createAsyncThunk(
   'paymentConfig/updatePaymentConfig',
   async (configData, { rejectWithValue }) => {
-    try {
-      // 模拟API更新调用
-      console.log('更新支付配置:', configData);
-      
-      // 返回更新后的配置
-      return configData;
-    } catch (error) {
-      return rejectWithValue('更新支付配置失败');
-    }
+    // 模拟API更新调用
+    console.log('更新支付配置:', configData);
+    
+    // 返回更新后的配置
+    // 注意：如果后续需要真正的API调用，再添加适当的try-catch错误处理
+    return configData;
   }
 );
 
