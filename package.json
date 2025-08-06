@@ -1,40 +1,55 @@
 {
-  "name": "payment-management-system",
+  "name": "zhixing",
   "version": "1.0.0",
   "description": "支付管理系统",
-  "main": "server/index.js",
+  "private": true,
+  "homepage": ".",
+  "dependencies": {
+    "@reduxjs/toolkit": "^1.9.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^8.1.3",
+    "react-router-dom": "^6.20.1",
+    "react-scripts": "5.0.1",
+    "antd": "^5.12.8",
+    "axios": "^1.6.2",
+    "qrcode": "^1.5.3",
+    "dayjs": "^1.11.10",
+    "mysql2": "^3.6.0"
+  },
   "scripts": {
-    "start": "echo '✅ 前端已部署到Vercel，API为Serverless Functions'",
-    "build": "cd client && npm install && npm run build",
-    "dev": "cd client && npm start",
-    "client": "cd client && npm start",
-    "build-client": "cd client && npm run build",
-    "test": "cd test && node test-system.js",
-    "vercel-build": "cd client && npm install && npm run build",
-    "local-test": "echo '🧪 运行本地测试' && cd test && node test-system.js"
+    "start": "react-scripts start",
+    "build": "CI=false react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "build:optimized": "GENERATE_SOURCEMAP=false npm run build",
+    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "keywords": [
     "payment",
     "management",
-    "system"
+    "system",
+    "react",
+    "vercel"
   ],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
-  "dependencies": {
-    "axios": "^1.11.0",
-    "bcryptjs": "^2.4.3",
-    "colors": "^1.4.0",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.14.3",
-    "node-fetch": "^2.7.0",
-    "sequelize": "^6.37.7",
-    "uuid": "^9.0.1"
-  },
-  "engines": {
-    "node": ">=14.0.0"
-  }
+  "license": "ISC"
 }

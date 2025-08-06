@@ -2,6 +2,7 @@ import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { verifyToken } from './store/slices/authSlice';
+import LoadingSpinner from './components/LoadingSpinner';
 
 // 页面组件
 const SalesPage = lazy(() => import('./pages/SalesPage'));
@@ -13,9 +14,6 @@ const AuthTestPage = lazy(() => import('./pages/AuthTestPage'));
 const PrimarySalesPage = lazy(() => import('./pages/PrimarySalesPage'));
 const PrimarySalesSettlementPage = lazy(() => import('./pages/PrimarySalesSettlementPage'));
 const UnifiedSecondarySalesPage = lazy(() => import('./pages/UnifiedSecondarySalesPage'));
-
-// 组件
-import LoadingSpinner from './components/LoadingSpinner';
 
 // 受保护的路由组件
 const ProtectedRoute = ({ children }) => {
