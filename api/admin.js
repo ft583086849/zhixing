@@ -1,5 +1,5 @@
 // 全新重建的管理员API - 使用统一的数据架构
-import mysql from 'mysql2/promise';
+const mysql = require('mysql2/promise');
 
 // 数据库连接配置
 const dbConfig = {
@@ -98,8 +98,8 @@ const handleAdminOrders = async () => {
     console.error('订单查询失败:', error);
     return createResponse(false, null, '订单查询失败: ' + error.message, 500);
   } finally {
-    await connection.end();
-  }
+      await connection.end();
+    }
 };
 
 // 处理管理员客户管理 - 显示所有数据不过滤
@@ -155,8 +155,8 @@ const handleAdminCustomers = async () => {
     console.error('客户查询失败:', error);
     return createResponse(false, null, '客户查询失败: ' + error.message, 500);
   } finally {
-    await connection.end();
-  }
+      await connection.end();
+    }
 };
 
 // 处理管理员数据概览
@@ -166,7 +166,7 @@ const handleAdminOverview = async () => {
   try {
     // 获取基础统计数据
     const [statsRows] = await connection.execute(`
-      SELECT 
+        SELECT 
         COUNT(*) as total_orders,
         COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders,
         COUNT(CASE WHEN status = 'pending_payment' THEN 1 END) as pending_orders,
@@ -198,7 +198,7 @@ const handleAdminOverview = async () => {
     `);
     
     const overview = {
-      stats: {
+        stats: {
         totalOrders: parseInt(statsRows[0].total_orders),
         completedOrders: parseInt(statsRows[0].completed_orders),
         pendingOrders: parseInt(statsRows[0].pending_orders),
@@ -215,17 +215,17 @@ const handleAdminOverview = async () => {
     };
     
     return createResponse(true, overview, '数据概览获取成功');
-    
-  } catch (error) {
+        
+      } catch (error) {
     console.error('数据概览获取失败:', error);
     return createResponse(false, null, '数据概览获取失败: ' + error.message, 500);
   } finally {
-    await connection.end();
-  }
+      await connection.end();
+    }
 };
 
 // 主处理函数
-export default async function handler(req) {
+module.exports = async function handler(req) {
   try {
     // CORS预检请求处理
     if (req.method === 'OPTIONS') {
