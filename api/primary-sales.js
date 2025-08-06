@@ -238,16 +238,19 @@ async function handleCreatePrimarySales(req, res, connection) {
     const tempId = Date.now();
     const salesCode = `PS${String(tempId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
     
-    // 使用实际存在的数据库字段插入（暂时不包含sales_code）
+    // 使用确实存在的数据库字段插入
     const [result] = await connection.execute(
       `INSERT INTO primary_sales (
-        wechat_name, payment_method, phone, email
-      ) VALUES (?, ?, ?, ?)`,
+        wechat_name, payment_method, payment_address, alipay_surname, chain_name, sales_code, secondary_registration_code
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         params.wechat_name, 
         params.payment_method,
-        'temp_phone_' + tempId, // 临时phone，符合数据库要求
-        params.wechat_name + '@temp.com' // 临时email
+        params.payment_address,
+        params.alipay_surname,
+        params.chain_name,
+        userSalesCode,
+        secondaryRegistrationCode
       ]
     );
 
@@ -263,11 +266,11 @@ async function handleCreatePrimarySales(req, res, connection) {
       data: {
         primary_sales_id: primarySalesId,
         wechat_name: params.wechat_name,
-        sales_code: salesCode,
-        secondary_registration_code: regCode,
-        user_sales_code: salesCode, // 保持兼容性
-        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${regCode}`,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${salesCode}`,
+        sales_code: userSalesCode,
+        secondary_registration_code: secondaryRegistrationCode,
+        user_sales_code: userSalesCode, // 保持兼容性
+        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${secondaryRegistrationCode}`,
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${userSalesCode}`,
         note: "标准sales_code实现"
       }
     });
@@ -336,7 +339,7 @@ async function handleGetPrimarySalesList(req, res, connection) {
       throw emailError;
     }
     
-    // 执行完整查询
+    // 执行完整查询 - 使用所有字段（字段即将添加）
     const [rows] = await connection.execute(
       `SELECT 
         id,
@@ -344,6 +347,7 @@ async function handleGetPrimarySalesList(req, res, connection) {
         payment_method,
         phone,
         email,
+        sales_code,
         created_at
        FROM primary_sales
        ORDER BY created_at DESC`

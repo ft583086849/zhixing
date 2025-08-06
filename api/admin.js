@@ -1077,9 +1077,39 @@ async function handleUpdateSchema(req, res) {
       errors.push(`创建销售业绩视图失败: ${error.message}`);
     }
     
-    // 8. 添加缺失的sales_code字段
+    // 8. 添加缺失的关键字段
     try {
-      // 检查并添加primary_sales.sales_code字段
+      // 添加primary_sales.phone字段
+      const [primaryPhoneColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'primary_sales' AND COLUMN_NAME = 'phone'
+      `, [process.env.DB_NAME]);
+      
+      if (primaryPhoneColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE primary_sales 
+          ADD COLUMN phone VARCHAR(20) NULL
+        `);
+        console.log('✅ 添加primary_sales.phone字段成功');
+      }
+      
+      // 添加primary_sales.email字段
+      const [primaryEmailColumns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'primary_sales' AND COLUMN_NAME = 'email'
+      `, [process.env.DB_NAME]);
+      
+      if (primaryEmailColumns.length === 0) {
+        await connection.execute(`
+          ALTER TABLE primary_sales 
+          ADD COLUMN email VARCHAR(100) NULL
+        `);
+        console.log('✅ 添加primary_sales.email字段成功');
+      }
+      
+      // 添加primary_sales.sales_code字段（核心字段）
       const [primarySalesCodeColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
@@ -1089,12 +1119,12 @@ async function handleUpdateSchema(req, res) {
       if (primarySalesCodeColumns.length === 0) {
         await connection.execute(`
           ALTER TABLE primary_sales 
-          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL COMMENT '一级销售代码'
+          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
         `);
         console.log('✅ 添加primary_sales.sales_code字段成功');
       }
       
-      // 检查并添加secondary_sales.sales_code字段
+      // 添加secondary_sales.sales_code字段（核心字段）
       const [secondarySalesCodeColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
@@ -1104,12 +1134,12 @@ async function handleUpdateSchema(req, res) {
       if (secondarySalesCodeColumns.length === 0) {
         await connection.execute(`
           ALTER TABLE secondary_sales 
-          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL COMMENT '二级销售代码'
+          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
         `);
         console.log('✅ 添加secondary_sales.sales_code字段成功');
       }
       
-      // 添加payment_address字段到secondary_sales
+      // 添加secondary_sales.payment_address字段
       const [paymentAddressColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
@@ -1119,13 +1149,13 @@ async function handleUpdateSchema(req, res) {
       if (paymentAddressColumns.length === 0) {
         await connection.execute(`
           ALTER TABLE secondary_sales 
-          ADD COLUMN payment_address TEXT NULL COMMENT '收款地址'
+          ADD COLUMN payment_address TEXT NULL
         `);
         console.log('✅ 添加secondary_sales.payment_address字段成功');
       }
       
     } catch (error) {
-      errors.push(`添加sales_code字段失败: ${error.message}`);
+      errors.push(`添加关键字段失败: ${error.message}`);
     }
     
     // 9. 创建索引优化
