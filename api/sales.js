@@ -94,6 +94,9 @@ export default async function handler(req, res) {
     } else if (req.method === 'GET' && path === 'export') {
       // 导出销售数据
       await handleExportSales(req, res, connection);
+    } else if (req.method === 'GET' && path === 'primary-settlement') {
+      // 一级销售对账查询
+      await handlePrimarySalesSettlement(req, res, connection);
     } else if (req.method === 'PUT' && path === 'remove-secondary') {
       // 移除二级销售
       const authResult = await verifyAdminAuth(req, res);
@@ -636,6 +639,193 @@ async function handleRemoveSecondarySales(req, res, connection) {
     res.status(500).json({
       success: false,
       message: '移除失败: ' + error.message
+    });
+  }
+}
+
+// 处理一级销售对账查询
+async function handlePrimarySalesSettlement(req, res, connection) {
+  try {
+    const { wechat_name, sales_code, payment_date_range } = req.query;
+    
+    // 验证查询参数
+    if (!wechat_name && !sales_code) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供微信号或销售代码'
+      });
+    }
+
+    // 构建查询条件
+    let whereConditions = [];
+    let queryParams = [];
+    
+    if (wechat_name) {
+      whereConditions.push('ps.wechat_name LIKE ?');
+      queryParams.push(`%${wechat_name}%`);
+    }
+    
+    if (sales_code) {
+      whereConditions.push('ps.sales_code LIKE ?');
+      queryParams.push(`%${sales_code}%`);
+    }
+
+    // 查询一级销售基本信息
+    const salesQuery = `
+      SELECT 
+        ps.id,
+        ps.wechat_name,
+        ps.sales_code,
+        ps.commission_rate,
+        ps.payment_method,
+        ps.created_at,
+        ps.secondary_registration_code
+      FROM primary_sales ps
+      WHERE ${whereConditions.join(' AND ')}
+      LIMIT 1
+    `;
+
+    const [salesRows] = await connection.execute(salesQuery, queryParams);
+
+    if (salesRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '未找到匹配的一级销售'
+      });
+    }
+
+    const salesData = salesRows[0];
+
+    // 构建订单查询条件 - 只查询配置确认的订单
+    let orderWhereConditions = ['o.config_confirmed = true'];
+    let orderQueryParams = [];
+
+    // 查询一级销售的所有订单（包括直接订单和下属二级销售订单）
+    orderWhereConditions.push('(o.primary_sales_id = ? OR o.sales_code = ?)');
+    orderQueryParams.push(salesData.id, salesData.sales_code);
+
+    // 添加时间范围过滤
+    if (payment_date_range) {
+      try {
+        const [startDate, endDate] = payment_date_range.split(',');
+        if (startDate && endDate) {
+          orderWhereConditions.push('DATE(o.payment_time) BETWEEN ? AND ?');
+          orderQueryParams.push(startDate, endDate);
+        }
+      } catch (error) {
+        console.warn('时间范围解析失败:', error);
+      }
+    }
+
+    // 查询订单列表
+    const ordersQuery = `
+      SELECT 
+        o.id,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.duration,
+        o.amount,
+        o.commission_amount,
+        o.payment_time,
+        o.status,
+        o.config_confirmed,
+        o.expiry_time,
+        o.created_at,
+        o.sales_type,
+        CASE 
+          WHEN o.secondary_sales_id IS NOT NULL THEN ss.wechat_name
+          ELSE NULL
+        END as secondary_sales_name,
+        COALESCE(ss.wechat_name, '${salesData.wechat_name}') as sales_wechat_name
+      FROM orders o
+      LEFT JOIN secondary_sales ss ON o.secondary_sales_id = ss.id
+      WHERE ${orderWhereConditions.join(' AND ')}
+      ORDER BY o.payment_time DESC
+    `;
+
+    const [ordersRows] = await connection.execute(ordersQuery, orderQueryParams);
+
+    // 查询下属二级销售信息
+    const secondarySalesQuery = `
+      SELECT 
+        ss.id,
+        ss.wechat_name,
+        ss.sales_code,
+        ss.commission_rate,
+        ss.payment_method,
+        ss.created_at,
+        COUNT(o.id) as order_count,
+        SUM(CASE WHEN o.config_confirmed = true THEN o.amount ELSE 0 END) as total_amount,
+        SUM(CASE WHEN o.config_confirmed = true THEN o.commission_amount ELSE 0 END) as total_commission
+      FROM secondary_sales ss
+      LEFT JOIN orders o ON ss.id = o.secondary_sales_id
+      WHERE ss.primary_sales_id = ?
+      GROUP BY ss.id
+    `;
+
+    const [secondarySalesRows] = await connection.execute(secondarySalesQuery, [salesData.id]);
+
+    // 查询催单订单（待付款确认或待配置确认的订单）
+    const reminderQuery = `
+      SELECT 
+        o.id,
+        o.tradingview_username,
+        o.customer_wechat,
+        o.duration,
+        o.amount,
+        o.commission_amount,
+        o.payment_time,
+        o.status,
+        o.config_confirmed,
+        o.expiry_time,
+        o.created_at,
+        CASE 
+          WHEN o.secondary_sales_id IS NOT NULL THEN ss.wechat_name
+          ELSE NULL
+        END as secondary_sales_name,
+        COALESCE(ss.wechat_name, '${salesData.wechat_name}') as sales_wechat_name
+      FROM orders o
+      LEFT JOIN secondary_sales ss ON o.secondary_sales_id = ss.id
+      WHERE (o.primary_sales_id = ? OR o.sales_code = ?)
+        AND o.status IN ('pending_payment', 'pending_config')
+      ORDER BY o.created_at DESC
+    `;
+
+    const [reminderRows] = await connection.execute(reminderQuery, [salesData.id, salesData.sales_code]);
+
+    // 计算统计数据
+    const totalOrders = ordersRows.length;
+    const totalAmount = ordersRows.reduce((sum, order) => sum + parseFloat(order.amount || 0), 0);
+    const totalCommission = ordersRows.reduce((sum, order) => sum + parseFloat(order.commission_amount || 0), 0);
+    const pendingReminderCount = reminderRows.length;
+
+    // 返回数据
+    res.status(200).json({
+      success: true,
+      data: {
+        sales: {
+          ...salesData,
+          total_orders: totalOrders,
+          total_amount: totalAmount,
+          total_commission: totalCommission
+        },
+        orders: ordersRows,
+        secondarySales: secondarySalesRows,
+        reminderOrders: reminderRows,
+        stats: {
+          totalOrders,
+          totalAmount,
+          totalCommission,
+          pendingReminderCount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('一级销售对账查询错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '对账查询失败'
     });
   }
 }

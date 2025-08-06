@@ -84,7 +84,15 @@ async function createPrimarySales() {
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
         try {
-          console.log('   🔍 创建销售API响应:', data.substring(0, 300));
+          console.log('   🔍 创建销售API完整响应:', data);
+          console.log('   📊 响应状态码:', res.statusCode);
+          console.log('   📋 响应头:', res.headers);
+          
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP错误: ${res.statusCode}, 响应: ${data}`));
+            return;
+          }
+          
           const result = JSON.parse(data);
           if (result.success) {
             resolve(result);
@@ -92,7 +100,7 @@ async function createPrimarySales() {
             reject(new Error(`创建销售失败: ${result.message || '未知错误'}`));
           }
         } catch (e) {
-          reject(new Error(`JSON解析错误: ${e.message}, 响应: ${data.substring(0, 200)}`));
+          reject(new Error(`JSON解析错误: ${e.message}, 响应: ${data.substring(0, 500)}`));
         }
       });
     });

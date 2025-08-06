@@ -59,34 +59,18 @@ export default async function handler(req, res) {
     return;
   }
 
+  // 路径解析
+  const { path } = req.query;
+
   try {
-    const { path } = req.query;
-    const bodyPath = req.body?.path;
-
-    // 处理一级销售列表
-    if (req.method === 'GET' && (path === 'list' || !path)) {
-      const connection = await mysql.createConnection(dbConfig);
-      try {
-        await handleGetPrimarySalesList(req, res, connection);
-      } finally {
-        await connection.end();
-      }
-      return;
-    }
-
     // 处理一级销售创建
-    if (req.method === 'POST' && (path === 'create' || bodyPath === 'create')) {
-      const connection = await mysql.createConnection(dbConfig);
-      try {
-        await handleCreatePrimarySales(req, res, connection);
-      } finally {
-        await connection.end();
-      }
+    if (req.method === 'POST' && path === 'create') {
+      await handleCreatePrimarySales(req, res);
       return;
     }
 
-    // 处理一级销售结算（需要管理员权限）
-    if (req.method === 'GET' && path === 'settlement') {
+    // 处理一级销售列表（管理员权限）
+    if (req.method === 'GET' && path === 'list') {
       const authResult = await verifyAdminAuth(req, res);
       if (!authResult.success) {
         return res.status(authResult.status).json({
@@ -94,37 +78,164 @@ export default async function handler(req, res) {
           message: authResult.message
         });
       }
-      await handleSettlement(req, res);
+      await handleGetPrimarySalesList(req, res);
+      return;
+    }
+
+    // 处理一级销售统计
+    if (req.method === 'GET' && path === 'statistics') {
+      const authResult = await verifyAdminAuth(req, res);
+      if (!authResult.success) {
+        return res.status(authResult.status).json({
+          success: false,
+          message: authResult.message
+        });
+      }
+      await handleGetPrimarySalesStatistics(req, res);
       return;
     }
 
     // 如果没有匹配的路径，返回404
     res.status(404).json({
       success: false,
-      message: `路径不存在: ${req.method} ${path || bodyPath || 'default'}`
+      message: '接口路径不存在',
+      availablePaths: ['POST /create', 'GET /list', 'GET /statistics']
     });
 
   } catch (error) {
     console.error('一级销售API错误:', error);
     res.status(500).json({
       success: false,
-      message: error.message || '服务器内部错误'
+      message: '服务器内部错误',
+      error: error.message
     });
   }
 }
 
-// 一级销售结算功能
-async function handleSettlement(req, res) {
-  let connection;
+// 创建一级销售
+async function handleCreatePrimarySales(req, res) {
+  const connection = await mysql.createConnection(dbConfig);
   
   try {
-    connection = await mysql.createConnection(dbConfig);
+    const {
+      wechat_name,
+      payment_method,
+      payment_address,
+      alipay_surname,
+      chain_name
+    } = req.body;
+
+    // 验证必填字段
+    const missingFields = [];
+    if (!wechat_name) missingFields.push('微信号');
+    if (!payment_method) missingFields.push('收款方式');
+    if (!payment_address) missingFields.push('收款地址');
     
-    // 获取一级销售结算数据
-    const [settlementData] = await connection.execute(`
+    if (missingFields.length > 0) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        message: `以下字段为必填项: ${missingFields.join('、')}`
+      });
+    }
+
+    // 验证收款方式
+    if (!['alipay', 'crypto'].includes(payment_method)) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        message: '收款方式只能是支付宝或线上地址码'
+      });
+    }
+
+    // 支付宝收款验证
+    if (payment_method === 'alipay' && !alipay_surname) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        message: '支付宝收款需要填写收款人姓氏'
+      });
+    }
+
+    // 线上地址码验证
+    if (payment_method === 'crypto' && !chain_name) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        message: '线上地址码需要填写链名'
+      });
+    }
+
+    // 生成唯一代码
+    const salesCode = `PS${Date.now()}${Math.random().toString(36).substr(2, 6)}`.toUpperCase();
+    const secondaryRegistrationCode = `SR${Date.now()}${Math.random().toString(36).substr(2, 6)}`.toUpperCase();
+
+    // 插入数据库
+    const [result] = await connection.execute(
+      `INSERT INTO primary_sales (
+        wechat_name, sales_code, secondary_registration_code,
+        payment_method, payment_address, alipay_surname, chain_name
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        wechat_name,
+        salesCode,
+        secondaryRegistrationCode,
+        payment_method,
+        payment_address,
+        alipay_surname || null,
+        chain_name || null
+      ]
+    );
+
+    await connection.end();
+
+    // 返回成功响应
+    res.status(201).json({
+      success: true,
+      message: '一级销售创建成功！',
+      data: {
+        primary_sales_id: result.insertId,
+        wechat_name: wechat_name,
+        sales_code: salesCode,
+        secondary_registration_code: secondaryRegistrationCode,
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${salesCode}`,
+        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${secondaryRegistrationCode}`
+      }
+    });
+
+  } catch (error) {
+    await connection.end();
+    console.error('创建一级销售详细错误:', error);
+    
+    // 检查是否是唯一约束错误
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        message: '一个微信号仅支持一次注册。'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: '创建失败，请稍后重试',
+      error: error.message
+    });
+  }
+}
+
+// 获取一级销售列表
+async function handleGetPrimarySalesList(req, res) {
+  const connection = await mysql.createConnection(dbConfig);
+  
+  try {
+    // 获取一级销售基本信息及统计
+    const [primarySales] = await connection.execute(`
       SELECT 
         ps.id,
         ps.wechat_name,
+        ps.sales_code,
+        ps.payment_method,
+        ps.payment_address,
         ps.commission_rate,
         ps.created_at,
         COUNT(ss.id) as secondary_sales_count,
@@ -155,431 +266,119 @@ async function handleSettlement(req, res) {
       GROUP BY ss.id
       ORDER BY ss.created_at DESC
     `);
-    
-    res.status(200).json({
+
+    await connection.end();
+
+    res.json({
       success: true,
       data: {
-        settlement: settlementData,
-        secondary_sales: secondarySales
-      }
-    });
-    
-  } catch (error) {
-    console.error('一级销售结算错误:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || '获取结算数据失败'
-    });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
-  }
-}
-
-// 创建一级销售
-async function handleCreatePrimarySales(req, res, connection) {
-  const { 
-    wechat_name, 
-    payment_method, 
-    payment_address, 
-    alipay_surname, 
-    chain_name 
-  } = req.body;
-
-    // 验证必填字段
-  if (!wechat_name || !payment_method) {
-    return res.status(400).json({
-      success: false,
-      message: '微信号和收款方式为必填项'
-    });
-  }
-
-  // 验证收款方式
-  if (!['alipay', 'crypto'].includes(payment_method)) {
-    return res.status(400).json({
-      success: false,
-      message: '收款方式只能是支付宝或线上地址码'
-    });
-  }
-
-  try {
-          // 检查微信号是否已存在（包括一级销售、二级销售和普通销售）
-    const [existingSales] = await connection.execute(
-      `SELECT wechat_name FROM primary_sales WHERE wechat_name = ? 
-       UNION SELECT wechat_name FROM secondary_sales WHERE wechat_name = ? 
-       UNION SELECT wechat_name FROM sales WHERE wechat_name = ?`,
-      [wechat_name, wechat_name, wechat_name]
-    );
-
-    if (existingSales.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: '一个微信号仅支持一次注册。'
-      });
-    }
-
-    // 生成唯一销售代码（严格长度限制 - 不能修改！）
-    // ⚠️ 重要：数据库字段为 VARCHAR(16)，生成的代码不能超过16字符
-    // ⚠️ 当前格式：PS + 8位36进制 = 10字符，安全范围内
-    // ⚠️ 禁止修改此格式！任何修改前必须先确认数据库字段长度
-    const tempId = Date.now();
-    const salesCode = `PS${tempId.toString(36).slice(-8).toUpperCase()}`;  // 10字符，严格控制在16字符内
-    const secondaryRegistrationCode = `SR${tempId.toString(36).slice(-8).toUpperCase()}`; // 10字符，严格控制在16字符内
-    
-    // 使用完整字段插入，包括sales_code
-    const [result] = await connection.execute(
-      `INSERT INTO primary_sales (
-        wechat_name, payment_method, payment_address, sales_code, secondary_registration_code
-      ) VALUES (?, ?, ?, ?, ?)`,
-      [
-        wechat_name, 
-        payment_method,
-        payment_address || 'temp_address_' + tempId,
-        salesCode,
-        secondaryRegistrationCode
-      ]
-    );
-
-    const primarySalesId = result.insertId;
-
-    // 返回成功响应（修复版本）
-    res.status(201).json({
-      success: true,
-      message: '一级销售信息创建成功！',
-      data: {
-        primary_sales_id: primarySalesId,
-        wechat_name: wechat_name,
-        sales_code: salesCode,
-        secondary_registration_code: secondaryRegistrationCode,
-        user_sales_code: salesCode, // 保持兼容性
-        secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${secondaryRegistrationCode}`,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${salesCode}`,
-        note: "修复sales_code长度限制"
+        primary_sales: primarySales.map(item => ({
+          ...item,
+          total_amount: parseFloat(item.total_amount || 0),
+          total_commission: parseFloat(item.total_commission || 0),
+          commission_rate: parseFloat(item.commission_rate || 40)
+        })),
+        secondary_sales: secondarySales.map(item => ({
+          ...item,
+          total_amount: parseFloat(item.total_amount || 0),
+          total_commission: parseFloat(item.total_commission || 0),
+          commission_rate: parseFloat(item.commission_rate || 30)
+        }))
       }
     });
 
   } catch (error) {
-    console.error('创建一级销售详细错误:', error);
-    console.error('错误代码:', error.code);
-    console.error('错误消息:', error.message);
-    console.error('SQL状态:', error.sqlState);
-    console.error('完整错误对象:', JSON.stringify(error, null, 2));
-    
-    // 检查是否是唯一约束错误
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({
-        success: false,
-        message: '一个微信号仅支持一次注册。'
-      });
-    }
-
-    // 临时返回详细错误信息用于调试
+    await connection.end();
+    console.error('获取一级销售列表错误:', error);
     res.status(500).json({
       success: false,
-      message: '创建一级销售失败，请稍后重试',
-      debug: {
-        code: error.code,
-        message: error.message,
-        sqlState: error.sqlState
-      }
+      message: '获取列表失败',
+      error: error.message
     });
   }
 }
 
-// 获取一级销售列表
-async function handleGetPrimarySalesList(req, res, connection) {
+// 获取一级销售统计
+async function handleGetPrimarySalesStatistics(req, res) {
+  const connection = await mysql.createConnection(dbConfig);
+  
   try {
-    console.log('🔍 开始查询primary_sales表...');
-    
-    // 先测试最基础的查询
-    const [testRows] = await connection.execute('SELECT COUNT(*) as count FROM primary_sales');
-    console.log('📊 primary_sales记录数:', testRows[0].count);
-    
-    // 测试字段是否存在
-    try {
-      const [fieldTest] = await connection.execute('SELECT id, wechat_name FROM primary_sales LIMIT 1');
-      console.log('✅ 基础字段测试通过');
-    } catch (fieldError) {
-      console.error('❌ 基础字段错误:', fieldError.message);
-      throw fieldError;
-    }
-    
-    // 暂时跳过字段测试，直接使用基础字段
-    console.log('⚠️ 跳过字段测试，使用基础字段');
-    
-    // 执行完整查询 - 暂时只使用基础字段
-    const [rows] = await connection.execute(
-      `SELECT 
-        id,
-        wechat_name,
-        payment_method,
-        created_at
-       FROM primary_sales
-       ORDER BY created_at DESC`
-    );
-    
-    console.log('✅ 查询成功，返回', rows.length, '条记录');
-
-    res.status(200).json({
-      success: true,
-      data: rows
-    });
-
-  } catch (error) {
-    console.error('❌ 获取一级销售列表详细错误:', error);
-    console.error('错误消息:', error.message);
-    console.error('错误代码:', error.code);
-    console.error('SQL状态:', error.sqlState);
-    res.status(500).json({
-      success: false,
-      message: '获取一级销售列表失败: ' + error.message,
-      error_details: {
-        message: error.message,
-        code: error.code,
-        sqlState: error.sqlState,
-        stack: error.stack
-      }
-    });
-  }
-}
-
-// 获取一级销售统计信息
-async function handleGetPrimarySalesStats(req, res, connection) {
-  try {
-    // 获取一级销售统计数据
-    const [stats] = await connection.execute(
-      `SELECT 
-        COUNT(*) as total_primary_sales,
-        COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as new_this_week,
-        COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as new_this_month
-       FROM primary_sales`
-    );
-
-    // 获取二级销售统计数据
-    const [secondaryStats] = await connection.execute(
-      `SELECT 
-        COUNT(*) as total_secondary_sales,
-        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_secondary_sales
-       FROM secondary_sales`
-    );
-
-    // 获取佣金统计数据
-    const [commissionStats] = await connection.execute(
-      `SELECT 
-        SUM(commission_amount) as total_commission,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN commission_amount ELSE 0 END) as monthly_commission
-       FROM orders 
-       WHERE primary_sales_id IS NOT NULL`
-    );
-
-    // 获取订单统计数据
-    const [orderStats] = await connection.execute(
-      `SELECT 
-        COUNT(*) as total_orders,
-        COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as monthly_orders
-       FROM orders 
-       WHERE primary_sales_id IS NOT NULL`
-    );
-
-    // 获取二级销售列表
-    const [secondarySales] = await connection.execute(
-      `SELECT 
-        ss.id,
-        ss.wechat_name,
-        ss.payment_method,
-        ss.commission_rate,
-        ss.created_at,
-        COUNT(o.id) as order_count,
+    // 基础统计
+    const [stats] = await connection.execute(`
+      SELECT 
+        COUNT(DISTINCT ps.id) as total_primary_sales,
+        COUNT(DISTINCT ss.id) as total_secondary_sales,
+        COUNT(DISTINCT o.id) as total_orders,
+        SUM(o.amount) as total_revenue,
         SUM(o.commission_amount) as total_commission
-       FROM secondary_sales ss
-       LEFT JOIN orders o ON ss.id = o.secondary_sales_id
-       WHERE ss.status = 'active'
-       GROUP BY ss.id
-       ORDER BY ss.created_at DESC`
-    );
+      FROM primary_sales ps
+      LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
+      LEFT JOIN orders o ON (o.primary_sales_id = ps.id OR o.secondary_sales_id = ss.id)
+    `);
 
-    res.status(200).json({
+    // 按销售类型分组统计
+    const [typeStats] = await connection.execute(`
+      SELECT 
+        'primary' as sales_type,
+        COUNT(o.id) as order_count,
+        SUM(o.amount) as total_amount,
+        SUM(o.commission_amount) as total_commission
+      FROM orders o
+      WHERE o.primary_sales_id IS NOT NULL
+      UNION ALL
+      SELECT 
+        'secondary' as sales_type,
+        COUNT(o.id) as order_count,
+        SUM(o.amount) as total_amount,
+        SUM(o.commission_amount) as total_commission
+      FROM orders o
+      WHERE o.secondary_sales_id IS NOT NULL
+    `);
+
+    // 近期趋势
+    const [trends] = await connection.execute(`
+      SELECT 
+        DATE(o.created_at) as date,
+        COUNT(o.id) as daily_orders,
+        SUM(o.amount) as daily_revenue
+      FROM orders o
+      WHERE o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(o.created_at)
+      ORDER BY date DESC
+      LIMIT 30
+    `);
+
+    await connection.end();
+
+    res.json({
       success: true,
       data: {
-        totalCommission: commissionStats[0].total_commission || 0,
-        monthlyCommission: commissionStats[0].monthly_commission || 0,
-        secondarySalesCount: secondaryStats[0].total_secondary_sales || 0,
-        totalOrders: orderStats[0].total_orders || 0,
-        secondarySales: secondarySales
+        overview: {
+          total_primary_sales: stats[0].total_primary_sales || 0,
+          total_secondary_sales: stats[0].total_secondary_sales || 0,
+          total_orders: stats[0].total_orders || 0,
+          total_revenue: parseFloat(stats[0].total_revenue || 0),
+          total_commission: parseFloat(stats[0].total_commission || 0)
+        },
+        by_type: typeStats.map(item => ({
+          ...item,
+          total_amount: parseFloat(item.total_amount || 0),
+          total_commission: parseFloat(item.total_commission || 0)
+        })),
+        trends: trends.map(item => ({
+          ...item,
+          daily_revenue: parseFloat(item.daily_revenue || 0)
+        }))
       }
     });
 
   } catch (error) {
+    await connection.end();
     console.error('获取一级销售统计错误:', error);
     res.status(500).json({
       success: false,
-      message: '获取统计信息失败'
+      message: '获取统计失败',
+      error: error.message
     });
   }
 }
-
-// 获取一级销售订单列表
-async function handleGetPrimarySalesOrders(req, res, connection) {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    const offset = (page - 1) * limit;
-
-    // 获取订单总数
-    const [countResult] = await connection.execute(
-      `SELECT COUNT(*) as total FROM orders WHERE primary_sales_id IS NOT NULL`
-    );
-    const total = countResult[0].total;
-
-    // 获取订单列表
-    const [orders] = await connection.execute(
-      `SELECT 
-        o.id,
-        o.link_code,
-        o.tradingview_username,
-        o.customer_wechat,
-        o.duration,
-        o.amount,
-        o.payment_method,
-        o.payment_time,
-        o.purchase_type,
-        o.effective_time,
-        o.expiry_time,
-        o.status,
-        o.commission_rate,
-        o.commission_amount,
-        o.created_at,
-        o.updated_at,
-        ss.wechat_name as secondary_sales_name
-       FROM orders o
-       LEFT JOIN secondary_sales ss ON o.secondary_sales_id = ss.id
-       WHERE o.primary_sales_id IS NOT NULL
-       ORDER BY o.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [parseInt(limit), offset]
-    );
-
-    res.status(200).json({
-      success: true,
-      data: {
-        orders,
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit)
-      }
-    });
-
-  } catch (error) {
-    console.error('获取一级销售订单列表错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取订单列表失败'
-    });
-  }
-}
-
-// 更新二级销售佣金率
-async function handleUpdateSecondarySalesCommission(req, res, connection) {
-  try {
-    const { id } = req.query;
-    const { commissionRate } = req.body;
-
-    if (!id || commissionRate === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少必要参数'
-      });
-    }
-
-    if (commissionRate < 0 || commissionRate > 1) {
-      return res.status(400).json({
-        success: false,
-        message: '佣金率必须在0-1之间'
-      });
-    }
-
-    // 更新二级销售佣金率
-    const [result] = await connection.execute(
-      `UPDATE secondary_sales SET commission_rate = ? WHERE id = ?`,
-      [commissionRate, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: '二级销售不存在'
-      });
-    }
-
-    // 获取更新后的二级销售信息
-    const [updatedSales] = await connection.execute(
-      `SELECT * FROM secondary_sales WHERE id = ?`,
-      [id]
-    );
-
-    res.status(200).json({
-      success: true,
-      message: '佣金率更新成功',
-      data: updatedSales[0]
-    });
-
-  } catch (error) {
-    console.error('更新二级销售佣金率错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '更新佣金率失败'
-    });
-  }
-}
-
-// 催单功能
-async function handleUrgeOrder(req, res, connection) {
-  try {
-    const { id } = req.query;
-
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少订单ID'
-      });
-    }
-
-    // 获取订单信息
-    const [orders] = await connection.execute(
-      `SELECT * FROM orders WHERE id = ?`,
-      [id]
-    );
-
-    if (orders.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: '订单不存在'
-      });
-    }
-
-    const order = orders[0];
-
-    // 这里可以添加实际的催单逻辑，比如发送微信消息、邮件等
-    // 目前只是记录催单操作
-    await connection.execute(
-      `UPDATE orders SET updated_at = NOW() WHERE id = ?`,
-      [id]
-    );
-
-    res.status(200).json({
-      success: true,
-      message: '催单提醒已发送',
-      data: {
-        orderId: id,
-        customerWechat: order.customer_wechat
-      }
-    });
-
-  } catch (error) {
-    console.error('催单错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '催单失败'
-    });
-  }
-} 

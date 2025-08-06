@@ -144,8 +144,8 @@ const SalesReconciliationPage = () => {
     },
     {
       title: '返佣金额',
-      dataIndex: 'commission',
-      key: 'commission',
+      dataIndex: 'commission_amount',
+      key: 'commission_amount',
       width: 100,
       render: (commission) => `$${commission.toFixed(2)}`,
     },

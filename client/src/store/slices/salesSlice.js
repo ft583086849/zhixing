@@ -59,10 +59,10 @@ export const getAllSales = createAsyncThunk(
 // 异步action：获取一级销售订单结算信息
 export const getPrimarySalesSettlement = createAsyncThunk(
   'sales/getPrimarySalesSettlement',
-  async (primarySalesId, { rejectWithValue }) => {
+  async (params, { rejectWithValue }) => {
     try {
-      const response = await salesAPI.getPrimarySalesSettlement(primarySalesId);
-      return response.data;
+      const response = await salesAPI.getPrimarySalesSettlement(params);
+      return response.data.data; // 返回API的data字段
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取失败');
     }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Tooltip, Typography, InputNumber, DatePicker } from 'antd';
 import { DollarOutlined, UserOutlined, ShoppingCartOutlined, TeamOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchPrimarySalesStats, fetchPrimarySalesOrders, updateSecondarySalesCommission, removeSecondarySales } from '../store/slices/salesSlice';
+import { fetchPrimarySalesStats, fetchPrimarySalesOrders, updateSecondarySalesCommission, removeSecondarySales, getPrimarySalesSettlement } from '../store/slices/salesSlice';
 
 const { Option } = Select;
 const { Title } = Typography;
@@ -32,178 +32,44 @@ const PrimarySalesSettlementPage = () => {
     }
 
     try {
-      // 模拟查询一级销售数据 - 实际项目中需要替换为真实API
-      const mockSalesData = {
-        wechat_name: values.wechat_name || '一级销售测试',
-        sales_code: values.sales_code || 'primary_test123',
-        commission_rate: 0.40,
-        total_secondary_sales: 3,
-        total_orders: 8,
-        total_amount: 4588,
-        total_commission: 1835.2 // 40%佣金
-      };
+      // 调用真实API - 一级销售对账查询
+      const params = {};
+      if (values.wechat_name) params.wechat_name = values.wechat_name;
+      if (values.sales_code) params.sales_code = values.sales_code;
+      
+      const response = await dispatch(getPrimarySalesSettlement(params)).unwrap();
+      
+      if (!response || !response.sales) {
+        message.error('未找到匹配的一级销售数据');
+        return;
+      }
+      
+      const { sales, orders, secondarySales, reminderOrders, stats } = response;
 
-      const mockStats = {
-        totalCommission: 1835.2,
-        monthlyCommission: 756.8,
-        totalOrders: 8,
-        monthlyOrders: 3,
-        secondarySales: [
-          {
-            id: 1,
-            wechat_name: '二级销售1',
-            link_code: 'sec001',
-            commission_rate: 0.30,
-            total_orders: 3,
-            order_count: 3,
-            total_amount: 1364,
-            commission_earned: 409.2,
-            total_commission: 409.2,
-            payment_method: 'alipay',
-            created_at: '2025-01-10'
-          },
-          {
-            id: 2,
-            wechat_name: '二级销售2', 
-            link_code: 'sec002',
-            commission_rate: 0.32,
-            total_orders: 2,
-            order_count: 2,
-            total_amount: 876,
-            commission_earned: 280.32,
-            total_commission: 280.32,
-            payment_method: 'wechat',
-            created_at: '2025-01-12'
-          },
-          {
-            id: 3,
-            wechat_name: '二级销售3', 
-            link_code: 'sec003',
-            commission_rate: 0.28,
-            total_orders: 3,
-            order_count: 3,
-            total_amount: 1348,
-            commission_earned: 377.44,
-            total_commission: 377.44,
-            payment_method: 'crypto',
-            created_at: '2025-01-15'
-          }
-        ],
-        pendingReminderCount: 2,
-        monthlyReminderCount: 5,
-        reminderSuccessRate: 78.5,
-        avgResponseTime: 3.2,
-        pendingReminderOrders: [
-          {
-            id: 1,
-            sales_wechat: '二级销售1',
-            customer_wechat: 'customer001',
-            tradingview_username: 'user001',
-            amount: 188,
-            expiry_time: '2025-02-28',
-            reminder_status: false
-          }
-        ]
-      };
-
-      const mockOrders = {
-        data: [
-          {
-            id: 1,
-            customer_wechat: 'customer001',
-            tradingview_username: 'user001',
-            duration: '1month',
-            amount: 188,
-            commission_amount: 56.4,
-            status: 'confirmed',
-            config_confirmed: true,
-            secondary_sales_name: '二级销售1',
-            payment_method: 'alipay',
-            order_count: 1,
-            created_at: '2025-01-10 14:30:00'
-          },
-          {
-            id: 2,
-            customer_wechat: 'customer002',
-            tradingview_username: 'user002',
-            duration: '3months',
-            amount: 488,
-            commission_amount: 156.16,
-            status: 'pending_config',
-            config_confirmed: false,
-            secondary_sales_name: '二级销售2',
-            payment_method: 'crypto',
-            order_count: 1,
-            created_at: '2025-01-12 09:15:00'
-          },
-          {
-            id: 3,
-            customer_wechat: 'customer003',
-            tradingview_username: 'user003',
-            duration: '1month',
-            amount: 188,
-            commission_amount: 52.64,
-            status: 'confirmed',
-            config_confirmed: true,
-            secondary_sales_name: '二级销售3',
-            payment_method: 'wechat',
-            order_count: 1,
-            created_at: '2025-01-15 16:45:00'
-          }
-        ],
-        total: 8,
+      // 使用真实API数据，确保所有订单都是config_confirmed=true的
+      const ordersData = {
+        data: orders || [],
+        total: orders ? orders.length : 0,
         page: 1
       };
 
-      // 显示所有订单（移除配置确认过滤）
-      const confirmedOrders = mockOrders.data;
-      const filteredOrdersData = {
-        ...mockOrders,
-        data: confirmedOrders,
-        total: confirmedOrders.length
-      };
-      
-      // 重新计算二级销售统计（仅计入配置确认的订单）
-      const updatedSecondarySales = mockStats.secondarySales.map(sales => {
-        // 仅计算该二级销售配置确认的订单
-        const confirmedOrdersForSales = confirmedOrders.filter(order => 
-          order.secondary_sales_name === sales.wechat_name
-        );
-        
-        const confirmedOrderCount = confirmedOrdersForSales.length;
-        const confirmedTotalAmount = confirmedOrdersForSales.reduce((sum, order) => sum + order.amount, 0);
-        const confirmedCommission = confirmedOrdersForSales.reduce((sum, order) => sum + order.commission_amount, 0);
-        
-        return {
-          ...sales,
-          // 业绩数据仅计入配置确认的订单
-          order_count: confirmedOrderCount,
-          total_orders: confirmedOrderCount,
-          total_amount: confirmedTotalAmount,
-          commission_earned: confirmedCommission,
-          total_commission: confirmedCommission,
-          // 佣金比率不受配置确认状态影响，保持原值
-          commission_rate: sales.commission_rate
-        };
-      });
-
-      // 计算总订单数：名下销售订单数 + 自己销售订单数
-      const secondarySalesTotalOrders = updatedSecondarySales.reduce((sum, sales) => sum + sales.order_count, 0);
-      const primarySalesOwnOrders = confirmedOrders.filter(order => !order.secondary_sales_name).length;
-      const calculatedTotalOrders = secondarySalesTotalOrders + primarySalesOwnOrders;
-
-      const updatedStatsData = {
-        ...mockStats,
-        // 二级销售数量不受配置确认状态影响，保持原值
-        total_secondary_sales: mockSalesData.total_secondary_sales,
-        // 重新计算总订单数
-        totalOrders: calculatedTotalOrders,
-        secondarySales: updatedSecondarySales
+      // 构建统计数据
+      const statsData = {
+        totalCommission: stats?.totalCommission || 0,
+        monthlyCommission: stats?.totalCommission || 0, // 可根据需要计算月度数据
+        totalOrders: stats?.totalOrders || 0,
+        monthlyOrders: stats?.totalOrders || 0, // 可根据需要计算月度数据
+        secondarySales: secondarySales || [],
+        pendingReminderCount: stats?.pendingReminderCount || 0,
+        monthlyReminderCount: stats?.pendingReminderCount || 0,
+        reminderSuccessRate: 85.0, // 默认值
+        avgResponseTime: 2.5, // 默认值
+        pendingReminderOrders: reminderOrders || []
       };
 
-      setSalesData(mockSalesData);
-      setPrimarySalesStats(updatedStatsData);
-      setPrimarySalesOrders(filteredOrdersData);
+      setSalesData(sales);
+      setPrimarySalesStats(statsData);
+      setPrimarySalesOrders(ordersData);
       
       message.success('查询成功');
     } catch (error) {
