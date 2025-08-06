@@ -1110,33 +1110,55 @@ async function handleUpdateSchema(req, res) {
       }
       
       // 添加primary_sales.sales_code字段（核心字段）
+      console.log('🔍 检查primary_sales.sales_code字段是否存在...');
       const [primarySalesCodeColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'primary_sales' AND COLUMN_NAME = 'sales_code'
       `, [process.env.DB_NAME]);
       
+      console.log('🔍 primary_sales.sales_code字段检查结果:', primarySalesCodeColumns.length);
+      
       if (primarySalesCodeColumns.length === 0) {
-        await connection.execute(`
-          ALTER TABLE primary_sales 
-          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
-        `);
-        console.log('✅ 添加primary_sales.sales_code字段成功');
+        console.log('⚡ 开始执行 ALTER TABLE primary_sales ADD COLUMN sales_code...');
+        try {
+          await connection.execute(`
+            ALTER TABLE primary_sales 
+            ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
+          `);
+          console.log('✅ 添加primary_sales.sales_code字段成功');
+        } catch (alterError) {
+          console.error('❌ ALTER TABLE primary_sales失败:', alterError.message);
+          errors.push(`添加primary_sales.sales_code失败: ${alterError.message}`);
+        }
+      } else {
+        console.log('ℹ️ primary_sales.sales_code字段已存在，跳过添加');
       }
       
       // 添加secondary_sales.sales_code字段（核心字段）
+      console.log('🔍 检查secondary_sales.sales_code字段是否存在...');
       const [secondarySalesCodeColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'secondary_sales' AND COLUMN_NAME = 'sales_code'
       `, [process.env.DB_NAME]);
       
+      console.log('🔍 secondary_sales.sales_code字段检查结果:', secondarySalesCodeColumns.length);
+      
       if (secondarySalesCodeColumns.length === 0) {
-        await connection.execute(`
-          ALTER TABLE secondary_sales 
-          ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
-        `);
-        console.log('✅ 添加secondary_sales.sales_code字段成功');
+        console.log('⚡ 开始执行 ALTER TABLE secondary_sales ADD COLUMN sales_code...');
+        try {
+          await connection.execute(`
+            ALTER TABLE secondary_sales 
+            ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
+          `);
+          console.log('✅ 添加secondary_sales.sales_code字段成功');
+        } catch (alterError) {
+          console.error('❌ ALTER TABLE secondary_sales失败:', alterError.message);
+          errors.push(`添加secondary_sales.sales_code失败: ${alterError.message}`);
+        }
+      } else {
+        console.log('ℹ️ secondary_sales.sales_code字段已存在，跳过添加');
       }
       
       // 添加secondary_sales.payment_address字段
