@@ -41,6 +41,60 @@ export default async function handler(req, res) {
     connection = await mysql.createConnection(dbConfig);
     results.push('✅ 数据库连接成功');
 
+    // 检查是否是清空数据请求
+    if (req.body.action === 'clear') {
+      // 先查看当前数据情况
+      const [orderCount] = await connection.execute('SELECT COUNT(*) as count FROM orders');
+      const [primaryCount] = await connection.execute('SELECT COUNT(*) as count FROM primary_sales');
+      const [secondaryCount] = await connection.execute('SELECT COUNT(*) as count FROM secondary_sales');
+      
+      results.push(`📊 清空前数据统计: 订单${orderCount[0].count}条, 一级销售${primaryCount[0].count}个, 二级销售${secondaryCount[0].count}个`);
+
+      // 清空数据（注意外键约束顺序）
+      await connection.execute('DELETE FROM orders');
+      results.push('✅ 清空orders表');
+
+      await connection.execute('DELETE FROM secondary_sales');
+      results.push('✅ 清空secondary_sales表');
+
+      await connection.execute('DELETE FROM primary_sales');
+      results.push('✅ 清空primary_sales表');
+
+      // 重置自增ID
+      await connection.execute('ALTER TABLE orders AUTO_INCREMENT = 1');
+      await connection.execute('ALTER TABLE primary_sales AUTO_INCREMENT = 1');
+      await connection.execute('ALTER TABLE secondary_sales AUTO_INCREMENT = 1');
+      results.push('✅ 重置自增ID');
+
+      // 修复status字段ENUM定义（现在可以安全操作）
+      try {
+        await connection.execute(`
+          ALTER TABLE orders 
+          MODIFY COLUMN status ENUM(
+            'pending_payment', 'pending_config', 'confirmed_payment', 
+            'confirmed_configuration', 'active', 'expired', 'cancelled', 'rejected'
+          ) DEFAULT 'pending_payment' COMMENT '订单状态'
+        `);
+        results.push('✅ 更新status字段ENUM定义');
+      } catch (error) {
+        results.push(`⚠️ ENUM更新失败: ${error.message}`);
+      }
+
+      // 验证清空结果
+      const [finalOrderCount] = await connection.execute('SELECT COUNT(*) as count FROM orders');
+      
+      await connection.end();
+
+      return res.status(200).json({
+        success: true,
+        message: '测试数据清空完成，系统重置为干净状态',
+        results: results,
+        finalCounts: {
+          orders: finalOrderCount[0].count
+        }
+      });
+    }
+
     // 1. 添加缺失的销售关联字段
     // 首先检查哪些字段不存在
     const [columns] = await connection.execute(`
