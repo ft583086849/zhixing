@@ -458,7 +458,7 @@ async function handleCreateOrder(req, res, connection) {
           duration, // 已映射为短值 (7, 30, 90, etc.)
           amount,
           mappedPaymentMethod, // 已映射为数字编码 (1, 2, 0)
-          formatDateForMySQL(new Date(payment_time)), 
+          payment_time ? formatDateForMySQL(new Date(payment_time)) : null, 
           mappedPurchaseType, // 已映射为数字编码 (1, 2)
           formatDateForMySQL(effectiveTime), 
           formatDateForMySQL(expiryTime),
