@@ -341,7 +341,10 @@ async function handleRegisterSecondarySales(req, res, connection) {
     });
 
   } catch (error) {
-    console.error('创建二级销售错误:', error);
+    console.error('创建二级销售详细错误:', error);
+    console.error('错误代码:', error.code);
+    console.error('错误消息:', error.message);
+    console.error('SQL状态:', error.sqlState);
     
     // 检查是否是唯一约束错误
     if (error.code === 'ER_DUP_ENTRY') {
@@ -351,9 +354,15 @@ async function handleRegisterSecondarySales(req, res, connection) {
       });
     }
 
+    // 临时返回详细错误信息用于调试
     res.status(500).json({
       success: false,
-      message: '注册失败，请稍后重试'
+      message: '注册失败，请稍后重试',
+      debug: {
+        code: error.code,
+        message: error.message,
+        sqlState: error.sqlState
+      }
     });
   }
 }
