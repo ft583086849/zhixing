@@ -222,19 +222,6 @@ const UnifiedSecondarySalesPage = () => {
               />
             </Form.Item>
 
-            {/* 姓名 */}
-            <Form.Item
-              name="name"
-              label="姓名"
-              rules={[{ required: true, message: '请输入您的姓名' }]}
-             >
-              <Input 
-                placeholder="请输入您的姓名"
-                size="large"
-                aria-label="请输入您的姓名"
-              />
-            </Form.Item>
-
             {/* 收款方式 - 完全相同 */}
             <Form.Item
               name="payment_method"
