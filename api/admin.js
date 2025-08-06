@@ -393,7 +393,7 @@ async function handleOrders(req, res) {
       
       -- 兼容遗留销售表
       LEFT JOIN sales s ON (
-        o.sales_id = s.id OR 
+ 
         o.sales_code = s.sales_code OR
         o.link_code = s.link_code
       )
@@ -424,7 +424,7 @@ async function handleOrders(req, res) {
         (o.sales_code = ss.sales_code)
       )
       LEFT JOIN sales s ON (
-        o.sales_id = s.id OR 
+ 
         o.sales_code = s.sales_code OR
         o.link_code = s.link_code
       )
@@ -1656,7 +1656,7 @@ async function handleCustomers(req, res) {
       
       -- 兼容遗留销售表
       LEFT JOIN sales s ON (
-        o.sales_id = s.id OR 
+ 
         o.sales_code = s.sales_code OR
         o.link_code = s.link_code
       )
@@ -1688,7 +1688,7 @@ async function handleCustomers(req, res) {
         (o.sales_code = ss.sales_code)
       )
       LEFT JOIN sales s ON (
-        o.sales_id = s.id OR 
+ 
         o.sales_code = s.sales_code OR
         o.link_code = s.link_code
       )
