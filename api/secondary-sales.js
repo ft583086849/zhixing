@@ -457,7 +457,7 @@ async function handleSecondarySalesSettlement(req, res, connection) {
     const salesData = salesRows[0];
 
     // 构建订单查询条件
-    let orderWhereConditions = []; // 查询所有订单，不再过滤配置状态
+    let orderWhereConditions = ['o.config_confirmed = true']; // 只查询已配置确认的订单
     let orderQueryParams = [];
 
     // 根据sales_code或secondary_sales_id查询订单

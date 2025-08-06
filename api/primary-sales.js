@@ -196,10 +196,10 @@ async function handleCreatePrimarySales(req, res, connection) {
   }
 
   // 验证收款方式
-  if (!['wechat', 'alipay', 'bank'].includes(payment_method)) {
+  if (!['alipay', 'crypto'].includes(payment_method)) {
     return res.status(400).json({
       success: false,
-      message: '收款方式只能是微信、支付宝或银行卡'
+      message: '收款方式只能是支付宝或线上地址码'
     });
   }
 

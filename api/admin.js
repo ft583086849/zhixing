@@ -861,7 +861,12 @@ async function handleUpdateSchema(req, res) {
           wechat_name VARCHAR(100) UNIQUE NOT NULL,
           phone VARCHAR(20),
           email VARCHAR(100),
-          payment_method ENUM('wechat', 'alipay', 'bank') DEFAULT 'wechat',
+          payment_method ENUM('alipay', 'crypto') DEFAULT 'alipay' COMMENT '收款方式：alipay=支付宝，crypto=线上地址码',
+          payment_address TEXT COMMENT '收款地址',
+          alipay_surname VARCHAR(50) COMMENT '支付宝收款人姓氏',
+          chain_name VARCHAR(50) COMMENT '线上地址码链名',
+          sales_code VARCHAR(32) UNIQUE COMMENT '用户购买链接代码',
+          secondary_registration_code VARCHAR(32) UNIQUE COMMENT '二级销售注册代码',
           bank_info TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -881,9 +886,14 @@ async function handleUpdateSchema(req, res) {
           wechat_name VARCHAR(100) UNIQUE NOT NULL,
           phone VARCHAR(20),
           email VARCHAR(100),
-          primary_sales_id INT,
+          primary_sales_id INT NULL COMMENT '一级销售ID，独立注册时为NULL',
           commission_rate DECIMAL(5,2) DEFAULT 30.00,
-          payment_method ENUM('wechat', 'alipay', 'bank') DEFAULT 'wechat',
+          payment_method ENUM('alipay', 'crypto') DEFAULT 'alipay' COMMENT '收款方式：alipay=支付宝，crypto=线上地址码',
+          payment_address TEXT COMMENT '收款地址',
+          alipay_surname VARCHAR(50) COMMENT '支付宝收款人姓氏',
+          chain_name VARCHAR(50) COMMENT '线上地址码链名',
+          sales_code VARCHAR(32) UNIQUE COMMENT '用户购买链接代码',
+          status ENUM('active', 'inactive') DEFAULT 'active',
           bank_info TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -1192,6 +1202,57 @@ async function handleUpdateSchema(req, res) {
         `);
         console.log('✅ 添加secondary_sales.payment_address字段成功');
       }
+      
+      // 修复payment_method字段枚举值（关键修复）
+      fieldAddLogs.push('🔧 开始修复payment_method枚举值...');
+      
+      try {
+        // 修复primary_sales.payment_method
+        await connection.execute(`
+          ALTER TABLE primary_sales 
+          MODIFY COLUMN payment_method ENUM('alipay', 'crypto') DEFAULT 'alipay' 
+          COMMENT '收款方式：alipay=支付宝，crypto=线上地址码'
+        `);
+        fieldAddLogs.push('✅ primary_sales.payment_method枚举值修复成功');
+      } catch (primaryPaymentError) {
+        fieldAddLogs.push(`❌ primary_sales.payment_method修复失败: ${primaryPaymentError.message}`);
+        // 如果字段不存在，添加它
+        try {
+          await connection.execute(`
+            ALTER TABLE primary_sales 
+            ADD COLUMN payment_method ENUM('alipay', 'crypto') DEFAULT 'alipay' 
+            COMMENT '收款方式：alipay=支付宝，crypto=线上地址码'
+          `);
+          fieldAddLogs.push('✅ primary_sales.payment_method字段添加成功');
+        } catch (addError) {
+          fieldAddLogs.push(`❌ primary_sales.payment_method字段添加失败: ${addError.message}`);
+        }
+      }
+      
+      try {
+        // 修复secondary_sales.payment_method
+        await connection.execute(`
+          ALTER TABLE secondary_sales 
+          MODIFY COLUMN payment_method ENUM('alipay', 'crypto') DEFAULT 'alipay' 
+          COMMENT '收款方式：alipay=支付宝，crypto=线上地址码'
+        `);
+        fieldAddLogs.push('✅ secondary_sales.payment_method枚举值修复成功');
+      } catch (secondaryPaymentError) {
+        fieldAddLogs.push(`❌ secondary_sales.payment_method修复失败: ${secondaryPaymentError.message}`);
+        // 如果字段不存在，添加它
+        try {
+          await connection.execute(`
+            ALTER TABLE secondary_sales 
+            ADD COLUMN payment_method ENUM('alipay', 'crypto') DEFAULT 'alipay' 
+            COMMENT '收款方式：alipay=支付宝，crypto=线上地址码'
+          `);
+          fieldAddLogs.push('✅ secondary_sales.payment_method字段添加成功');
+        } catch (addError) {
+          fieldAddLogs.push(`❌ secondary_sales.payment_method字段添加失败: ${addError.message}`);
+        }
+      }
+      
+      fieldAddLogs.push('🎉 payment_method枚举值修复完成');
       
     } catch (error) {
       errors.push(`添加关键字段失败: ${error.message}`);
