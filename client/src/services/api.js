@@ -409,6 +409,12 @@ export const API = {
 export const adminAPI = AdminAPI;
 export const salesAPI = SalesAPI;
 export const ordersAPI = OrdersAPI;
+export const authAPI = AuthService;
+
+// 公开API（临时占位）
+export const publicAPI = {
+  getPaymentConfig: async () => ({ data: {} }),
+};
 
 // 向后兼容的默认导出
 export default API;
