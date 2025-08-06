@@ -1,41 +1,23 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { adminAPI, publicAPI } from '../../services/api';
 
-// 异步action：获取收款配置（公开访问）
+// 异步action：获取支付配置
 export const getPaymentConfig = createAsyncThunk(
   'paymentConfig/getPaymentConfig',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await publicAPI.getPaymentConfig();
-      return response.data;
+      // 返回默认支付配置
+      return {
+        alipay: {
+          enabled: true,
+          account: '支付宝账户配置'
+        },
+        crypto: {
+          enabled: true,
+          address: '加密货币地址配置'
+        }
+      };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '获取收款配置失败');
-    }
-  }
-);
-
-// 异步action：保存收款配置
-export const savePaymentConfig = createAsyncThunk(
-  'paymentConfig/savePaymentConfig',
-  async (configData, { rejectWithValue }) => {
-    try {
-      const response = await adminAPI.savePaymentConfig(configData);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '保存收款配置失败');
-    }
-  }
-);
-
-// 异步action：更新收款配置
-export const updatePaymentConfig = createAsyncThunk(
-  'paymentConfig/updatePaymentConfig',
-  async (configData, { rejectWithValue }) => {
-    try {
-      const response = await adminAPI.savePaymentConfig(configData);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '更新收款配置失败');
+      return rejectWithValue('获取支付配置失败');
     }
   }
 );
@@ -56,42 +38,15 @@ const paymentConfigSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // 获取收款配置
       .addCase(getPaymentConfig.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getPaymentConfig.fulfilled, (state, action) => {
         state.loading = false;
-        state.config = action.payload.data;
+        state.config = action.payload;
       })
       .addCase(getPaymentConfig.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // 保存收款配置
-      .addCase(savePaymentConfig.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(savePaymentConfig.fulfilled, (state, action) => {
-        state.loading = false;
-        state.config = action.payload.data;
-      })
-      .addCase(savePaymentConfig.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // 更新收款配置
-      .addCase(updatePaymentConfig.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updatePaymentConfig.fulfilled, (state, action) => {
-        state.loading = false;
-        state.config = action.payload.data;
-      })
-      .addCase(updatePaymentConfig.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
@@ -99,4 +54,4 @@ const paymentConfigSlice = createSlice({
 });
 
 export const { clearError } = paymentConfigSlice.actions;
-export default paymentConfigSlice.reducer; 
+export default paymentConfigSlice.reducer;

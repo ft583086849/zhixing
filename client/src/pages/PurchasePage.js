@@ -31,7 +31,6 @@ import {
 import dayjs from 'dayjs';
 import { getSalesByLink, clearCurrentSales } from '../store/slices/salesSlice';
 import { createOrder, clearCreatedOrder } from '../store/slices/ordersSlice';
-
 import { getPaymentConfig } from '../store/slices/paymentConfigSlice';
 import QRCodeDisplay from '../components/QRCodeDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';

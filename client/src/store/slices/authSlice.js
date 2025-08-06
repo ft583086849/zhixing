@@ -7,11 +7,25 @@ export const login = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authAPI.login(credentials);
+      console.log('authAPI.login 响应:', response);
+      
+      // 兼容不同的响应结构
+      let authData;
+      if (response.data) {
+        authData = response.data;
+      } else {
+        authData = response;
+      }
+      
       // 保存token到localStorage
-      localStorage.setItem('token', response.data.token);
-      return response.data;
+      if (authData.token) {
+        localStorage.setItem('token', authData.token);
+      }
+      
+      return authData;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '登录失败');
+      console.error('登录失败:', error);
+      return rejectWithValue(error.message || '登录失败');
     }
   }
 );
