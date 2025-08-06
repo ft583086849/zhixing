@@ -196,6 +196,18 @@ export default async function handler(req, res) {
       results.push(`⚠️ 配置确认状态设置失败: ${error.message}`);
     }
 
+    // 9. 修复非标准status值 - 将pending_review改为pending_payment
+    try {
+      const [statusFixResult] = await connection.execute(`
+        UPDATE orders 
+        SET status = 'pending_payment' 
+        WHERE status = 'pending_review'
+      `);
+      results.push(`✅ 修复非标准status值: 将 ${statusFixResult.affectedRows} 条 pending_review 改为 pending_payment`);
+    } catch (error) {
+      results.push(`⚠️ status值修复失败: ${error.message}`);
+    }
+
     // 9. 验证结果
     const [typeStats] = await connection.execute(`
       SELECT 
