@@ -1254,6 +1254,24 @@ async function handleUpdateSchema(req, res) {
       
       fieldAddLogs.push('🎉 payment_method枚举值修复完成');
       
+      // 修复secondary_sales.primary_sales_id字段允许NULL（独立注册支持）
+      fieldAddLogs.push('🔧 开始修复secondary_sales.primary_sales_id字段...');
+      
+      try {
+        // 修改字段为允许NULL，支持独立二级销售注册
+        await connection.execute(`
+          ALTER TABLE secondary_sales 
+          MODIFY COLUMN primary_sales_id INT NULL 
+          COMMENT '一级销售ID，独立注册时为NULL'
+        `);
+        fieldAddLogs.push('✅ secondary_sales.primary_sales_id修复成功 - 现在支持独立注册');
+      } catch (primaryIdError) {
+        fieldAddLogs.push(`❌ secondary_sales.primary_sales_id修复失败: ${primaryIdError.message}`);
+        errors.push(`修复primary_sales_id字段失败: ${primaryIdError.message}`);
+      }
+      
+      fieldAddLogs.push('🎉 所有字段修复完成');
+      
     } catch (error) {
       errors.push(`添加关键字段失败: ${error.message}`);
       fieldAddLogs.push(`❌ 整体错误: ${error.message}`);
