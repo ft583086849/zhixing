@@ -18,7 +18,6 @@ import {
   LinkOutlined,
   CopyOutlined 
 } from '@ant-design/icons';
-import axios from 'axios';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -62,13 +61,15 @@ const UnifiedSecondarySalesPage = () => {
       setLoading(true);
       setValidationStep('loading');
       
-      const response = await axios.get(`/api/secondary-sales?path=validate&link_code=${code}&link_type=secondary_registration`);
+      // 使用统一的salesAPI验证注册码
+      const { salesAPI } = await import('../services/api');
+      const response = await salesAPI.validateSecondaryRegistrationCode(code);
       
-      if (response.data.success) {
-        setRegistrationData(response.data.data);
+      if (response.success) {
+        setRegistrationData(response.data);
         setValidationStep('valid');
       } else {
-        setError('注册码无效或已过期');
+        setError(response.message || '注册码无效或已过期');
         setValidationStep('invalid');
       }
     } catch (error) {
@@ -86,30 +87,42 @@ const UnifiedSecondarySalesPage = () => {
       setLoading(true);
       setError(null);
       
+      // 使用统一的salesAPI而不是axios直接调用后端
+      const { salesAPI } = await import('../services/api');
+      
       let response;
       if (isLinkedMode) {
         // 关联模式 - 注册到一级销售下
-        response = await axios.post('/api/secondary-sales?path=register', {
+        response = await salesAPI.registerSecondary({
           ...values,
           registration_code: registrationCode,
-          primary_sales_id: registrationData?.primary_sales_id
+          primary_sales_id: registrationData?.primary_sales_id,
+          sales_type: 'secondary_linked'
         });
       } else {
         // 独立模式 - 独立注册
-        response = await axios.post('/api/secondary-sales?path=register-independent', values);
+        response = await salesAPI.registerSecondary({
+          ...values,
+          sales_type: 'secondary_independent'
+        });
       }
 
-      if (response.data.success) {
-        const salesData = response.data.data;
+      if (response.success) {
+        const salesData = response.data;
+        
+        // 生成购买链接
+        const baseUrl = window.location.origin;
+        const user_sales_link = `${baseUrl}/purchase?sales_code=${salesData.sales_code}`;
+        
         // 设置生成的链接（只包含用户购买链接）
         setCreatedLinks({
-          user_sales_link: salesData.user_sales_link,
+          user_sales_link: user_sales_link,
           user_sales_code: salesData.sales_code,
         });
         message.success('销售收款信息创建成功！');
         form.resetFields();
       } else {
-        setError(response.data.message || '创建失败');
+        setError(response.message || '创建失败');
       }
     } catch (error) {
       console.error('创建失败:', error);

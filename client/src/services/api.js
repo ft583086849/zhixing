@@ -259,15 +259,48 @@ export const SalesAPI = {
       
       const newSale = await SupabaseService.createPrimarySales(salesData);
       
+      // 生成链接
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://zhixing-seven.vercel.app';
+      const user_sales_link = `${baseUrl}/purchase?sales_code=${newSale.sales_code}`;
+      const secondary_registration_link = `${baseUrl}/secondary-sales?registration_code=${newSale.secondary_registration_code}`;
+      
       CacheManager.clear('sales'); // 清除销售相关缓存
       
       return {
         success: true,
-        data: newSale,
+        data: {
+          ...newSale,
+          user_sales_link,
+          secondary_registration_link
+        },
         message: '一级销售注册成功'
       };
     } catch (error) {
       return handleError(error, '注册一级销售');
+    }
+  },
+
+  /**
+   * 验证二级销售注册码
+   */
+  async validateSecondaryRegistrationCode(registrationCode) {
+    try {
+      const validationData = await SupabaseService.validateSecondaryRegistrationCode(registrationCode);
+      
+      if (!validationData) {
+        return {
+          success: false,
+          message: '注册码无效或已过期'
+        };
+      }
+      
+      return {
+        success: true,
+        data: validationData,
+        message: '注册码验证成功'
+      };
+    } catch (error) {
+      return handleError(error, '验证注册码');
     }
   },
 

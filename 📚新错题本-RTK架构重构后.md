@@ -303,6 +303,36 @@ ESLint检测到代码中存在"不可达代码"(unreachable code)，导致构建
    - 记录跳转执行情况
    - 便于排查问题
 
+### ❌ 错误 #008 - 销售注册API架构不一致问题
+**时间**: 2024年12月
+**错误**: 一级销售和二级销售使用不同的API调用方式导致405错误
+
+#### 🔍 错误分析
+**问题描述**: 
+一级销售注册使用SupabaseService直接操作数据库，二级销售注册使用axios调用不存在的后端API路由，导致405 Method Not Allowed错误。
+
+**错误原因**:
+1. **架构不一致** - 一级销售用Supabase，二级销售用axios
+2. **后端API不存在** - `/api/secondary-sales` 路由根本不存在
+3. **前端调用方式错误** - 应该统一使用salesAPI
+
+#### ✅ 正确解决方案
+**统一使用SupabaseService架构:**
+
+1. **修改二级销售注册逻辑**:
+   - 从axios调用改为salesAPI.registerSecondary
+   - 统一使用SupabaseService
+   - 移除不必要的axios导入
+
+2. **修复链接生成逻辑**:
+   - 一级销售API返回完整的链接信息
+   - 二级销售API生成购买链接
+   - 确保链接格式统一
+
+3. **统一响应数据结构**:
+   - 所有API返回{success, data, message}格式
+   - 前端统一处理响应结构
+
 ---
 
 ## 📝 使用说明

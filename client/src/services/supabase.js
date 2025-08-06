@@ -136,6 +136,29 @@ export class SupabaseService {
     return data;
   }
 
+  // 验证二级销售注册码
+  static async validateSecondaryRegistrationCode(registrationCode) {
+    const { data, error } = await supabase
+      .from('primary_sales')
+      .select('id, wechat_name, secondary_registration_code')
+      .eq('secondary_registration_code', registrationCode)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // 没有找到记录
+        return null;
+      }
+      throw error;
+    }
+    
+    return {
+      primary_sales_id: data.id,
+      primary_wechat_name: data.wechat_name,
+      registration_code: data.secondary_registration_code
+    };
+  }
+
   // 订单操作
   static async getOrders() {
     const { data, error } = await supabase
