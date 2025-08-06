@@ -22,9 +22,26 @@ export const getPaymentConfig = createAsyncThunk(
   }
 );
 
+// 异步action：更新支付配置
+export const updatePaymentConfig = createAsyncThunk(
+  'paymentConfig/updatePaymentConfig',
+  async (configData, { rejectWithValue }) => {
+    try {
+      // 模拟API更新调用
+      console.log('更新支付配置:', configData);
+      
+      // 返回更新后的配置
+      return configData;
+    } catch (error) {
+      return rejectWithValue('更新支付配置失败');
+    }
+  }
+);
+
 const initialState = {
   config: null,
   loading: false,
+  updating: false,
   error: null,
 };
 
@@ -38,6 +55,7 @@ const paymentConfigSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // 获取支付配置
       .addCase(getPaymentConfig.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -48,6 +66,19 @@ const paymentConfigSlice = createSlice({
       })
       .addCase(getPaymentConfig.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
+      })
+      // 更新支付配置
+      .addCase(updatePaymentConfig.pending, (state) => {
+        state.updating = true;
+        state.error = null;
+      })
+      .addCase(updatePaymentConfig.fulfilled, (state, action) => {
+        state.updating = false;
+        state.config = action.payload;
+      })
+      .addCase(updatePaymentConfig.rejected, (state, action) => {
+        state.updating = false;
         state.error = action.payload;
       });
   },
