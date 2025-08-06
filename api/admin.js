@@ -865,8 +865,8 @@ async function handleUpdateSchema(req, res) {
           payment_address TEXT COMMENT '收款地址',
           alipay_surname VARCHAR(50) COMMENT '支付宝收款人姓氏',
           chain_name VARCHAR(50) COMMENT '线上地址码链名',
-          sales_code VARCHAR(32) UNIQUE COMMENT '用户购买链接代码',
-          secondary_registration_code VARCHAR(32) UNIQUE COMMENT '二级销售注册代码',
+          sales_code VARCHAR(32) UNIQUE COMMENT '用户购买链接代码 - ⚠️重要：代码生成不能超过此长度！',
+          secondary_registration_code VARCHAR(32) UNIQUE COMMENT '二级销售注册代码 - ⚠️重要：代码生成不能超过此长度！',
           bank_info TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -892,7 +892,7 @@ async function handleUpdateSchema(req, res) {
           payment_address TEXT COMMENT '收款地址',
           alipay_surname VARCHAR(50) COMMENT '支付宝收款人姓氏',
           chain_name VARCHAR(50) COMMENT '线上地址码链名',
-          sales_code VARCHAR(32) UNIQUE COMMENT '用户购买链接代码',
+          sales_code VARCHAR(32) UNIQUE COMMENT '用户购买链接代码 - ⚠️重要：代码生成不能超过此长度！',
           status ENUM('active', 'inactive') DEFAULT 'active',
           bank_info TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1732,14 +1732,25 @@ async function handleRemindCustomer(req, res) {
 async function handleUpdateOrderStatus(req, res) {
   let connection;
   try {
+    console.log('🔄 订单状态更新请求:', {
+      query: req.query,
+      body: req.body,
+      method: req.method,
+      url: req.url
+    });
+    
     connection = await mysql.createConnection(dbConfig);
     const { id } = req.query;
     const { status } = req.body;
     
+    console.log(`📋 更新订单 ${id} 状态为: ${status}`);
+    
     if (!id || !status) {
+      console.log('❌ 参数验证失败: ID或状态为空');
       return res.status(400).json({
         success: false,
-        message: "订单ID和状态不能为空"
+        message: "订单ID和状态不能为空",
+        debug: { id, status }
       });
     }
     

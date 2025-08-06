@@ -219,56 +219,43 @@ async function handleCreatePrimarySales(req, res, connection) {
       });
     }
 
-    // 生成唯一销售代码（重构版）
-    const userSalesCode = uuidv4().replace(/-/g, '').substring(0, 16);
-    const secondaryRegistrationCode = uuidv4().replace(/-/g, '').substring(0, 16);
-
-    // 确保所有参数都不是undefined，转换为null
-    const params = {
-      wechat_name: wechat_name || null,
-      payment_method: payment_method || null,
-      payment_address: payment_address || null,
-      alipay_surname: alipay_surname || null,
-      chain_name: chain_name || null,
-      sales_code: userSalesCode,
-      secondary_registration_code: secondaryRegistrationCode
-    };
-
-    // 生成标准的销售代码
+    // 生成唯一销售代码（严格长度限制 - 不能修改！）
+    // ⚠️ 重要：数据库字段为 VARCHAR(16)，生成的代码不能超过16字符
+    // ⚠️ 当前格式：PS + 8位36进制 = 10字符，安全范围内
+    // ⚠️ 禁止修改此格式！任何修改前必须先确认数据库字段长度
     const tempId = Date.now();
-    const salesCode = `PS${String(tempId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
+    const salesCode = `PS${tempId.toString(36).slice(-8).toUpperCase()}`;  // 10字符，严格控制在16字符内
+    const secondaryRegistrationCode = `SR${tempId.toString(36).slice(-8).toUpperCase()}`; // 10字符，严格控制在16字符内
     
     // 使用完整字段插入，包括sales_code
     const [result] = await connection.execute(
       `INSERT INTO primary_sales (
-        wechat_name, payment_method, payment_address, sales_code
-      ) VALUES (?, ?, ?, ?)`,
+        wechat_name, payment_method, payment_address, sales_code, secondary_registration_code
+      ) VALUES (?, ?, ?, ?, ?)`,
       [
-        params.wechat_name, 
-        params.payment_method,
-        params.payment_address || 'temp_address_' + tempId, // 提供payment_address
-        salesCode
+        wechat_name, 
+        payment_method,
+        payment_address || 'temp_address_' + tempId,
+        salesCode,
+        secondaryRegistrationCode
       ]
     );
 
     const primarySalesId = result.insertId;
 
-    // 生成二级销售注册代码
-    const regCode = `SR${String(primarySalesId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
-
-    // 返回成功响应（标准实现）
+    // 返回成功响应（修复版本）
     res.status(201).json({
       success: true,
       message: '一级销售信息创建成功！',
       data: {
         primary_sales_id: primarySalesId,
-        wechat_name: params.wechat_name,
-        sales_code: userSalesCode,
+        wechat_name: wechat_name,
+        sales_code: salesCode,
         secondary_registration_code: secondaryRegistrationCode,
-        user_sales_code: userSalesCode, // 保持兼容性
+        user_sales_code: salesCode, // 保持兼容性
         secondary_registration_link: `https://zhixing-seven.vercel.app/secondary-sales?sales_code=${secondaryRegistrationCode}`,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${userSalesCode}`,
-        note: "标准sales_code实现"
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${salesCode}`,
+        note: "修复sales_code长度限制"
       }
     });
 

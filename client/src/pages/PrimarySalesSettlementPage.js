@@ -399,7 +399,9 @@ const PrimarySalesSettlementPage = () => {
         const statusMap = {
           'pending_review': { text: '待审核', color: 'orange' },
           'pending_payment': { text: '待付款确认', color: 'orange' },
+          'confirmed_payment': { text: '已付款确认', color: 'blue' },
           'pending_config': { text: '待配置确认', color: 'purple' },
+          'confirmed_configuration': { text: '已配置确认', color: 'green' },
           'confirmed': { text: '已确认', color: 'green' },
           'approved': { text: '已通过', color: 'green' },
           'rejected': { text: '已拒绝', color: 'red' },

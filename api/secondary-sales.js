@@ -303,45 +303,40 @@ async function handleRegisterSecondarySales(req, res, connection) {
       });
     }
 
-    // 生成唯一销售代码
-    const salesCode = uuidv4().replace(/-/g, '').substring(0, 16);
+    // 生成唯一销售代码（严格长度限制 - 不能修改！）
+    // ⚠️ 重要：数据库字段为 VARCHAR(16)，生成的代码不能超过16字符
+    // ⚠️ 当前格式：SS + 8位36进制 = 10字符，安全范围内
+    // ⚠️ 禁止修改此格式！任何修改前必须先确认数据库字段长度
+    const salesCode = `SS${Date.now().toString(36).slice(-8).toUpperCase()}`; // 10字符，严格控制在16字符内
 
-    // 临时兼容性实现：移除不存在的字段，等待数据库字段添加
+    // 直接插入包含sales_code的记录
     const [result] = await connection.execute(
       `INSERT INTO secondary_sales (
         wechat_name, primary_sales_id, 
-        payment_method, payment_address, alipay_surname, chain_name, commission_rate
-      ) VALUES (?, ?, ?, ?, ?, ?, 30.00)`,
+        payment_method, payment_address, alipay_surname, chain_name, commission_rate, sales_code
+      ) VALUES (?, ?, ?, ?, ?, ?, 30.00, ?)`,
       [
         wechat_name,
         validPrimarySalesId,
         payment_method,
         payment_address,
         alipay_surname || null,
-        chain_name || null
+        chain_name || null,
+        salesCode
       ]
     );
-
-    // 标准实现：生成标准销售代码
-    const standardSalesCode = `SS${Date.now().toString(36).slice(-8).toUpperCase()}${Math.random().toString(36).slice(-4).toUpperCase()}`;
     
-    // 更新数据库记录，添加标准sales_code字段
-    await connection.execute(
-      'UPDATE secondary_sales SET sales_code = ? WHERE id = ?',
-      [standardSalesCode, result.insertId]
-    );
-    
-    // 返回成功响应（标准实现）
+    // 返回成功响应（修复版本）
     res.status(201).json({
       success: true,
       message: '二级销售注册成功！',
       data: {
         secondary_sales_id: result.insertId,
         wechat_name: wechat_name,
-        sales_code: standardSalesCode,
+        sales_code: salesCode,
         primary_sales_id: validPrimarySalesId,
-        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${standardSalesCode}`,
-        note: "标准sales_code实现"
+        user_sales_link: `https://zhixing-seven.vercel.app/purchase?sales_code=${salesCode}`,
+        note: "修复sales_code长度限制"
       }
     });
 
