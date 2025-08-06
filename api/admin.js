@@ -1078,6 +1078,7 @@ async function handleUpdateSchema(req, res) {
     }
     
     // 8. 添加缺失的关键字段
+    const fieldAddLogs = []; // 收集详细日志
     try {
       // 添加primary_sales.phone字段
       const [primaryPhoneColumns] = await connection.execute(`
@@ -1110,55 +1111,55 @@ async function handleUpdateSchema(req, res) {
       }
       
       // 添加primary_sales.sales_code字段（核心字段）
-      console.log('🔍 检查primary_sales.sales_code字段是否存在...');
+      fieldAddLogs.push('🔍 检查primary_sales.sales_code字段是否存在...');
       const [primarySalesCodeColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'primary_sales' AND COLUMN_NAME = 'sales_code'
       `, [process.env.DB_NAME]);
       
-      console.log('🔍 primary_sales.sales_code字段检查结果:', primarySalesCodeColumns.length);
+      fieldAddLogs.push(`🔍 primary_sales.sales_code字段检查结果: ${primarySalesCodeColumns.length}`);
       
       if (primarySalesCodeColumns.length === 0) {
-        console.log('⚡ 开始执行 ALTER TABLE primary_sales ADD COLUMN sales_code...');
+        fieldAddLogs.push('⚡ 开始执行 ALTER TABLE primary_sales ADD COLUMN sales_code...');
         try {
           await connection.execute(`
             ALTER TABLE primary_sales 
             ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
           `);
-          console.log('✅ 添加primary_sales.sales_code字段成功');
+          fieldAddLogs.push('✅ 添加primary_sales.sales_code字段成功');
         } catch (alterError) {
-          console.error('❌ ALTER TABLE primary_sales失败:', alterError.message);
+          fieldAddLogs.push(`❌ ALTER TABLE primary_sales失败: ${alterError.message}`);
           errors.push(`添加primary_sales.sales_code失败: ${alterError.message}`);
         }
       } else {
-        console.log('ℹ️ primary_sales.sales_code字段已存在，跳过添加');
+        fieldAddLogs.push('ℹ️ primary_sales.sales_code字段已存在，跳过添加');
       }
       
       // 添加secondary_sales.sales_code字段（核心字段）
-      console.log('🔍 检查secondary_sales.sales_code字段是否存在...');
+      fieldAddLogs.push('🔍 检查secondary_sales.sales_code字段是否存在...');
       const [secondarySalesCodeColumns] = await connection.execute(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'secondary_sales' AND COLUMN_NAME = 'sales_code'
       `, [process.env.DB_NAME]);
       
-      console.log('🔍 secondary_sales.sales_code字段检查结果:', secondarySalesCodeColumns.length);
+      fieldAddLogs.push(`🔍 secondary_sales.sales_code字段检查结果: ${secondarySalesCodeColumns.length}`);
       
       if (secondarySalesCodeColumns.length === 0) {
-        console.log('⚡ 开始执行 ALTER TABLE secondary_sales ADD COLUMN sales_code...');
+        fieldAddLogs.push('⚡ 开始执行 ALTER TABLE secondary_sales ADD COLUMN sales_code...');
         try {
           await connection.execute(`
             ALTER TABLE secondary_sales 
             ADD COLUMN sales_code VARCHAR(50) UNIQUE NULL
           `);
-          console.log('✅ 添加secondary_sales.sales_code字段成功');
+          fieldAddLogs.push('✅ 添加secondary_sales.sales_code字段成功');
         } catch (alterError) {
-          console.error('❌ ALTER TABLE secondary_sales失败:', alterError.message);
+          fieldAddLogs.push(`❌ ALTER TABLE secondary_sales失败: ${alterError.message}`);
           errors.push(`添加secondary_sales.sales_code失败: ${alterError.message}`);
         }
       } else {
-        console.log('ℹ️ secondary_sales.sales_code字段已存在，跳过添加');
+        fieldAddLogs.push('ℹ️ secondary_sales.sales_code字段已存在，跳过添加');
       }
       
       // 添加secondary_sales.payment_address字段
@@ -1178,6 +1179,7 @@ async function handleUpdateSchema(req, res) {
       
     } catch (error) {
       errors.push(`添加关键字段失败: ${error.message}`);
+      fieldAddLogs.push(`❌ 整体错误: ${error.message}`);
     }
     
     // 9. 创建索引优化
@@ -1255,7 +1257,8 @@ async function handleUpdateSchema(req, res) {
         views_created: viewsCreated,
         total_tables: totalTables,
         table_names: tableNames,
-        errors: errors
+        errors: errors,
+        field_add_logs: fieldAddLogs || [] // 添加详细的字段添加日志
       }
     });
     
