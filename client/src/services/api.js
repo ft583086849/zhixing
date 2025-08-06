@@ -239,6 +239,39 @@ export const SalesAPI = {
   },
 
   /**
+   * 根据链接代码获取销售信息 (别名函数)
+   */
+  async getSalesByLink(linkCode) {
+    // 复用getSalesByCode函数
+    return this.getSalesByCode(linkCode);
+  },
+
+  /**
+   * 注册一级销售
+   */
+  async registerPrimary(salesData) {
+    try {
+      // 生成唯一的销售代码
+      salesData.sales_code = salesData.sales_code || `PRI${Date.now()}`;
+      salesData.secondary_registration_code = salesData.secondary_registration_code || `SEC${Date.now()}`;
+      salesData.created_at = new Date().toISOString();
+      salesData.updated_at = new Date().toISOString();
+      
+      const newSale = await SupabaseService.createPrimarySales(salesData);
+      
+      CacheManager.clear('sales'); // 清除销售相关缓存
+      
+      return {
+        success: true,
+        data: newSale,
+        message: '一级销售注册成功'
+      };
+    } catch (error) {
+      return handleError(error, '注册一级销售');
+    }
+  },
+
+  /**
    * 注册二级销售
    */
   async registerSecondary(salesData) {
@@ -407,9 +440,18 @@ export const API = {
 
 // 向后兼容的导出（小写命名）
 export const adminAPI = AdminAPI;
-export const salesAPI = SalesAPI;
+export const salesAPI = {
+  ...SalesAPI,
+  // 向后兼容的别名
+  createPrimarySales: SalesAPI.registerPrimary,
+  createSecondarySales: SalesAPI.registerSecondary
+};
 export const ordersAPI = OrdersAPI;
-export const authAPI = AuthService;
+export const authAPI = {
+  login: AdminAPI.login,
+  // 向后兼容AuthService
+  ...AuthService
+};
 
 // 公开API（临时占位）
 export const publicAPI = {

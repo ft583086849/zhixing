@@ -23,12 +23,14 @@ const TEST_CONFIG = {
             password: 'admin123'
         },
         primarySales: {
+            name: `Primary Test ${Date.now()}`,  // 添加必需的 name 字段
             wechat_name: `primary_test_${Date.now()}`,
             payment_method: 'alipay',
             payment_address: '752304285@qq.com',
             alipay_surname: '梁'
         },
         secondarySales: {
+            name: `Secondary Test ${Date.now()}`,  // 添加必需的 name 字段
             wechat_name: `secondary_test_${Date.now()}`,
             payment_method: 'crypto',
             payment_address: 'TDnNfU9GYcDbzFqf8LUNzBuTsaDbCh5LTo',
@@ -276,13 +278,15 @@ async function testSecondarySalesRegistration() {
     logTest('二级分销', '独立二级分销注册', 'TESTING');
     
     const independentSecondaryData = {
+        name: `Independent Secondary ${Date.now()}`,  // 添加必需的 name 字段
         wechat_name: `independent_${Date.now()}`,
         payment_method: 'alipay',
         payment_address: '999999999@qq.com',
         alipay_surname: '王',
         sales_code: `SS_IND_${Date.now()}`,
         primary_sales_id: null, // 独立二级分销
-        commission_rate: 30.00
+        commission_rate: 30.00,
+        status: 'active'  // 添加状态字段
     };
     
     const independentResult = await supabaseCall('secondary_sales', 'POST', independentSecondaryData);
@@ -313,6 +317,8 @@ async function testCustomerPurchase() {
     logTest('用户购买', '一级分销购买链接', 'TESTING');
     
     const primaryOrderData = {
+        order_number: `ORD_PRI_${Date.now()}`,  // 添加必需的订单号
+        customer_name: `Primary Customer ${Date.now()}`,  // 添加必需的客户姓名
         sales_code: createdData.primarySales.sales_code,
         sales_type: 'primary',
         tradingview_username: `${TEST_CONFIG.testData.customer.tradingview_username}_primary`,
@@ -324,7 +330,8 @@ async function testCustomerPurchase() {
         status: 'pending_payment',
         commission_rate: 0.40,
         commission_amount: TEST_CONFIG.testData.customer.amount * 0.40,
-        primary_sales_id: createdData.primarySales.id
+        primary_sales_id: createdData.primarySales.id,
+        config_confirmed: false  // 添加配置确认字段
     };
     
     const primaryOrderResult = await supabaseCall('orders', 'POST', primaryOrderData);
@@ -343,6 +350,8 @@ async function testCustomerPurchase() {
         logTest('用户购买', '二级分销购买链接', 'TESTING');
         
         const secondaryOrderData = {
+            order_number: `ORD_SEC_${Date.now()}`,  // 添加必需的订单号
+            customer_name: `Secondary Customer ${Date.now()}`,  // 添加必需的客户姓名
             sales_code: createdData.secondarySales.sales_code,
             sales_type: 'secondary',
             tradingview_username: `${TEST_CONFIG.testData.customer.tradingview_username}_secondary`,
@@ -354,7 +363,8 @@ async function testCustomerPurchase() {
             status: 'pending_payment',
             commission_rate: 0.30,
             commission_amount: TEST_CONFIG.testData.customer.amount * 0.30,
-            secondary_sales_id: createdData.secondarySales.id
+            secondary_sales_id: createdData.secondarySales.id,
+            config_confirmed: false  // 添加配置确认字段
         };
         
         const secondaryOrderResult = await supabaseCall('orders', 'POST', secondaryOrderData);

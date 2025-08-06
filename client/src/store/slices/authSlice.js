@@ -77,17 +77,26 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         console.log('Redux: login.fulfilled 被调用');
         console.log('Redux: action.payload:', action.payload);
-        console.log('Redux: action.payload.data:', action.payload.data);
         
         state.loading = false;
         state.isAuthenticated = true;
-        state.admin = action.payload.data.admin;
-        state.token = action.payload.data.token;
+        
+        // 修复数据结构匹配问题
+        if (action.payload.data) {
+          // AuthService返回的结构: { data: { token, user } }
+          state.admin = action.payload.data.user;
+          state.token = action.payload.data.token;
+        } else {
+          // 直接结构: { token, user }
+          state.admin = action.payload.user;
+          state.token = action.payload.token;
+        }
         
         console.log('Redux: 设置后的state.token:', state.token);
+        console.log('Redux: 设置后的state.admin:', state.admin);
         
         // 确保localStorage和Redux状态同步
-        localStorage.setItem('token', action.payload.data.token);
+        localStorage.setItem('token', state.token);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
