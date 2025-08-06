@@ -73,6 +73,9 @@ function App() {
       </a>
 
         <Routes>
+          {/* 根路径重定向到销售页面 */}
+          <Route path="/" element={<Navigate to="/sales" replace />} />
+          
           {/* 管理员登录页面 - 优先级最高 */}
           <Route path="/admin" element={<Suspense fallback={<div>加载中...</div>}><AdminLoginPage /></Suspense>} />
           
@@ -133,8 +136,7 @@ function App() {
             } 
           />
           
-          {/* 默认显示管理员登录页面 */}
-          <Route path="/" element={<Suspense fallback={<div>加载中...</div>}><AdminLoginPage /></Suspense>} />
+
           
           {/* 404页面 - 显示友好错误信息，不重定向 */}
           <Route path="*" element={
