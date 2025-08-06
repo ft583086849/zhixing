@@ -635,38 +635,51 @@ async function handleSales(req, res) {
           let orderQuery;
           let orderParams = [];
           
+          // 查询完整的订单数据而不是统计数据
           if (sale.sales_type === 'primary') {
             orderQuery = `
-              SELECT COUNT(*) as order_count, 
-                     COALESCE(SUM(amount), 0) as total_amount, 
-                     COALESCE(SUM(commission_amount), 0) as total_commission
+              SELECT id, amount, status, commission_amount, commission_rate, 
+                     duration, created_at, payment_time, tradingview_username,
+                     secondary_sales_id, 
+                     (CASE WHEN secondary_sales_id IS NOT NULL THEN 'secondary_sales' ELSE NULL END) as secondary_sales_name
               FROM orders 
               WHERE (primary_sales_id = ? OR (sales_code IS NOT NULL AND sales_code = ?))
+              ORDER BY created_at DESC
             `;
             orderParams = [sale.id, sale.sales_code || ''];
           } else if (sale.sales_type === 'secondary') {
             orderQuery = `
-              SELECT COUNT(*) as order_count, 
-                     COALESCE(SUM(amount), 0) as total_amount, 
-                     COALESCE(SUM(commission_amount), 0) as total_commission
+              SELECT id, amount, status, commission_amount, commission_rate,
+                     duration, created_at, payment_time, tradingview_username,
+                     NULL as secondary_sales_id,
+                     NULL as secondary_sales_name
               FROM orders 
               WHERE (secondary_sales_id = ? OR (sales_code IS NOT NULL AND sales_code = ?))
+              ORDER BY created_at DESC
             `;
             orderParams = [sale.id, sale.sales_code || ''];
           } else {
             // 遗留销售
             orderQuery = `
-              SELECT COUNT(*) as order_count, 
-                     COALESCE(SUM(amount), 0) as total_amount, 
-                     COALESCE(SUM(commission_amount), 0) as total_commission
+              SELECT id, amount, status, commission_amount, commission_rate,
+                     duration, created_at, payment_time, tradingview_username,
+                     NULL as secondary_sales_id,
+                     NULL as secondary_sales_name
               FROM orders 
               WHERE (sales_id = ? OR sales_code = ?)
+              ORDER BY created_at DESC
             `;
             orderParams = [sale.id, sale.sales_code];
           }
           
-          const [orderStats] = await connection.execute(orderQuery, orderParams);
-          const stats = orderStats[0] || { order_count: 0, total_amount: 0, total_commission: 0 };
+          const [orders] = await connection.execute(orderQuery, orderParams);
+          
+          // 计算统计数据
+          const stats = {
+            order_count: orders.length,
+            total_amount: orders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0),
+            total_commission: orders.reduce((sum, order) => sum + (parseFloat(order.commission_amount) || 0), 0)
+          };
           
           return {
             ...sale,
@@ -674,6 +687,8 @@ async function handleSales(req, res) {
             total_amount: parseFloat(stats.total_amount || 0),
             total_commission: parseFloat(stats.total_commission || 0),
             commission_rate: parseFloat(sale.commission_rate || 0.30),
+            // 添加完整的订单数据供前端使用
+            orders: orders || [],
             // 生成销售链接
             user_sales_link: sale.sales_code ? `/purchase?sales_code=${sale.sales_code}` : '',
             secondary_registration_link: (sale.sales_type === 'primary' && sale.secondary_registration_code) ? 
@@ -692,7 +707,8 @@ async function handleSales(req, res) {
             order_count: 0,
             total_amount: 0,
             total_commission: 0,
-            commission_rate: parseFloat(sale.commission_rate || 0.30)
+            commission_rate: parseFloat(sale.commission_rate || 0.30),
+            orders: [] // 添加空的订单数组
           };
         }
       })

@@ -180,6 +180,15 @@ const handleSearch = () => {
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>
+              <Form.Item name="config_confirmed_filter" label="配置确认状态">
+                <Select placeholder="选择配置确认状态" allowClear>
+                  <Option value="all">全部订单</Option>
+                  <Option value="confirmed">已配置确认</Option>
+                  <Option value="pending">待配置确认</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
               <Space>
                 <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
                   搜索

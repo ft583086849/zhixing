@@ -434,15 +434,15 @@ const AdminSales = () => {
       }
     },
     {
-      title: '有效订单金额',
-      key: 'valid_order_amount',
-      width: 120,
+      title: '已配置确认订单金额',
+      key: 'confirmed_config_amount',
+      width: 140,
       render: (_, record) => {
-        // 计算已配置确认的订单金额（移除config_confirmed过滤）
-        const validOrders = record.orders?.filter(order => 
+        // 计算已配置确认的订单金额
+        const confirmedConfigOrders = record.orders?.filter(order => 
           order.status === 'confirmed_configuration'
         ) || [];
-        const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+        const totalAmount = confirmedConfigOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
         return `$${totalAmount.toFixed(2)}`;
       }
     },
@@ -630,6 +630,15 @@ const AdminSales = () => {
                       {option.label}
                     </Option>
                   ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="config_confirmed_filter" label="配置确认状态">
+                <Select placeholder="选择配置确认状态" allowClear>
+                  <Option value="all">全部订单</Option>
+                  <Option value="confirmed">已配置确认</Option>
+                  <Option value="pending">待配置确认</Option>
                 </Select>
               </Form.Item>
             </Col>
