@@ -208,6 +208,20 @@ export default async function handler(req, res) {
       results.push(`⚠️ status值修复失败: ${error.message}`);
     }
 
+    // 10. 更新status字段ENUM定义
+    try {
+      await connection.execute(`
+        ALTER TABLE orders 
+        MODIFY COLUMN status ENUM(
+          'pending_payment', 'pending_config', 'confirmed_payment', 
+          'confirmed_configuration', 'active', 'expired', 'cancelled', 'rejected'
+        ) DEFAULT 'pending_payment' COMMENT '订单状态'
+      `);
+      results.push(`✅ 更新status字段ENUM定义: 标准化状态值`);
+    } catch (error) {
+      results.push(`⚠️ status字段ENUM更新失败: ${error.message}`);
+    }
+
     // 9. 验证结果
     const [typeStats] = await connection.execute(`
       SELECT 
