@@ -14,20 +14,17 @@ const dbConfig = {
 };
 
 // 统一的响应格式
-const createResponse = (success, data = null, message = '', status = 200) => {
-  return new Response(JSON.stringify({
+const createResponse = (res, success, data = null, message = '', status = 200) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  return res.status(status).json({
     success,
     data,
     message,
     timestamp: new Date().toISOString()
-  }), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': process.env.CORS_ORIGIN || '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    }
   });
 };
 
@@ -42,7 +39,7 @@ const createConnection = async () => {
 };
 
 // 处理管理员订单查询
-const handleAdminOrders = async () => {
+const handleAdminOrders = async (res) => {
   const connection = await createConnection();
   
   try {
@@ -92,18 +89,18 @@ const handleAdminOrders = async () => {
       payment_time: order.payment_time ? new Date(order.payment_time).toLocaleString('zh-CN') : null
     }));
     
-    return createResponse(true, formattedOrders, '订单查询成功');
+    return createResponse(res, true, formattedOrders, '订单查询成功');
     
   } catch (error) {
     console.error('订单查询失败:', error);
-    return createResponse(false, null, '订单查询失败: ' + error.message, 500);
+    return createResponse(res, false, null, '订单查询失败: ' + error.message, 500);
   } finally {
       await connection.end();
     }
 };
 
 // 处理管理员客户管理 - 显示所有数据不过滤
-const handleAdminCustomers = async () => {
+const handleAdminCustomers = async (res) => {
   const connection = await createConnection();
   
   try {
@@ -149,18 +146,18 @@ const handleAdminCustomers = async () => {
       config_confirmed: Boolean(customer.config_confirmed)
     }));
     
-    return createResponse(true, formattedCustomers, '客户查询成功');
+    return createResponse(res, true, formattedCustomers, '客户查询成功');
     
   } catch (error) {
     console.error('客户查询失败:', error);
-    return createResponse(false, null, '客户查询失败: ' + error.message, 500);
+    return createResponse(res, false, null, '客户查询失败: ' + error.message, 500);
   } finally {
       await connection.end();
     }
 };
 
 // 处理管理员数据概览
-const handleAdminOverview = async () => {
+const handleAdminOverview = async (res) => {
   const connection = await createConnection();
   
   try {
@@ -214,41 +211,40 @@ const handleAdminOverview = async () => {
       }))
     };
     
-    return createResponse(true, overview, '数据概览获取成功');
+    return createResponse(res, true, overview, '数据概览获取成功');
         
       } catch (error) {
     console.error('数据概览获取失败:', error);
-    return createResponse(false, null, '数据概览获取失败: ' + error.message, 500);
+    return createResponse(res, false, null, '数据概览获取失败: ' + error.message, 500);
   } finally {
       await connection.end();
     }
 };
 
 // 主处理函数
-module.exports = async function handler(req) {
+module.exports = async function handler(req, res) {
   try {
     // CORS预检请求处理
     if (req.method === 'OPTIONS') {
-      return createResponse(true, null, 'CORS OK');
+      return createResponse(res, true, null, 'CORS OK');
     }
     
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const { action } = req.query;
     
     // 根据action参数路由到不同的处理函数
     switch (action) {
       case 'orders':
-        return await handleAdminOrders();
+        return await handleAdminOrders(res);
       case 'customers':
-        return await handleAdminCustomers();
+        return await handleAdminCustomers(res);
       case 'overview':
-        return await handleAdminOverview();
+        return await handleAdminOverview(res);
       default:
-        return createResponse(false, null, '无效的操作类型', 400);
+        return createResponse(res, false, null, '无效的操作类型', 400);
     }
     
   } catch (error) {
     console.error('管理员API处理失败:', error);
-    return createResponse(false, null, '服务器内部错误: ' + error.message, 500);
+    return createResponse(res, false, null, '服务器内部错误: ' + error.message, 500);
   }
 }
