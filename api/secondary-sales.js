@@ -309,6 +309,19 @@ async function handleRegisterSecondarySales(req, res, connection) {
     // ⚠️ 禁止修改此格式！任何修改前必须先确认数据库字段长度
     const salesCode = `SS${Date.now().toString(36).slice(-8).toUpperCase()}`; // 10字符，严格控制在16字符内
 
+    // 先尝试修复数据库结构（如果需要）
+    try {
+      await connection.execute(`
+        ALTER TABLE secondary_sales 
+        MODIFY COLUMN primary_sales_id INT NULL 
+        COMMENT '一级销售ID，独立注册时为NULL'
+      `);
+      console.log('✅ 数据库结构修复成功：primary_sales_id现在允许NULL');
+    } catch (alterError) {
+      // 如果字段已经允许NULL，这个错误是正常的
+      console.log('ℹ️ 数据库结构修复跳过（可能已修复）:', alterError.message);
+    }
+
     // 直接插入包含sales_code的记录
     const [result] = await connection.execute(
       `INSERT INTO secondary_sales (
@@ -494,12 +507,13 @@ async function handleSecondarySalesSettlement(req, res, connection) {
         o.customer_wechat,
         o.duration,
         o.amount,
-        o.commission_amount as commission,
+        o.commission_amount,
         o.payment_time,
         o.status,
         o.config_confirmed,
         o.expiry_time,
-        o.created_at
+        o.created_at,
+        '${salesData.wechat_name}' as sales_wechat_name
       FROM orders o
       WHERE ${orderWhereConditions.join(' AND ')}
       ORDER BY o.payment_time DESC
@@ -515,12 +529,13 @@ async function handleSecondarySalesSettlement(req, res, connection) {
         o.customer_wechat,
         o.duration,
         o.amount,
-        o.commission_amount as commission,
+        o.commission_amount,
         o.payment_time,
         o.status,
         o.config_confirmed,
         o.expiry_time,
-        o.created_at
+        o.created_at,
+        '${salesData.wechat_name}' as sales_wechat_name
       FROM orders o
       WHERE ${orderWhereConditions.join(' AND ')}
         AND o.status IN ('pending_payment', 'pending_config')
@@ -532,7 +547,7 @@ async function handleSecondarySalesSettlement(req, res, connection) {
     // 计算统计数据
     const totalOrders = ordersRows.length;
     const totalAmount = ordersRows.reduce((sum, order) => sum + parseFloat(order.amount || 0), 0);
-    const totalCommission = ordersRows.reduce((sum, order) => sum + parseFloat(order.commission || 0), 0);
+    const totalCommission = ordersRows.reduce((sum, order) => sum + parseFloat(order.commission_amount || 0), 0);
     const pendingReminderCount = reminderRows.length;
 
     // 返回数据
