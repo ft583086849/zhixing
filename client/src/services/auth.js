@@ -25,12 +25,16 @@ export class AuthService {
       }
       
       // 生成简单token（实际项目中使用JWT）
-      const token = btoa(JSON.stringify({
+      // 修复btoa编码问题：使用encodeURIComponent处理Unicode字符
+      const tokenData = JSON.stringify({
         id: admin.id,
         username: admin.username,
         timestamp: Date.now(),
         expires: Date.now() + (24 * 60 * 60 * 1000) // 24小时
-      }));
+      });
+      
+      // 使用Unicode兼容的编码方式
+      const token = btoa(encodeURIComponent(tokenData));
       
       // 保存到本地存储
       localStorage.setItem('admin_token', token);
@@ -71,7 +75,8 @@ export class AuthService {
         return { valid: false, reason: 'No token' };
       }
       
-      const decoded = JSON.parse(atob(token));
+      // 使用Unicode兼容的解码方式
+      const decoded = JSON.parse(decodeURIComponent(atob(token)));
       const now = Date.now();
       
       // 检查是否过期
