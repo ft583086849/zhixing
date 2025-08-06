@@ -405,6 +405,11 @@ export const API = {
   Cache: CacheManager
 };
 
+// 向后兼容的导出（小写命名）
+export const adminAPI = AdminAPI;
+export const salesAPI = SalesAPI;
+export const ordersAPI = OrdersAPI;
+
 // 向后兼容的默认导出
 export default API;
 
