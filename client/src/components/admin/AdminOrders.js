@@ -284,6 +284,7 @@ const AdminOrders = () => {
       render: (status) => {
         const statusMap = {
           'pending_payment': { text: '待付款确认', color: 'orange' },
+          'pending_review': { text: '待付款确认', color: 'orange' }, // 兼容旧状态名
           'confirmed_payment': { text: '已付款确认', color: 'blue' },
           'pending_config': { text: '待配置确认', color: 'purple' },
           'confirmed_configuration': { text: '已配置确认', color: 'green' },
@@ -341,7 +342,10 @@ const AdminOrders = () => {
       width: 200,
       render: (_, record) => {
         const renderOperations = () => {
-          switch (record.status) {
+          // 处理状态兼容性：pending_review 视为 pending_payment
+          const currentStatus = record.status === 'pending_review' ? 'pending_payment' : record.status;
+          
+          switch (currentStatus) {
             case 'pending_payment':
               // 7天免费订单跳过付款确认，直接进入配置确认
               if (record.duration === '7days') {

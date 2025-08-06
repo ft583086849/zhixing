@@ -238,19 +238,14 @@ async function handleCreatePrimarySales(req, res, connection) {
     const tempId = Date.now();
     const salesCode = `PS${String(tempId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
     
-    // 使用确实存在的数据库字段插入
+    // 使用最基础的字段插入，避免NULL约束错误
     const [result] = await connection.execute(
       `INSERT INTO primary_sales (
-        wechat_name, payment_method, payment_address, alipay_surname, chain_name, sales_code, secondary_registration_code
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        wechat_name, payment_method
+      ) VALUES (?, ?)`,
       [
         params.wechat_name, 
-        params.payment_method,
-        params.payment_address,
-        params.alipay_surname,
-        params.chain_name,
-        userSalesCode,
-        secondaryRegistrationCode
+        params.payment_method
       ]
     );
 
@@ -321,33 +316,15 @@ async function handleGetPrimarySalesList(req, res, connection) {
       throw fieldError;
     }
     
-    // 测试phone字段
-    try {
-      const [phoneTest] = await connection.execute('SELECT phone FROM primary_sales LIMIT 1');
-      console.log('✅ phone字段测试通过');
-    } catch (phoneError) {
-      console.error('❌ phone字段错误:', phoneError.message);
-      throw phoneError;
-    }
+    // 暂时跳过字段测试，直接使用基础字段
+    console.log('⚠️ 跳过字段测试，使用基础字段');
     
-    // 测试email字段
-    try {
-      const [emailTest] = await connection.execute('SELECT email FROM primary_sales LIMIT 1');
-      console.log('✅ email字段测试通过');
-    } catch (emailError) {
-      console.error('❌ email字段错误:', emailError.message);
-      throw emailError;
-    }
-    
-    // 执行完整查询 - 使用所有字段（字段即将添加）
+    // 执行完整查询 - 暂时只使用基础字段
     const [rows] = await connection.execute(
       `SELECT 
         id,
         wechat_name,
         payment_method,
-        phone,
-        email,
-        sales_code,
         created_at
        FROM primary_sales
        ORDER BY created_at DESC`

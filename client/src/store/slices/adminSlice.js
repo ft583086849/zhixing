@@ -150,6 +150,7 @@ const initialState = {
     lifetime_percentage: 0,
   },
   orders: [],
+  sales: [], // 添加缺失的sales字段
   salesLinks: [],
   customers: [],
   pagination: {
@@ -186,6 +187,24 @@ const adminSlice = createSlice({
         state.stats = action.payload.data || action.payload;
       })
       .addCase(getStats.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // 获取销售列表
+      .addCase(getSales.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getSales.fulfilled, (state, action) => {
+        state.loading = false;
+        // 修复：后端返回的是 { success: true, data: { sales: [...], pagination: {...} } } 结构
+        const data = action.payload.data || action.payload;
+        state.sales = data.sales || data || [];
+        if (data.pagination) {
+          state.pagination = data.pagination;
+        }
+      })
+      .addCase(getSales.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
