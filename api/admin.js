@@ -1361,33 +1361,50 @@ async function handleStats(req, res) {
     connection = await mysql.createConnection(dbConfig);
     
     // 获取时间范围参数
-    const { timeRange = 'today', customRange } = req.query;
+    const { timeRange = 'all', customRange } = req.query; // 默认改为'all'显示所有数据
     let dateFilter = '';
     let dateParams = [];
     
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
+    console.log(`📊 数据概览请求 - 时间范围: ${timeRange}`);
+    
     switch (timeRange) {
       case 'today':
         dateFilter = 'AND o.created_at >= ?';
         dateParams = [today];
+        console.log(`📅 今天过滤: >= ${today.toISOString()}`);
         break;
       case 'week':
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         dateFilter = 'AND o.created_at >= ?';
         dateParams = [weekAgo];
+        console.log(`📅 本周过滤: >= ${weekAgo.toISOString()}`);
         break;
       case 'month':
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         dateFilter = 'AND o.created_at >= ?';
         dateParams = [monthStart];
+        console.log(`📅 本月过滤: >= ${monthStart.toISOString()}`);
+        break;
+      case 'year':
+        const yearStart = new Date(now.getFullYear(), 0, 1);
+        dateFilter = 'AND o.created_at >= ?';
+        dateParams = [yearStart];
+        console.log(`📅 本年过滤: >= ${yearStart.toISOString()}`);
         break;
       case 'custom':
         if (customRange && customRange.length === 2) {
           dateFilter = 'AND o.created_at BETWEEN ? AND ?';
           dateParams = [new Date(customRange[0]), new Date(customRange[1])];
+          console.log(`📅 自定义范围过滤: ${customRange[0]} 到 ${customRange[1]}`);
         }
+        break;
+      case 'all':
+      default:
+        // 不添加任何日期过滤，显示所有数据
+        console.log(`📅 显示所有数据，无时间过滤`);
         break;
     }
     
@@ -1409,6 +1426,17 @@ async function handleStats(req, res) {
       FROM orders o
       WHERE 1=1 ${dateFilter}
     `, dateParams);
+    
+    const stats = orderStats[0];
+    console.log('📊 订单统计结果:', {
+      total_orders: stats.total_orders,
+      pending_payment_orders: stats.pending_payment_orders,
+      confirmed_payment_orders: stats.confirmed_payment_orders,
+      pending_config_orders: stats.pending_config_orders,
+      confirmed_config_orders: stats.confirmed_config_orders,
+      total_amount: stats.total_amount,
+      total_commission: stats.total_commission
+    });
     
     // 销售统计
     const [salesStats] = await connection.execute(`
@@ -1767,37 +1795,46 @@ async function handleUpdateOrderStatus(req, res) {
     ];
     
     if (!validStatuses.includes(status)) {
+      console.log(`❌ 状态验证失败: ${status} 不在有效状态列表中`);
       return res.status(400).json({
         success: false,
-        message: `无效的状态值: ${status}`
+        message: `无效的状态值: ${status}`,
+        validStatuses
       });
     }
     
     // 获取订单信息
+    console.log(`🔍 查询订单 ${id} 的信息...`);
     const [orders] = await connection.execute(
       'SELECT * FROM orders WHERE id = ?',
       [id]
     );
     
     if (orders.length === 0) {
+      console.log(`❌ 订单 ${id} 不存在`);
       return res.status(404).json({
         success: false,
-        message: '订单不存在'
+        message: '订单不存在',
+        orderId: id
       });
     }
     
     const order = orders[0];
+    console.log(`📋 找到订单: ID=${order.id}, 当前状态=${order.status}, 即将更新为=${status}`);
     
     // 更新订单状态（简化版，只更新status字段）
     const updateQuery = 'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?';
     const updateParams = [status, id];
     
+    console.log(`🔄 执行更新SQL: ${updateQuery}`, updateParams);
     const [result] = await connection.execute(updateQuery, updateParams);
     
     if (result.affectedRows === 0) {
+      console.log(`❌ 更新失败: 没有行被影响`);
       return res.status(400).json({
         success: false,
-        message: '更新失败'
+        message: '更新失败',
+        debug: { updateQuery, updateParams, result }
       });
     }
     
@@ -1814,8 +1851,21 @@ async function handleUpdateOrderStatus(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ 更新订单状态错误:', error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ 更新订单状态错误:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      errno: error.errno,
+      sql: error.sql
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: error.message,
+      debug: {
+        code: error.code,
+        errno: error.errno
+      }
+    });
   } finally {
     if (connection) await connection.end();
   }

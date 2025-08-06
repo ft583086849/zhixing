@@ -5,7 +5,6 @@ import {
   Card, 
   Tag, 
   message, 
-  Skeleton,
   Typography,
   Select,
   DatePicker,
@@ -20,7 +19,6 @@ import {
   SearchOutlined,
   ExportOutlined
 } from '@ant-design/icons';
-import { Divider } from 'antd';
 import dayjs from 'dayjs';
 import { getCustomers } from '../../store/slices/adminSlice';
 
@@ -32,26 +30,17 @@ const AdminCustomers = () => {
   const dispatch = useDispatch();
   const { customers, loading } = useSelector((state) => state.admin);
   const [form] = Form.useForm();
-
-
-  const [localLoading, setLocalLoading] = useState(false);
-  const [localCustomers, setLocalCustomers] = useState([]);
+  // 移除未使用的状态变量以避免警告
 
   // 初始化数据
   useEffect(() => {
     dispatch(getCustomers());
   }, [dispatch]);
 
+  // 移除未使用的LoadingSkeleton组件
+
   // 处理搜索
-  
-const LoadingSkeleton = () => (
-  <div style={{ padding: '20px' }}>
-    <Skeleton active paragraph={{ rows: 8 }} />
-  </div>
-);
-
-
-const handleSearch = () => {
+  const handleSearch = () => {
     const searchValues = form.getFieldsValue();
     console.log('搜索条件:', searchValues);
     

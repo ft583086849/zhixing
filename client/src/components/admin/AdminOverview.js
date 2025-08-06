@@ -21,7 +21,7 @@ const AdminOverview = () => {
   const dispatch = useDispatch();
   const { stats, loading } = useSelector((state) => state.admin);
   const { admin } = useSelector((state) => state.auth);
-  const [timeRange, setTimeRange] = useState('today');
+  const [timeRange, setTimeRange] = useState('all'); // 默认显示所有数据
   const [customRange, setCustomRange] = useState([]);
 
   useEffect(() => {
@@ -67,6 +67,7 @@ const AdminOverview = () => {
             <Space>
               <span>时间范围：</span>
               <Radio.Group value={timeRange} onChange={(e) => handleTimeRangeChange(e.target.value)}>
+                <Radio.Button value="all">全部数据</Radio.Button>
                 <Radio.Button value="today">今天</Radio.Button>
                 <Radio.Button value="week">本周</Radio.Button>
                 <Radio.Button value="month">本月</Radio.Button>
