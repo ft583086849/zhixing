@@ -1,0 +1,15 @@
+# 强制Vercel只关注React应用
+*
+!client/
+!vercel.json
+!package.json
+
+# 明确忽略可能导致Hexo检测的文件
+_config.yml
+themes/
+source/
+api/
+test/
+*.md
+*.js
+!vercel.json

@@ -1,39 +1,27 @@
 {
-  "name": "payment-management-system",
+  "name": "zhixing-react-app",
   "version": "1.0.0",
-  "description": "支付管理系统",
-  "main": "server/index.js",
+  "description": "知行财库React应用",
+  "private": true,
+  "main": "client/src/index.js",
   "scripts": {
-    "start": "echo '✅ 前端已部署到Vercel，API为Serverless Functions'",
     "build": "cd client && npm install && npm run build",
+    "start": "cd client && npm start",
     "dev": "cd client && npm start",
-    "client": "cd client && npm start",
-    "build-client": "cd client && npm run build",
-    "test": "cd test && node test-system.js",
-    "vercel-build": "cd client && npm install && npm run build",
-    "local-test": "echo '🧪 运行本地测试' && cd test && node test-system.js"
+    "vercel-build": "cd client && npm install && npm run build"
   },
   "keywords": [
-    "payment",
+    "react",
+    "treasury",
     "management",
-    "system"
+    "create-react-app"
   ],
   "author": "",
   "license": "MIT",
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.53.0",
-    "axios": "^1.11.0",
-    "bcryptjs": "^2.4.3",
-    "colors": "^1.4.0",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.14.3",
-    "node-fetch": "^2.7.0",
-    "sequelize": "^6.37.7",
-    "uuid": "^9.0.1"
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@supabase/supabase-js": "^2.53.0"
   },
   "engines": {
     "node": ">=14.0.0"

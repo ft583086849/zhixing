@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "buildCommand": "cd client && npm ci && npm run build",
-  "outputDirectory": "client/build",
-  "installCommand": "npm install && cd client && npm install",
+  "name": "zhixing-react-app",
   "framework": "create-react-app",
+  "buildCommand": "cd client && npm install && npm run build",
+  "outputDirectory": "client/build",
+  "installCommand": "cd client && npm install",
   "rewrites": [
     {
       "source": "/(.*)",
@@ -20,5 +21,7 @@
         }
       ]
     }
-  ]
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }
