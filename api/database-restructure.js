@@ -42,54 +42,35 @@ export default async function handler(req, res) {
     results.push('✅ 数据库连接成功');
 
     // 1. 添加缺失的销售关联字段
-    try {
-      await connection.execute(`
-        ALTER TABLE orders 
-        ADD COLUMN IF NOT EXISTS sales_code VARCHAR(100) COMMENT '标准化销售代码'
-      `);
-      results.push('✅ 添加sales_code字段');
-    } catch (error) {
-      results.push(`⚠️ sales_code字段可能已存在: ${error.message}`);
-    }
-
-    try {
-      await connection.execute(`
-        ALTER TABLE orders 
-        ADD COLUMN IF NOT EXISTS sales_type ENUM('primary', 'secondary', 'legacy') DEFAULT 'legacy' COMMENT '销售类型：一级/二级/遗留'
-      `);
-      results.push('✅ 添加sales_type字段');
-    } catch (error) {
-      results.push(`⚠️ sales_type字段可能已存在: ${error.message}`);
-    }
-
-    try {
-      await connection.execute(`
-        ALTER TABLE orders 
-        ADD COLUMN IF NOT EXISTS primary_sales_id INT DEFAULT NULL COMMENT '一级销售ID'
-      `);
-      results.push('✅ 添加primary_sales_id字段');
-    } catch (error) {
-      results.push(`⚠️ primary_sales_id字段可能已存在: ${error.message}`);
-    }
-
-    try {
-      await connection.execute(`
-        ALTER TABLE orders 
-        ADD COLUMN IF NOT EXISTS secondary_sales_id INT DEFAULT NULL COMMENT '二级销售ID'
-      `);
-      results.push('✅ 添加secondary_sales_id字段');
-    } catch (error) {
-      results.push(`⚠️ secondary_sales_id字段可能已存在: ${error.message}`);
-    }
-
-    try {
-      await connection.execute(`
-        ALTER TABLE orders 
-        ADD COLUMN IF NOT EXISTS config_confirmed BOOLEAN DEFAULT FALSE COMMENT '配置确认状态'
-      `);
-      results.push('✅ 添加config_confirmed字段');
-    } catch (error) {
-      results.push(`⚠️ config_confirmed字段可能已存在: ${error.message}`);
+    // 首先检查哪些字段不存在
+    const [columns] = await connection.execute(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders'
+    `, [dbConfig.database]);
+    
+    const existingColumns = columns.map(col => col.COLUMN_NAME);
+    
+    // 只添加不存在的字段
+    const fieldsToAdd = [
+      { name: 'sales_code', sql: 'sales_code VARCHAR(100) COMMENT \'标准化销售代码\'' },
+      { name: 'sales_type', sql: 'sales_type ENUM(\'primary\', \'secondary\', \'legacy\') DEFAULT \'legacy\' COMMENT \'销售类型：一级/二级/遗留\'' },
+      { name: 'primary_sales_id', sql: 'primary_sales_id INT DEFAULT NULL COMMENT \'一级销售ID\'' },
+      { name: 'secondary_sales_id', sql: 'secondary_sales_id INT DEFAULT NULL COMMENT \'二级销售ID\'' },
+      { name: 'config_confirmed', sql: 'config_confirmed BOOLEAN DEFAULT FALSE COMMENT \'配置确认状态\'' }
+    ];
+    
+    for (const field of fieldsToAdd) {
+      if (!existingColumns.includes(field.name)) {
+        try {
+          await connection.execute(`ALTER TABLE orders ADD COLUMN ${field.sql}`);
+          results.push(`✅ 添加${field.name}字段`);
+        } catch (error) {
+          results.push(`❌ 添加${field.name}字段失败: ${error.message}`);
+        }
+      } else {
+        results.push(`⚠️ ${field.name}字段已存在，跳过`);
+      }
     }
 
     // 2. 修改现有字段
@@ -113,21 +94,34 @@ export default async function handler(req, res) {
       results.push(`⚠️ screenshot_path字段更新失败: ${error.message}`);
     }
 
-    // 3. 添加索引
-    const indexes = [
-      'ADD INDEX IF NOT EXISTS idx_sales_code (sales_code)',
-      'ADD INDEX IF NOT EXISTS idx_sales_type (sales_type)',
-      'ADD INDEX IF NOT EXISTS idx_primary_sales_id (primary_sales_id)',
-      'ADD INDEX IF NOT EXISTS idx_secondary_sales_id (secondary_sales_id)',
-      'ADD INDEX IF NOT EXISTS idx_config_confirmed (config_confirmed)'
+    // 3. 添加索引（检查存在性）
+    const indexesToAdd = [
+      { name: 'idx_sales_code', columns: 'sales_code' },
+      { name: 'idx_sales_type', columns: 'sales_type' },
+      { name: 'idx_primary_sales_id', columns: 'primary_sales_id' },
+      { name: 'idx_secondary_sales_id', columns: 'secondary_sales_id' },
+      { name: 'idx_config_confirmed', columns: 'config_confirmed' }
     ];
 
-    for (const indexSQL of indexes) {
-      try {
-        await connection.execute(`ALTER TABLE orders ${indexSQL}`);
-        results.push(`✅ 添加索引: ${indexSQL.split('(')[0].split(' ').pop()}`);
-      } catch (error) {
-        results.push(`⚠️ 索引可能已存在: ${indexSQL.split('(')[0].split(' ').pop()}`);
+    // 检查现有索引
+    const [existingIndexes] = await connection.execute(`
+      SELECT INDEX_NAME 
+      FROM INFORMATION_SCHEMA.STATISTICS 
+      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orders'
+    `, [dbConfig.database]);
+    
+    const existingIndexNames = existingIndexes.map(idx => idx.INDEX_NAME);
+
+    for (const index of indexesToAdd) {
+      if (!existingIndexNames.includes(index.name)) {
+        try {
+          await connection.execute(`ALTER TABLE orders ADD INDEX ${index.name} (${index.columns})`);
+          results.push(`✅ 添加索引: ${index.name}`);
+        } catch (error) {
+          results.push(`❌ 添加索引失败 ${index.name}: ${error.message}`);
+        }
+      } else {
+        results.push(`⚠️ 索引已存在，跳过: ${index.name}`);
       }
     }
 
