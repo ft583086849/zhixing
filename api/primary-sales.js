@@ -133,7 +133,7 @@ async function handleSettlement(req, res) {
         SUM(o.commission_amount) as total_commission
       FROM primary_sales ps
       LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
-      LEFT JOIN orders o ON (ps.id = o.sales_id OR ss.id = o.sales_id)
+      LEFT JOIN orders o ON (o.primary_sales_id = ps.id OR o.secondary_sales_id = ss.id)
       GROUP BY ps.id
       ORDER BY ps.created_at DESC
     `);
@@ -151,7 +151,7 @@ async function handleSettlement(req, res) {
         SUM(o.commission_amount) as total_commission
       FROM secondary_sales ss
       LEFT JOIN primary_sales ps ON ss.primary_sales_id = ps.id
-      LEFT JOIN orders o ON ss.id = o.sales_id
+      LEFT JOIN orders o ON ss.id = o.secondary_sales_id
       GROUP BY ss.id
       ORDER BY ss.created_at DESC
     `);

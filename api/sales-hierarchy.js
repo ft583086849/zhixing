@@ -119,7 +119,7 @@ async function handleRelationships(req, res) {
         SUM(o.commission_amount) as total_commission
       FROM primary_sales ps
       LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
-      LEFT JOIN orders o ON (ps.id = o.sales_id OR ss.id = o.sales_id)
+      LEFT JOIN orders o ON (o.primary_sales_id = ps.id OR o.secondary_sales_id = ss.id)
       GROUP BY ps.id, ss.id
       ORDER BY ps.created_at DESC, ss.created_at DESC
     `);

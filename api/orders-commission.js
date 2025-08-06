@@ -122,7 +122,7 @@ async function handleStats(req, res) {
         SUM(o.commission_amount) as total_commission,
         AVG(o.commission_amount) as avg_commission
       FROM sales s
-      LEFT JOIN orders o ON s.id = o.sales_id
+      LEFT JOIN orders o ON s.sales_code = o.sales_code OR s.link_code = o.link_code
       GROUP BY s.sales_type
     `);
     
