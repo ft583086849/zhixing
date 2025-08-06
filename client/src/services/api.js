@@ -64,9 +64,9 @@ const clearCache = () => {
 };
 
 
-// 创建axios实例
+// 创建axios实例 - 临时配置用于纯前端部署
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://api-placeholder.temp/api',
   timeout: 10000,
 });
 
@@ -84,12 +84,24 @@ api.interceptors.request.use(
   }
 );
 
-// 响应拦截器
+// 响应拦截器 - 添加临时mock响应用于纯前端部署
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
+    // 临时处理：如果API调用失败，返回mock数据
+    if (error.code === 'ENOTFOUND' || error.message.includes('api-placeholder')) {
+      console.log('🎯 纯前端模式：API调用被mock，返回示例数据');
+      return Promise.resolve({
+        data: { 
+          success: true, 
+          message: '纯前端演示模式',
+          data: [] 
+        }
+      });
+    }
+    
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       // 401错误统一跳转到管理员登录页面
