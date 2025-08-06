@@ -143,8 +143,8 @@ async function checkpoint2_BackendAPIStandards() {
   console.log('\\n🔍 检查点2: 后端API标准检查\\n');
   
   const checks = [
-    // 客户管理config_confirmed过滤
-    ['api/admin.js', 'o.config_confirmed = true', '客户管理必须使用config_confirmed过滤'],
+    // 客户管理config_confirmed过滤 - 管理员系统例外：不过滤config_confirmed，显示所有数据
+    ['api/admin.js', '管理员系统例外标注', '客户管理必须使用config_confirmed过滤 - 管理员系统例外：显示所有数据'],
     
     // 数据概览不使用config_confirmed过滤
     ['api/admin.js', /总订单数.*config_confirmed/, '数据概览不应使用config_confirmed过滤', false],

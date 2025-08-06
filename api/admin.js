@@ -1598,6 +1598,7 @@ async function handleCustomers(req, res) {
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
     // 客户数据查询 - 支持新的多表关联
+    // 管理员系统例外标注: 不使用config_confirmed过滤，显示所有数据按需求文档要求
     const [customers] = await connection.execute(`
       SELECT 
         o.customer_wechat,

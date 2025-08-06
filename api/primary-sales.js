@@ -166,9 +166,13 @@ async function handleCreatePrimarySales(req, res) {
       });
     }
 
-    // 生成唯一代码
-    const salesCode = `PS${Date.now()}${Math.random().toString(36).substr(2, 6)}`.toUpperCase();
-    const secondaryRegistrationCode = `SR${Date.now()}${Math.random().toString(36).substr(2, 6)}`.toUpperCase();
+    // 生成唯一代码（支持临时代码格式）
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(36).substr(2, 6).toUpperCase();
+    
+    // 支持ps_前缀的临时代码格式
+    const salesCode = `ps_${timestamp}_${randomPart}`;
+    const secondaryRegistrationCode = `SR${timestamp}${randomPart}`.toUpperCase();
 
     // 插入数据库
     const [result] = await connection.execute(
