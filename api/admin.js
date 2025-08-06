@@ -1446,8 +1446,15 @@ async function handleStats(req, res) {
     `, dateParams);
     
     const stats = orderStats[0];
-    // 简化日志避免500错误
-    console.log('📊 订单统计:', stats.total_orders, '订单, $', stats.total_amount);
+    console.log('📊 订单统计结果:', {
+      total_orders: stats.total_orders,
+      pending_payment_orders: stats.pending_payment_orders,
+      confirmed_payment_orders: stats.confirmed_payment_orders,
+      pending_config_orders: stats.pending_config_orders,
+      confirmed_config_orders: stats.confirmed_config_orders,
+      total_amount: stats.total_amount,
+      total_commission: stats.total_commission
+    });
     
     // 销售统计
     const [salesStats] = await connection.execute(`
