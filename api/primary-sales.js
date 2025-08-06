@@ -238,14 +238,16 @@ async function handleCreatePrimarySales(req, res, connection) {
     const tempId = Date.now();
     const salesCode = `PS${String(tempId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
     
-    // 使用最基础的字段插入，避免NULL约束错误
+    // 使用完整字段插入，包括sales_code
     const [result] = await connection.execute(
       `INSERT INTO primary_sales (
-        wechat_name, payment_method
-      ) VALUES (?, ?)`,
+        wechat_name, payment_method, payment_address, sales_code
+      ) VALUES (?, ?, ?, ?)`,
       [
         params.wechat_name, 
-        params.payment_method
+        params.payment_method,
+        params.payment_address || 'temp_address_' + tempId, // 提供payment_address
+        salesCode
       ]
     );
 
