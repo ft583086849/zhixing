@@ -52,7 +52,10 @@ export const verifyToken = createAsyncThunk(
 export const logout = createAsyncThunk(
   'auth/logout',
   async () => {
+    // 清理所有认证相关的本地存储
     localStorage.removeItem('token');
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
     return null;
   }
 );
@@ -60,7 +63,7 @@ export const logout = createAsyncThunk(
 const initialState = {
   admin: null,
   token: localStorage.getItem('token'),
-  isAuthenticated: false, // 初始状态为未认证，等待token验证
+  isAuthenticated: !!localStorage.getItem('token'), // 如果有token就认为已认证
   loading: false,
   error: null,
 };
@@ -93,16 +96,22 @@ const authSlice = createSlice({
         console.log('Redux: action.payload:', action.payload);
         
         state.loading = false;
-        state.isAuthenticated = true;
+        state.error = null;
         
-        // 修复数据结构匹配问题
-        if (action.payload.data) {
-          // AuthService返回的结构: { data: { token, user } }
-          state.admin = action.payload.data.user;
-          state.token = action.payload.data.token;
+        // 统一处理登录成功状态
+        if (action.payload && action.payload.token) {
+          state.isAuthenticated = true;
+          state.token = action.payload.token;
+          state.admin = action.payload.user || action.payload.admin || {
+            username: 'admin',
+            name: '系统管理员'
+          };
+          
+          // 确保token已保存到localStorage
+          localStorage.setItem('token', action.payload.token);
         } else {
-          // 直接结构: { token, user }
-          state.admin = action.payload.user;
+          // 兼容旧的数据结构
+          state.admin = action.payload.user || action.payload.admin;
           state.token = action.payload.token;
         }
         

@@ -97,13 +97,13 @@ const UnifiedSecondarySalesPage = () => {
           ...values,
           registration_code: registrationCode,
           primary_sales_id: registrationData?.primary_sales_id,
-          sales_type: 'secondary_linked'
+          sales_type: 'secondary'  // 恢复sales_type字段
         });
       } else {
         // 独立模式 - 独立注册
         response = await salesAPI.registerSecondary({
           ...values,
-          sales_type: 'secondary_independent'
+          sales_type: 'secondary'  // 恢复sales_type字段
         });
       }
 

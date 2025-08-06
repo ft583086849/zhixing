@@ -36,8 +36,9 @@ export class AuthService {
       // 使用Unicode兼容的编码方式
       const token = btoa(encodeURIComponent(tokenData));
       
-      // 保存到本地存储
-      localStorage.setItem('admin_token', token);
+      // 保存到本地存储 - 统一使用token键名
+      localStorage.setItem('token', token);
+      localStorage.setItem('admin_token', token); // 保持向后兼容
       localStorage.setItem('admin_user', JSON.stringify({
         id: admin.id,
         username: admin.username

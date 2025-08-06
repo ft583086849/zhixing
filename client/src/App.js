@@ -33,11 +33,12 @@ function App() {
   const { token, loading } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // 如果有token，验证token有效性
-    if (token) {
+    // 只在应用启动时验证token，避免循环验证
+    const storedToken = localStorage.getItem('token');
+    if (storedToken && !token) {
       dispatch(verifyToken());
     }
-  }, [dispatch, token]); // 添加token依赖，确保token变化时重新验证
+  }, [dispatch]); // 移除token依赖，避免循环触发
 
   if (loading) {
     return <LoadingSpinner />;

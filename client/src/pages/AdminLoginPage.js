@@ -42,13 +42,17 @@ const AdminLoginPage = () => {
     try {
       const result = await dispatch(login(values)).unwrap();
       console.log('登录成功，结果:', result);
-      message.success('登录成功！');
       
-      // 强制跳转到dashboard
-      setTimeout(() => {
-        console.log('强制跳转到dashboard');
+      // 验证登录状态
+      if (result && result.token) {
+        message.success('登录成功！');
+        
+        // 立即跳转，不使用setTimeout
+        console.log('立即跳转到dashboard');
         navigate('/admin/dashboard', { replace: true });
-      }, 100);
+      } else {
+        throw new Error('登录响应格式异常');
+      }
       
     } catch (error) {
       console.error('登录失败:', error);

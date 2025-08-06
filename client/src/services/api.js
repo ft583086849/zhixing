@@ -254,6 +254,7 @@ export const SalesAPI = {
       // 生成唯一的销售代码
       salesData.sales_code = salesData.sales_code || `PRI${Date.now()}`;
       salesData.secondary_registration_code = salesData.secondary_registration_code || `SEC${Date.now()}`;
+      salesData.sales_type = 'primary';  // 添加sales_type字段
       salesData.created_at = new Date().toISOString();
       salesData.updated_at = new Date().toISOString();
       
