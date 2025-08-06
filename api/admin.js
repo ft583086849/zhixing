@@ -666,10 +666,10 @@ async function handleSales(req, res) {
                      NULL as secondary_sales_id,
                      NULL as secondary_sales_name
               FROM orders 
-              WHERE (sales_id = ? OR sales_code = ?)
+              WHERE (link_code = ? OR sales_code = ?)
               ORDER BY created_at DESC
             `;
-            orderParams = [sale.id, sale.sales_code];
+            orderParams = [sale.link_code, sale.sales_code];
           }
           
           const [orders] = await connection.execute(orderQuery, orderParams);
