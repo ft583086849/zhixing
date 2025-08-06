@@ -238,17 +238,16 @@ async function handleCreatePrimarySales(req, res, connection) {
     const tempId = Date.now();
     const salesCode = `PS${String(tempId).padStart(6, '0')}${Date.now().toString(36).slice(-8).toUpperCase()}`;
     
-    // 使用实际存在的数据库字段插入
+    // 使用实际存在的数据库字段插入（暂时不包含sales_code）
     const [result] = await connection.execute(
       `INSERT INTO primary_sales (
-        wechat_name, payment_method, phone, email, sales_code
-      ) VALUES (?, ?, ?, ?, ?)`,
+        wechat_name, payment_method, phone, email
+      ) VALUES (?, ?, ?, ?)`,
       [
         params.wechat_name, 
         params.payment_method,
         'temp_phone_' + tempId, // 临时phone，符合数据库要求
-        params.wechat_name + '@temp.com', // 临时email
-        salesCode
+        params.wechat_name + '@temp.com' // 临时email
       ]
     );
 
@@ -304,21 +303,53 @@ async function handleCreatePrimarySales(req, res, connection) {
 // 获取一级销售列表
 async function handleGetPrimarySalesList(req, res, connection) {
   try {
+    console.log('🔍 开始查询primary_sales表...');
+    
+    // 先测试最基础的查询
+    const [testRows] = await connection.execute('SELECT COUNT(*) as count FROM primary_sales');
+    console.log('📊 primary_sales记录数:', testRows[0].count);
+    
+    // 测试字段是否存在
+    try {
+      const [fieldTest] = await connection.execute('SELECT id, wechat_name FROM primary_sales LIMIT 1');
+      console.log('✅ 基础字段测试通过');
+    } catch (fieldError) {
+      console.error('❌ 基础字段错误:', fieldError.message);
+      throw fieldError;
+    }
+    
+    // 测试phone字段
+    try {
+      const [phoneTest] = await connection.execute('SELECT phone FROM primary_sales LIMIT 1');
+      console.log('✅ phone字段测试通过');
+    } catch (phoneError) {
+      console.error('❌ phone字段错误:', phoneError.message);
+      throw phoneError;
+    }
+    
+    // 测试email字段
+    try {
+      const [emailTest] = await connection.execute('SELECT email FROM primary_sales LIMIT 1');
+      console.log('✅ email字段测试通过');
+    } catch (emailError) {
+      console.error('❌ email字段错误:', emailError.message);
+      throw emailError;
+    }
+    
+    // 执行完整查询
     const [rows] = await connection.execute(
       `SELECT 
-        ps.id,
-        ps.wechat_name,
-        ps.payment_method,
-        ps.phone,
-        ps.email,
-        ps.sales_code,
-        ps.created_at,
-        COUNT(ss.id) as secondary_sales_count
-       FROM primary_sales ps
-       LEFT JOIN secondary_sales ss ON ps.id = ss.primary_sales_id
-       GROUP BY ps.id, ps.wechat_name, ps.payment_method, ps.phone, ps.email, ps.sales_code, ps.created_at
-       ORDER BY ps.created_at DESC`
+        id,
+        wechat_name,
+        payment_method,
+        phone,
+        email,
+        created_at
+       FROM primary_sales
+       ORDER BY created_at DESC`
     );
+    
+    console.log('✅ 查询成功，返回', rows.length, '条记录');
 
     res.status(200).json({
       success: true,
@@ -326,10 +357,19 @@ async function handleGetPrimarySalesList(req, res, connection) {
     });
 
   } catch (error) {
-    console.error('获取一级销售列表错误:', error);
+    console.error('❌ 获取一级销售列表详细错误:', error);
+    console.error('错误消息:', error.message);
+    console.error('错误代码:', error.code);
+    console.error('SQL状态:', error.sqlState);
     res.status(500).json({
       success: false,
-      message: '获取一级销售列表失败'
+      message: '获取一级销售列表失败: ' + error.message,
+      error_details: {
+        message: error.message,
+        code: error.code,
+        sqlState: error.sqlState,
+        stack: error.stack
+      }
     });
   }
 }
