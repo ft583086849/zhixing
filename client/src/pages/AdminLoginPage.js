@@ -40,10 +40,18 @@ const AdminLoginPage = () => {
 
   const handleSubmit = async (values) => {
     try {
-      await dispatch(login(values)).unwrap();
+      const result = await dispatch(login(values)).unwrap();
+      console.log('登录成功，结果:', result);
       message.success('登录成功！');
-      navigate('/admin/dashboard');
+      
+      // 强制跳转到dashboard
+      setTimeout(() => {
+        console.log('强制跳转到dashboard');
+        navigate('/admin/dashboard', { replace: true });
+      }, 100);
+      
     } catch (error) {
+      console.error('登录失败:', error);
       message.error(error || '登录失败');
     }
   };

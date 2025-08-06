@@ -152,8 +152,8 @@ const SalesPage = () => {
                   />
                 </Form.Item>
                 <Form.Item
-                  name="alipay_surname"
-                  label="收款人姓氏"
+                  name="name"
+                  label="收款人姓名"
                   rules={[{ required: true, message: '请输入收款人姓氏' }]}
                  >
                   <Input 
