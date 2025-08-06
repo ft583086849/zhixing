@@ -1,5 +1,5 @@
 // 全新重建的管理员API - 使用统一的数据架构
-const mysql = require('mysql2/promise');
+import mysql from 'mysql2/promise';
 
 // 数据库连接配置
 const dbConfig = {
@@ -222,7 +222,7 @@ const handleAdminOverview = async (res) => {
 };
 
 // 主处理函数
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     // CORS预检请求处理
     if (req.method === 'OPTIONS') {
