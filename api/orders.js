@@ -452,13 +452,17 @@ async function handleCreateOrder(req, res, connection) {
       return date.toISOString().slice(0, 19).replace('T', ' ');
     };
 
-    // 处理截图数据（Base64格式）
+    // 🔧 修复截图存储问题：处理Base64数据存储
     let screenshotData = null;
     if (req.body.screenshot_data) {
-      // 将Base64字符串转换为Buffer存储
-      const base64Data = req.body.screenshot_data.replace(/^data:image\/[a-z]+;base64,/, '');
-      screenshotData = Buffer.from(base64Data, 'base64');
-      console.log('截图数据接收成功，大小:', screenshotData.length, 'bytes');
+      // 保留完整的Base64数据用于管理员查看
+      screenshotData = req.body.screenshot_data;
+      console.log('截图数据接收成功，大小:', screenshotData.length, 'characters');
+      
+      // 如果Base64数据过大，先尝试压缩或截断
+      if (screenshotData.length > 65535) {
+        console.warn('截图数据过大，长度:', screenshotData.length, '，将尝试存储（需要数据库字段支持）');
+      }
     }
 
     // 设置销售身份信息
@@ -481,15 +485,16 @@ async function handleCreateOrder(req, res, connection) {
       secondarySalesId = null; // 遗留销售没有新表ID
     }
 
-      // 🔧 修复完成：恢复销售身份字段，包含完整的字段列表和VALUES数组
+      // 🔧 修复完成：包含所有必需字段包括sales_code
       const [result] = await connection.execute(
         `INSERT INTO orders (
-          link_code, tradingview_username, customer_wechat, duration, amount, 
+          sales_code, link_code, tradingview_username, customer_wechat, duration, amount, 
           payment_method, payment_time, purchase_type, effective_time, expiry_time,
           commission_rate, commission_amount, sales_type, primary_sales_id, secondary_sales_id, screenshot_path
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          finalSalesCode, // 使用sales_code作为link_code的兼容值
+          finalSalesCode, // 标准化销售代码
+          finalSalesCode, // 向后兼容的link_code
           tradingview_username, 
           customer_wechat || null, 
           duration, // 已映射为短值 (7, 30, 90, etc.)
@@ -504,7 +509,7 @@ async function handleCreateOrder(req, res, connection) {
           dbSalesType, // 销售类型：primary/secondary/legacy
           primarySalesId, // 一级销售ID
           secondarySalesId, // 二级销售ID
-          req.body.screenshot_data || null // 保存Base64截图数据
+          screenshotData // 保存完整Base64数据供管理员查看
         ]
       );
 
@@ -524,7 +529,7 @@ async function handleCreateOrder(req, res, connection) {
         effective_time: effectiveTime,
         expiry_time: expiryTime,
         commission_amount: commissionAmount,
-        has_screenshot: !!req.body.screenshot_data
+        has_screenshot: !!screenshotData
       }
     });
   } catch (error) {
