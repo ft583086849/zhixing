@@ -1,189 +1,411 @@
-import axios from 'axios';
-import { getCDNUrl } from '../config/cdn';
+/**
+ * 统一API业务逻辑层
+ * 提供高级业务接口，封装复杂的数据操作逻辑
+ */
 
 import { message } from 'antd';
-// 全局错误处理
-const errorHandler = (error) => {
-  console.error('API错误:', error);
+import { SupabaseService } from './supabase';
+import { AuthService } from './auth';
+
+/**
+ * 统一错误处理
+ */
+const handleError = (error, operation = 'API操作') => {
+  console.error(`${operation}失败:`, error);
   
-  if (error.response) {
-    // 服务器响应错误
-    const { status, data } = error.response;
-    switch (status) {
-      case 401:
+  // 根据错误类型显示不同的提示
+  if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
         message.error('登录已过期，请重新登录');
-        // 清除本地存储并跳转到登录页
-        localStorage.removeItem('token');
-        window.location.href = '/#/admin';
-        break;
-      case 403:
-        message.error('没有权限访问此资源');
-        break;
-      case 404:
-        message.error('请求的资源不存在');
-        break;
-      case 500:
-        message.error('服务器内部错误，请稍后重试');
-        break;
-      default:
-        message.error(data?.message || '请求失败，请重试');
-    }
-  } else if (error.request) {
-    // 网络错误
-    message.error('网络连接失败，请检查网络设置');
-  } else {
-    // 其他错误
-    message.error('发生未知错误，请重试');
+    AuthService.logout();
+    return;
   }
   
-  return Promise.reject(error);
+  if (error.code === '23505') { // unique_violation
+    message.error('数据已存在，请检查输入');
+    throw error;
+  }
+  
+  if (error.code === '23503') { // foreign_key_violation
+    message.error('关联数据不存在，请检查输入');
+    throw error;
+  }
+  
+  const errorMessage = error.message || `${operation}失败，请重试`;
+  message.error(errorMessage);
+  throw error;
 };
 
-// API缓存配置
-const cache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
-
-// 缓存工具函数
-const getCachedData = (key) => {
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+/**
+ * 缓存管理
+ */
+class CacheManager {
+  static cache = new Map();
+  static CACHE_DURATION = 5 * 60 * 1000; // 5分钟
+  
+  static get(key) {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
     return cached.data;
   }
   return null;
-};
+  }
 
-const setCachedData = (key, data) => {
-  cache.set(key, {
+  static set(key, data) {
+    this.cache.set(key, {
     data,
     timestamp: Date.now()
   });
-};
-
-const clearCache = () => {
-  cache.clear();
-};
-
-
-// 创建axios实例 - 临时配置用于纯前端部署
-const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://api-placeholder.temp/api',
-  timeout: 10000,
-});
-
-// 请求拦截器
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
   }
-);
+  
+  static clear(pattern = null) {
+    if (pattern) {
+      // 清除匹配模式的缓存
+      for (const [key] of this.cache) {
+        if (key.includes(pattern)) {
+          this.cache.delete(key);
+        }
+      }
+    } else {
+      this.cache.clear();
+    }
+  }
+}
 
-// 响应拦截器 - 添加临时mock响应用于纯前端部署
-api.interceptors.response.use(
-  (response) => {
-    return response;
+/**
+ * 管理员API
+ */
+export const AdminAPI = {
+  /**
+   * 管理员登录
+   */
+  async login(credentials) {
+    try {
+      const result = await AuthService.login(credentials.username, credentials.password);
+      CacheManager.clear(); // 登录后清除缓存
+      return {
+        success: true,
+        data: result,
+        message: '登录成功'
+      };
+    } catch (error) {
+      return handleError(error, '管理员登录');
+    }
   },
-  (error) => {
-    // 临时处理：如果API调用失败，返回mock数据
-    if (error.code === 'ENOTFOUND' || error.message.includes('api-placeholder')) {
-      console.log('🎯 纯前端模式：API调用被mock，返回示例数据');
-      return Promise.resolve({
-        data: { 
-          success: true, 
-          message: '纯前端演示模式',
-          data: [] 
+
+  /**
+   * 获取管理员概览数据
+   */
+  async getOverview() {
+    const cacheKey = 'admin-overview';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const [orderStats, salesStats] = await Promise.all([
+        SupabaseService.getOrderStats(),
+        SupabaseService.getSalesStats()
+      ]);
+
+      const result = {
+        success: true,
+        data: {
+          totalOrders: orderStats.total,
+          totalAmount: orderStats.totalAmount,
+          todayOrders: orderStats.todayOrders,
+          totalSales: salesStats.totalSales,
+          primarySales: salesStats.primaryCount,
+          secondarySales: salesStats.secondaryCount
+        },
+        message: '获取概览数据成功'
+      };
+
+      CacheManager.set(cacheKey, result);
+      return result;
+    } catch (error) {
+      return handleError(error, '获取概览数据');
+    }
+  },
+
+  /**
+   * 获取所有订单
+   */
+  async getOrders() {
+    const cacheKey = 'admin-orders';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const orders = await SupabaseService.getOrders();
+      
+      const result = {
+        success: true,
+        data: orders,
+        message: '获取订单列表成功'
+      };
+
+      CacheManager.set(cacheKey, result);
+      return result;
+    } catch (error) {
+      return handleError(error, '获取订单列表');
+    }
+  },
+
+  /**
+   * 获取客户列表（从订单中提取）
+   */
+  async getCustomers() {
+    const cacheKey = 'admin-customers';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const orders = await SupabaseService.getOrders();
+      
+      // 去重并整理客户信息
+      const customerMap = new Map();
+      orders.forEach(order => {
+        const key = `${order.customer_name}-${order.customer_phone}`;
+        if (!customerMap.has(key)) {
+          customerMap.set(key, {
+            name: order.customer_name,
+            phone: order.customer_phone,
+            email: order.customer_email,
+            first_order: order.created_at,
+            order_count: 1,
+            total_amount: parseFloat(order.amount || 0)
+          });
+        } else {
+          const customer = customerMap.get(key);
+          customer.order_count++;
+          customer.total_amount += parseFloat(order.amount || 0);
         }
       });
+
+      const customers = Array.from(customerMap.values());
+      
+      const result = {
+        success: true,
+        data: customers,
+        message: '获取客户列表成功'
+      };
+
+      CacheManager.set(cacheKey, result);
+      return result;
+    } catch (error) {
+      return handleError(error, '获取客户列表');
+    }
+  }
+};
+
+/**
+ * 销售API
+ */
+export const SalesAPI = {
+  /**
+   * 根据销售代码获取销售信息
+   */
+  async getSalesByCode(salesCode) {
+    try {
+      // 先查询一级销售
+      try {
+        const primarySale = await SupabaseService.getPrimarySalesByCode(salesCode);
+        return {
+          success: true,
+          data: { ...primarySale, type: 'primary' },
+          message: '获取一级销售信息成功'
+        };
+      } catch (error) {
+        // 如果不是一级销售，查询二级销售
+        if (error.code === 'PGRST116') { // No rows returned
+          try {
+            const secondarySale = await SupabaseService.getSecondarySalesByCode(salesCode);
+            return {
+              success: true,
+              data: { ...secondarySale, type: 'secondary' },
+              message: '获取二级销售信息成功'
+            };
+          } catch (secondaryError) {
+            if (secondaryError.code === 'PGRST116') {
+              throw new Error('销售代码不存在');
+            }
+            throw secondaryError;
+          }
+        }
+        throw error;
+      }
+    } catch (error) {
+      return handleError(error, '获取销售信息');
+    }
+  },
+
+  /**
+   * 注册二级销售
+   */
+  async registerSecondary(salesData) {
+    try {
+      // 生成唯一的销售代码
+      salesData.sales_code = salesData.sales_code || `SEC${Date.now()}`;
+      salesData.created_at = new Date().toISOString();
+      
+      const newSale = await SupabaseService.createSecondarySales(salesData);
+      
+      CacheManager.clear('sales'); // 清除销售相关缓存
+      
+      return {
+        success: true,
+        data: newSale,
+        message: '二级销售注册成功'
+      };
+    } catch (error) {
+      return handleError(error, '注册二级销售');
+    }
+  },
+
+  /**
+   * 更新佣金比率
+   */
+  async updateCommissionRate(salesId, commissionRate, salesType) {
+    try {
+      let updatedSale;
+      
+      if (salesType === 'primary') {
+        updatedSale = await SupabaseService.updatePrimarySales(salesId, {
+          commission_rate: commissionRate,
+          updated_at: new Date().toISOString()
+        });
+      } else {
+        updatedSale = await SupabaseService.updateSecondarySales(salesId, {
+          commission_rate: commissionRate,
+          updated_at: new Date().toISOString()
+        });
+      }
+      
+      CacheManager.clear('sales'); // 清除销售相关缓存
+      
+      return {
+        success: true,
+        data: updatedSale,
+        message: '佣金比率更新成功'
+      };
+    } catch (error) {
+      return handleError(error, '更新佣金比率');
+    }
+  }
+};
+
+/**
+ * 订单API
+ */
+export const OrdersAPI = {
+  /**
+   * 创建订单
+   */
+  async create(orderData) {
+    try {
+      // 生成订单号
+      orderData.order_number = orderData.order_number || `ORD${Date.now()}`;
+      orderData.created_at = new Date().toISOString();
+      orderData.status = orderData.status || 'pending';
+      orderData.payment_status = orderData.payment_status || 'pending';
+      
+      // 计算佣金（基于销售代码）
+      if (orderData.sales_code) {
+        try {
+          const salesInfo = await this.calculateCommission(orderData.sales_code, orderData.amount);
+          orderData.commission_amount = salesInfo.commission;
+          orderData.sales_type = salesInfo.type;
+        } catch (error) {
+          console.warn('计算佣金失败:', error.message);
+          // 即使佣金计算失败，订单仍然可以创建
+        }
+      }
+      
+      const newOrder = await SupabaseService.createOrder(orderData);
+      
+      CacheManager.clear(); // 清除所有缓存
+      
+      return {
+        success: true,
+        data: newOrder,
+        message: '订单创建成功'
+      };
+    } catch (error) {
+      return handleError(error, '创建订单');
+    }
+  },
+
+  /**
+   * 获取订单详情
+   */
+  async getById(orderId) {
+    try {
+      const order = await SupabaseService.getOrderById(orderId);
+      
+      return {
+        success: true,
+        data: order,
+        message: '获取订单详情成功'
+      };
+    } catch (error) {
+      return handleError(error, '获取订单详情');
+    }
+  },
+
+  /**
+   * 更新订单状态
+   */
+  async updateStatus(orderId, status) {
+    try {
+      const updatedOrder = await SupabaseService.updateOrder(orderId, {
+        status,
+        updated_at: new Date().toISOString()
+      });
+      
+      CacheManager.clear('orders'); // 清除订单相关缓存
+      
+      return {
+        success: true,
+        data: updatedOrder,
+        message: '订单状态更新成功'
+      };
+    } catch (error) {
+      return handleError(error, '更新订单状态');
+    }
+  },
+
+  /**
+   * 计算佣金
+   */
+  async calculateCommission(salesCode, amount) {
+    const salesResult = await SalesAPI.getSalesByCode(salesCode);
+    if (!salesResult.success) {
+      throw new Error('销售代码不存在');
     }
     
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      // 401错误统一跳转到管理员登录页面
-      window.location.href = '/#/admin';
-    }
-    return Promise.reject(error);
+    const sale = salesResult.data;
+    const commissionRate = sale.commission_rate || (sale.type === 'primary' ? 0.4 : 0.3);
+    const commission = parseFloat(amount) * commissionRate;
+    
+    return {
+      commission,
+      type: sale.type,
+      rate: commissionRate
+    };
   }
-);
-
-// 认证API
-export const authAPI = {
-  login: (credentials) => api.post('/auth?path=login', credentials),
-  verifyToken: () => api.get('/auth?path=verify'),
 };
 
-// 销售API
-export const salesAPI = {
-  createSales: (data) => api.post('/sales?path=create', data),
-  createPrimarySales: (data) => api.post('/primary-sales?path=create', data),
-  getSalesByLink: (linkCode) => api.get(`/sales?sales_code=${linkCode}`),
-  getAllSales: () => api.get('/sales?path=list'),
-  getPrimarySalesSettlement: (params) => {
-    const queryString = new URLSearchParams(params).toString();
-    return api.get(`/sales?path=primary-settlement&${queryString}`);
-  },
-  updateSecondaryCommissionRate: (secondarySalesId, commissionRate) => api.put(`/sales?path=update-secondary-commission&id=${secondarySalesId}`, { commissionRate }),
-  removeSecondarySales: (secondarySalesId, reason) => api.put(`/sales?path=remove-secondary&id=${secondarySalesId}`, { reason }),
-  // 一级销售订单结算相关API
-  getPrimarySalesStats: () => api.get('/primary-sales?path=stats'),
-  getPrimarySalesOrders: (params) => api.get('/primary-sales?path=orders', { params }),
-  updateSecondarySalesCommission: (secondarySalesId, commissionRate) => api.put(`/primary-sales?path=update-commission&id=${secondarySalesId}`, { commissionRate }),
-  urgeOrder: (orderId) => api.post(`/primary-sales?path=urge-order&id=${orderId}`),
-  // 二级销售对账API
-  getSecondarySalesSettlement: (params) => api.get('/secondary-sales?path=settlement', { params }),
+/**
+ * 统一导出
+ */
+export const API = {
+  Admin: AdminAPI,
+  Sales: SalesAPI,
+  Orders: OrdersAPI,
+  Auth: AuthService,
+  Cache: CacheManager
 };
 
-// 订单API
-export const ordersAPI = {
-  createOrder: (data) => {
-    // 使用JSON格式发送数据，包括Base64图片
-    return api.post('/orders?path=create', data, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  },
-  getOrdersList: (params) => api.get('/orders', { params }),
-  updateOrderStatus: (orderId, status) => api.put(`/orders?path=update&id=${orderId}`, { status }),
-};
+// 向后兼容的默认导出
+export default API;
 
-// 管理员API
-export const adminAPI = {
-  getStats: (params) => api.get('/admin?path=stats', { params }),
-  getOrders: (params) => api.get('/admin?path=orders', { params }),
-  exportOrders: (params) => api.get('/admin?path=export', { 
-    params,
-    responseType: 'blob'
-  }),
-  getSales: (params) => api.get('/admin?path=sales', { params }),
-  getSalesLinks: (params) => api.get('/admin?path=links', { params }),
-  getCustomers: (params) => api.get('/admin?path=customers', { params }),
-  updateOrderStatus: (orderId, status) => api.put(`/admin?path=update-order&id=${orderId}`, { status }),
-  updateCommissionRate: (salesId, commissionRate, salesType) => api.put(`/admin?path=update-commission&sales_id=${salesId}&sales_type=${salesType}`, { commission_rate: commissionRate }),
-  updateSalesCommission: (salesId, commissionRate, salesType) => api.post('/admin?path=update-sales-commission', { salesId, commissionRate, salesType }),
-  getPaymentConfig: () => api.get('/payment-config?path=get'),
-  savePaymentConfig: (data) => api.put('/payment-config?path=update', data),
-  getSalesHierarchyStats: (params) => api.get('/admin?path=sales-hierarchy-stats', { params }),
-  downloadCommissionData: (params) => api.get('/admin?path=commission-export', { 
-    params,
-    responseType: 'blob'
-  }),
-  exportSalesData: (params) => api.get('/admin?path=export-sales', { 
-    params,
-    responseType: 'blob'
-  }),
-};
-
-// 公开API（不需要认证）
-export const publicAPI = {
-  getPaymentConfig: () => api.get('/payment-config?path=public'),
-};
-
-// 永久授权限量API已移除
-
-export default api; 
+console.log('🚀 统一API服务层初始化完成');
