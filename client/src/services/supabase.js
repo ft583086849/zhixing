@@ -250,18 +250,61 @@ export class SupabaseService {
   static async getOrderStats() {
     const { data: orders, error } = await supabase
       .from('orders')
-      .select('amount, created_at, status');
+      .select('amount, actual_payment_amount, payment_method, created_at, status, commission_amount');
     
     if (error) throw error;
     
     const total = orders.length;
-    const totalAmount = orders.reduce((sum, order) => sum + parseFloat(order.amount || 0), 0);
+    
+    // 计算总金额（美元）- 人民币按7.15汇率换算
+    const totalAmount = orders.reduce((sum, order) => {
+      const actualAmount = parseFloat(order.actual_payment_amount || 0);
+      const paymentMethod = order.payment_method;
+      
+      // 如果是支付宝支付（人民币），按7.15汇率换算为美元
+      if (paymentMethod === 'alipay' && actualAmount > 0) {
+        return sum + (actualAmount / 7.15);
+      }
+      
+      // 如果是加密货币或其他，直接按美元计算
+      return sum + actualAmount;
+    }, 0);
+    
+    // 计算今日订单
     const today = new Date().toDateString();
     const todayOrders = orders.filter(order => 
       new Date(order.created_at).toDateString() === today
     ).length;
     
-    return { total, totalAmount, todayOrders };
+    // 按状态统计订单
+    const pendingPayment = orders.filter(order => order.status === 'pending_payment').length;
+    const confirmedPayment = orders.filter(order => order.status === 'confirmed_payment').length;
+    const pendingConfig = orders.filter(order => order.status === 'pending_config').length;
+    const confirmedConfig = orders.filter(order => order.status === 'confirmed_configuration').length;
+    
+    // 计算总佣金（美元）
+    const totalCommission = orders.reduce((sum, order) => {
+      const commissionAmount = parseFloat(order.commission_amount || 0);
+      const paymentMethod = order.payment_method;
+      
+      // 如果原订单是人民币，佣金也按7.15汇率换算
+      if (paymentMethod === 'alipay' && commissionAmount > 0) {
+        return sum + (commissionAmount / 7.15);
+      }
+      
+      return sum + commissionAmount;
+    }, 0);
+    
+    return { 
+      total, 
+      totalAmount: Math.round(totalAmount * 100) / 100, // 保留2位小数
+      todayOrders,
+      pendingPayment,
+      confirmedPayment,
+      pendingConfig,
+      confirmedConfig,
+      totalCommission: Math.round(totalCommission * 100) / 100
+    };
   }
 
   static async getSalesStats() {

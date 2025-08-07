@@ -319,11 +319,11 @@ export const AdminAPI = {
         total_orders: orderStats.total,
         total_amount: orderStats.totalAmount,
         today_orders: orderStats.todayOrders,
-        pending_payment_orders: 0, // TODO: 需要从orders中计算
-        confirmed_payment_orders: 0, // TODO: 需要从orders中计算
-        pending_config_orders: 0, // TODO: 需要从orders中计算
-        confirmed_config_orders: 0, // TODO: 需要从orders中计算
-        total_commission: 0, // TODO: 需要从orders中计算
+        pending_payment_orders: orderStats.pendingPayment,
+        confirmed_payment_orders: orderStats.confirmedPayment,
+        pending_config_orders: orderStats.pendingConfig,
+        confirmed_config_orders: orderStats.confirmedConfig,
+        total_commission: orderStats.totalCommission,
         primary_sales_count: salesStats.primaryCount,
         secondary_sales_count: salesStats.secondaryCount,
         total_sales: salesStats.totalSales
