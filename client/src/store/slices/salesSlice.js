@@ -20,9 +20,18 @@ export const createPrimarySales = createAsyncThunk(
   async (salesData, { rejectWithValue }) => {
     try {
       const response = await salesAPI.createPrimarySales(salesData);
-      return response.data;
+      console.log('createPrimarySales API 响应:', response);
+      
+      // 修复数据结构问题：如果response包含success字段，说明是包装格式
+      if (response.success && response.data) {
+        return response.data; // 返回实际的链接数据
+      }
+      
+      // 否则按原来的逻辑处理
+      return response.data || response;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '创建失败');
+      console.error('createPrimarySales 错误:', error);
+      return rejectWithValue(error.message || '创建失败');
     }
   }
 );
