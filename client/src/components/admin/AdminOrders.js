@@ -190,6 +190,13 @@ const AdminOrders = () => {
       }
     },
     {
+      title: '用户微信号',
+      dataIndex: 'customer_wechat',
+      key: 'customer_wechat',
+      width: 120,
+      render: (text) => text || '-',
+    },
+    {
       title: 'TradingView用户',
       dataIndex: 'tradingview_username',
       key: 'tradingview_username',
@@ -523,8 +530,13 @@ const AdminOrders = () => {
         <Form form={searchForm} layout="inline">
           <Row gutter={[16, 16]} style={{ width: '100%' }}>
             <Col xs={24} sm={12} md={6}>
-                          <Form.Item name="sales_wechat" label="销售微信号">
-              <Input placeholder="请输入销售微信号" />
+              <Form.Item name="sales_wechat" label="销售微信号">
+                <Input placeholder="请输入销售微信号" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="customer_wechat" label="用户微信号">
+                <Input placeholder="请输入用户微信号" />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>
