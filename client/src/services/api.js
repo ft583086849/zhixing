@@ -419,7 +419,7 @@ export const AdminAPI = {
         
         // 计算总金额（所有订单金额）
         const totalAmount = saleOrders.reduce((sum, order) => {
-          let amount = parseFloat(order.amount || 0);
+          const amount = parseFloat(order.amount || 0);
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -432,7 +432,7 @@ export const AdminAPI = {
           ['confirmed_configuration', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
-          let amount = parseFloat(order.amount || 0);
+          const amount = parseFloat(order.amount || 0);
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
           }
@@ -487,7 +487,7 @@ export const AdminAPI = {
         
         // 计算总金额（所有订单金额）
         const totalAmount = saleOrders.reduce((sum, order) => {
-          let amount = parseFloat(order.amount || 0);
+          const amount = parseFloat(order.amount || 0);
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -500,7 +500,7 @@ export const AdminAPI = {
           ['confirmed_configuration', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
-          let amount = parseFloat(order.amount || 0);
+          const amount = parseFloat(order.amount || 0);
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
           }
@@ -508,21 +508,30 @@ export const AdminAPI = {
         }, 0);
         
         // 二级销售佣金率：独立二级销售30%，一级销售下的二级销售由一级销售设置
-        let commissionRate = 30; // 默认30%
-        if (sale.commission_rate) {
-          commissionRate = sale.commission_rate;
-        } else if (sale.primary_sales_id) {
+        let commissionRate = sale.commission_rate || 0.3; // 默认30%（小数格式）
+        
+        // 兼容性处理：如果是百分比则转换
+        if (commissionRate > 1) {
+          commissionRate = commissionRate / 100;
+        }
+        
+        if (sale.primary_sales_id) {
           // 如果是关联二级销售，使用一级销售设置的佣金率（如果有）
           const primarySale = primarySales.find(p => p.id === sale.primary_sales_id);
           if (primarySale && primarySale.secondary_commission_rate) {
-            commissionRate = primarySale.secondary_commission_rate;
+            let rate = primarySale.secondary_commission_rate;
+            // 兼容性处理
+            if (rate > 1) {
+              rate = rate / 100;
+            }
+            commissionRate = rate;
           }
         }
         
-        // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率
-        const commissionAmount = confirmedAmount * (commissionRate / 100);
+        // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率（小数格式）
+        const commissionAmount = confirmedAmount * commissionRate;
         
-        console.log(`📊 二级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${commissionRate}%, 应返佣金$${commissionAmount.toFixed(2)}`);
+        console.log(`📊 二级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${(commissionRate * 100).toFixed(1)}%, 应返佣金$${commissionAmount.toFixed(2)}`);
         
         // 判断二级销售类型
         let salesDisplayType = '';
@@ -1023,6 +1032,24 @@ export const SalesAPI = {
   },
 
   /**
+   * 获取二级销售结算数据
+   */
+  async getSecondarySalesSettlement(params) {
+    try {
+      const settlementData = await SupabaseService.getSecondarySalesSettlement(params);
+      
+      return {
+        success: true,
+        data: settlementData,
+        message: '获取二级销售结算数据成功'
+      };
+    } catch (error) {
+      console.error('获取二级销售结算数据失败:', error);
+      throw error;
+    }
+  },
+
+  /**
    * 获取一级销售统计数据
    */
   async getPrimarySalesStats() {
@@ -1234,13 +1261,25 @@ export const OrdersAPI = {
     }
     
     const sale = salesResult.data;
-    const commissionRate = sale.commission_rate || (sale.type === 'primary' ? 0.4 : 0.3);
+    // 确保佣金率是小数格式
+    let commissionRate = sale.commission_rate;
+    
+    // 兼容性处理（虽然不需要，但以防万一）
+    if (commissionRate > 1) {
+      commissionRate = commissionRate / 100;
+    }
+    
+    // 默认值：一级40%，二级30%
+    if (!commissionRate) {
+      commissionRate = sale.type === 'primary' ? 0.4 : 0.3;
+    }
+    
     const commission = parseFloat(amount) * commissionRate;
     
     return {
       commission,
       type: sale.type,
-      rate: commissionRate
+      rate: commissionRate  // 返回小数格式
     };
   }
 };
@@ -1264,6 +1303,7 @@ export const salesAPI = {
   createPrimarySales: SalesAPI.registerPrimary,
   createSecondarySales: SalesAPI.registerSecondary,
   getPrimarySalesSettlement: SalesAPI.getPrimarySalesSettlement,
+  getSecondarySalesSettlement: SalesAPI.getSecondarySalesSettlement,
   getPrimarySalesStats: SalesAPI.getPrimarySalesStats,
   getPrimarySalesOrders: SalesAPI.getPrimarySalesOrders,
   updateSecondarySalesCommission: SalesAPI.updateSecondarySalesCommission,
