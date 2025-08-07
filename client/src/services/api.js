@@ -160,6 +160,9 @@ export const AdminAPI = {
     // if (cached) return cached;
 
     try {
+      // 0. 首先尝试同步销售微信号（如果需要）
+      await this.syncSalesWechatNames();
+      
       // 🔧 修复：获取订单数据和销售数据用于正确关联
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       const [ordersResult, primarySalesResult, secondarySalesResult] = await Promise.all([
@@ -299,6 +302,85 @@ export const AdminAPI = {
   },
 
   /**
+   * 同步销售微信号 - 从订单表数据同步到销售表
+   */
+  async syncSalesWechatNames() {
+    try {
+      console.log('开始同步销售微信号...');
+      
+      // 1. 获取所有订单和销售数据
+      const [orders, primarySales, secondarySales] = await Promise.all([
+        SupabaseService.getOrders(),
+        SupabaseService.getPrimarySales(),
+        SupabaseService.getSecondarySales()
+      ]);
+      
+      // 2. 建立销售代码到微信号的映射（从订单中提取）
+      const salesCodeToWechat = new Map();
+      orders.forEach(order => {
+        if (order.sales_wechat_name && order.sales_code) {
+          // 如果该销售代码还没有微信号，或者有更新的微信号，就更新映射
+          if (!salesCodeToWechat.has(order.sales_code)) {
+            salesCodeToWechat.set(order.sales_code, order.sales_wechat_name);
+          }
+        }
+      });
+      
+      console.log(`找到 ${salesCodeToWechat.size} 个销售代码与微信号的映射`);
+      
+      // 3. 更新一级销售的微信号
+      let primaryUpdated = 0;
+      for (const sale of primarySales) {
+        if (!sale.wechat_name && salesCodeToWechat.has(sale.sales_code)) {
+          const wechatName = salesCodeToWechat.get(sale.sales_code);
+          try {
+            await SupabaseService.updatePrimarySales(sale.id, { wechat_name: wechatName });
+            primaryUpdated++;
+            console.log(`更新一级销售 ${sale.sales_code} 的微信号为: ${wechatName}`);
+          } catch (error) {
+            console.error(`更新一级销售 ${sale.sales_code} 失败:`, error);
+          }
+        }
+      }
+      
+      // 4. 更新二级销售的微信号
+      let secondaryUpdated = 0;
+      for (const sale of secondarySales) {
+        if (!sale.wechat_name && salesCodeToWechat.has(sale.sales_code)) {
+          const wechatName = salesCodeToWechat.get(sale.sales_code);
+          try {
+            await SupabaseService.updateSecondarySales(sale.id, { wechat_name: wechatName });
+            secondaryUpdated++;
+            console.log(`更新二级销售 ${sale.sales_code} 的微信号为: ${wechatName}`);
+          } catch (error) {
+            console.error(`更新二级销售 ${sale.sales_code} 失败:`, error);
+          }
+        }
+      }
+      
+      console.log(`同步完成: 更新了 ${primaryUpdated} 个一级销售，${secondaryUpdated} 个二级销售`);
+      
+      // 5. 清除缓存，确保下次获取最新数据
+      CacheManager.clear('admin-sales');
+      CacheManager.clear('admin-customers');
+      
+      return {
+        success: true,
+        primaryUpdated,
+        secondaryUpdated,
+        message: `成功同步销售微信号: 更新了 ${primaryUpdated} 个一级销售，${secondaryUpdated} 个二级销售`
+      };
+    } catch (error) {
+      console.error('同步销售微信号失败:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: '同步销售微信号失败'
+      };
+    }
+  },
+
+  /**
    * 获取销售列表 - 包含订单关联和佣金计算
    */
   async getSales() {
@@ -307,6 +389,9 @@ export const AdminAPI = {
     if (cached) return cached;
 
     try {
+      // 0. 首先尝试同步销售微信号（如果需要）
+      await this.syncSalesWechatNames();
+      
       // 1. 获取基础销售数据和订单数据
       const [primarySales, secondarySales, orders] = await Promise.all([
         SupabaseService.getPrimarySales(),

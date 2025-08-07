@@ -369,7 +369,7 @@ const AdminOrders = () => {
           
           switch (currentStatus) {
             case 'pending_payment':
-              // 7天免费订单跳过付款确认，直接进入配置确认
+              // 7天免费订单直接跳到配置确认状态
               if (record.duration === '7days') {
                 return (
                   <>
@@ -377,9 +377,9 @@ const AdminOrders = () => {
                       type="primary" 
                       size="small"
                       icon={<CheckOutlined />}
-                      onClick={() => handleUpdateStatus(record.id, 'pending_config')}
+                      onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
                     >
-                      配置确认
+                      直接配置确认
                     </Button>
                     <Button 
                       type="link" 
