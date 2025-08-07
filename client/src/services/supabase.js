@@ -251,7 +251,7 @@ export class SupabaseService {
           result.data.forEach(sale => {
             // 根据查询来源判断是一级还是二级销售
             const tableName = result.data.length > 0 ? 
-              (sale.hasOwnProperty('primary_sales_id') ? 'secondary' : 
+              (Object.prototype.hasOwnProperty.call(sale, 'primary_sales_id') ? 'secondary' : 
                result === results[0] || result === results[2] ? 'primary' : 'secondary') : '';
             
             if (sale.sales_code) {
