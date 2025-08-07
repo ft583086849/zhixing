@@ -155,11 +155,21 @@ export const AdminAPI = {
    */
   async getCustomers() {
     const cacheKey = 'admin-customers';
-    const cached = CacheManager.get(cacheKey);
-    if (cached) return cached;
+    // 🔧 禁用缓存，确保数据稳定性
+    // const cached = CacheManager.get(cacheKey);
+    // if (cached) return cached;
 
     try {
-      const orders = await SupabaseService.getOrders();
+      // 🔧 修复：获取订单数据和销售数据用于正确关联
+      const supabaseClient = SupabaseService.supabase || window.supabaseClient;
+      const [ordersResult, primarySalesResult, secondarySalesResult] = await Promise.all([
+        supabaseClient.from('orders').select('*'),
+        supabaseClient.from('primary_sales').select('sales_code, name, wechat_name'),
+        supabaseClient.from('secondary_sales').select('sales_code, name, wechat_name')
+      ]);
+      
+      const orders = ordersResult.data || [];
+      const allSales = [...(primarySalesResult.data || []), ...(secondarySalesResult.data || [])];
       
       // 去重并整理客户信息
       const customerMap = new Map();
@@ -170,12 +180,16 @@ export const AdminAPI = {
         const key = `${customerWechat}-${tradingviewUser}`;
         
         if (!customerMap.has(key) && (customerWechat || tradingviewUser)) {
-          // 获取销售微信号 - 多种策略确保获取到数据
-          const salesWechat = order.sales_wechat_name || 
-                            order.primary_sales?.wechat_name || 
-                            order.secondary_sales?.wechat_name || 
-                            order.sales_name || 
-                            '-';
+          // 🔧 修复：正确的销售微信号获取逻辑 - 通过sales_code查找sales表的name字段
+          let salesWechat = '-';
+          
+          if (order.sales_code) {
+            const matchingSale = allSales.find(sale => sale.sales_code === order.sales_code);
+            if (matchingSale) {
+              // 优先使用name字段，其次wechat_name (根据用户指出销售表微信号是name字段)
+              salesWechat = matchingSale.name || matchingSale.wechat_name || '-';
+            }
+          }
           
           customerMap.set(key, {
             customer_name: customerWechat || tradingviewUser, // 修复：添加customer_name
@@ -195,13 +209,14 @@ export const AdminAPI = {
           customer.actual_payment_amount += parseFloat(order.actual_payment_amount || 0);
           customer.commission_amount += parseFloat(order.commission_amount || 0);
           
-          // 确保销售微信号不为空
-          if (!customer.sales_wechat_name || customer.sales_wechat_name === '') {
-            customer.sales_wechat_name = order.sales_wechat_name || 
-                                       order.primary_sales?.wechat_name || 
-                                       order.secondary_sales?.wechat_name || 
-                                       order.sales_name || 
-                                       '-';
+          // 🔧 修复：确保销售微信号不为空，使用正确的关联逻辑
+          if (!customer.sales_wechat_name || customer.sales_wechat_name === '-') {
+            if (order.sales_code) {
+              const matchingSale = allSales.find(sale => sale.sales_code === order.sales_code);
+              if (matchingSale) {
+                customer.sales_wechat_name = matchingSale.name || matchingSale.wechat_name || '-';
+              }
+            }
           }
         }
       });
@@ -214,8 +229,9 @@ export const AdminAPI = {
         message: '获取客户列表成功'
       };
 
-      CacheManager.set(cacheKey, result);
-      return result.data; // 修复：直接返回customers数组，保持与其他API一致
+      // 🔧 禁用缓存，确保数据稳定性
+      // CacheManager.set(cacheKey, result);
+      return customers; // 修复：直接返回customers数组
     } catch (error) {
       console.error('获取客户列表失败:', error);
       // 返回空数组而不是抛出错误，确保页面不崩溃
@@ -491,8 +507,9 @@ export const AdminAPI = {
     try {
       console.log('🔍 重新设计的数据概览API - 开始获取统计数据...');
       
-      // 🎯 按用户要求：直接从订单表获取数据，不依赖SupabaseService.getOrders()
-      const { data: orders, error } = await SupabaseService.supabase
+      // 🎯 修复：使用正确的supabase客户端
+      const supabaseClient = SupabaseService.supabase || window.supabaseClient;
+      const { data: orders, error } = await supabaseClient
         .from('orders')
         .select('*');
       
