@@ -285,13 +285,22 @@ export const SalesAPI = {
   },
 
   /**
+   * 生成唯一的销售代码
+   */
+  generateUniqueSalesCode(prefix = 'PRI') {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `${prefix}${timestamp}${random}`;
+  },
+
+  /**
    * 注册一级销售
    */
   async registerPrimary(salesData) {
     try {
-      // 生成唯一的销售代码
-      salesData.sales_code = salesData.sales_code || `PRI${Date.now()}`;
-      salesData.secondary_registration_code = salesData.secondary_registration_code || `SEC${Date.now()}`;
+      // 生成唯一的销售代码 - 增强唯一性
+      salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('PRI');
+      salesData.secondary_registration_code = salesData.secondary_registration_code || this.generateUniqueSalesCode('SEC');
       salesData.sales_type = 'primary';  // 添加sales_type字段
       salesData.created_at = new Date().toISOString();
       salesData.updated_at = new Date().toISOString();
@@ -348,8 +357,9 @@ export const SalesAPI = {
    */
   async registerSecondary(salesData) {
     try {
-      // 生成唯一的销售代码
-      salesData.sales_code = salesData.sales_code || `SEC${Date.now()}`;
+      // 生成唯一的销售代码 - 增强唯一性
+      salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('SEC');
+      salesData.sales_type = 'secondary';  // 添加sales_type字段
       salesData.created_at = new Date().toISOString();
       
       const newSale = await SupabaseService.createSecondarySales(salesData);

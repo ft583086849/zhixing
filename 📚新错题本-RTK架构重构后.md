@@ -246,13 +246,255 @@ API架构不一致：
 
 ---
 
+## 🔵 Error #010 - Database Schema Mismatch: Missing sales_type Column
+
+### 错误现象
+```
+Could not find the 'sales_type' column of 'primary_sales' in the schema cache
+Could not find the 'sales_type' column of 'secondary_sales' in the schema cache
+```
+
+### 错误原因
+- 代码在销售注册时发送`sales_type`字段
+- 数据库表中实际不存在该字段
+- 需求文档v4.3提到要添加此字段，但未实际执行
+
+### 解决方案
+1. **添加缺失字段**：
+   ```sql
+   ALTER TABLE primary_sales 
+   ADD COLUMN sales_type ENUM('primary', 'secondary', 'legacy') 
+   DEFAULT 'primary';
+   
+   ALTER TABLE secondary_sales 
+   ADD COLUMN sales_type ENUM('primary', 'secondary', 'legacy') 
+   DEFAULT 'secondary';
+   ```
+
+2. **更新现有数据**：
+   ```sql
+   UPDATE primary_sales SET sales_type = 'primary' WHERE sales_type IS NULL;
+   UPDATE secondary_sales SET sales_type = 'secondary' WHERE sales_type IS NULL;
+   ```
+
+### 解决方案
+1. **添加缺失字段**：
+   ```sql
+   ALTER TABLE primary_sales 
+   ADD COLUMN sales_type ENUM('primary', 'secondary', 'legacy') 
+   DEFAULT 'primary';
+   
+   ALTER TABLE secondary_sales 
+   ADD COLUMN sales_type ENUM('primary', 'secondary', 'legacy') 
+   DEFAULT 'secondary';
+   ```
+
+2. **更新现有数据**：
+   ```sql
+   UPDATE primary_sales SET sales_type = 'primary' WHERE sales_type IS NULL;
+   UPDATE secondary_sales SET sales_type = 'secondary' WHERE sales_type IS NULL;
+   ```
+
+### 执行记录
+🎯 **修复方案**：手动添加sales_type字段
+- **执行方式**：直接在数据库表中手动添加字段
+- **修复目标**：添加缺失的sales_type字段到primary_sales和secondary_sales表
+- **操作步骤**（PostgreSQL语法）：
+  1. ~~先创建枚举类型~~：`sales_type_enum` 类型已存在 ✅
+  2. 在primary_sales表添加：`ALTER TABLE primary_sales ADD COLUMN sales_type sales_type_enum DEFAULT 'primary';`
+  3. 在secondary_sales表添加：`ALTER TABLE secondary_sales ADD COLUMN sales_type sales_type_enum DEFAULT 'secondary';`
+- **错误修正**：PostgreSQL需要先创建ENUM类型，不能直接使用ENUM关键字
+- **状态更新**：sales_type_enum 类型已存在，直接添加字段即可
+- **验证脚本**：创建了 `🔍验证sales_type字段添加结果.sql` 用于检查修复结果
+- **⚠️ 发现问题**：字段已添加到数据库，但Supabase schema缓存未更新
+- **错误仍存在**：`Could not find the 'sales_type' column of 'primary_sales' in the schema cache`
+- **根本原因**：Supabase schema缓存问题，需要刷新缓存或重启API
+- **解决方案**：重启 Supabase 项目刷新 schema 缓存
+- **操作状态**：已重启项目，但错误仍然存在
+- **深层问题**：字段添加操作失败，sales_type字段根本不存在
+- **确认问题**：ERROR: column "sales_type" does not exist in primary_sales
+- **真正原因**：字段添加SQL没有真正执行成功
+- **重新执行**：运行 `🔧重新添加sales_type字段.sql` 脚本
+- **进度状态**：sales_type_enum 类型已存在（正常），继续添加字段...
+- **第1步完成**：✅ primary_sales 表 sales_type 字段添加成功
+- **第2步完成**：✅ secondary_sales 表 sales_type 字段已存在
+- **修复状态**：🎉 两个表都已有 sales_type 字段！
+- **测试结果**：✅ 一级销售注册成功，sales_type字段问题已解决
+- **新问题1**：一级销售成功后未显示注册链接和购买链接
+- **新问题2**：二级销售注册失败 - name字段约束违反
+
+### 经验教训
+- **数据库变更必须严格执行**：需求文档提到的schema变更必须完整实施
+- **代码与数据库一致性检查**：部署前必须验证表结构与代码期望一致
+- **错题本验证机制**：部署前应该运行销售注册测试用例
+- **Schema缓存问题**：Supabase的schema缓存可能需要刷新
+
+---
+
+## 🔵 Error #011 - Secondary Sales Name Field Constraint Violation
+
+### 错误现象
+```
+null value in column "name" of relation "secondary_sales" violates not-null constraint
+```
+
+### 错误原因
+- 二级销售注册表单没有提供 `name` 字段
+- 数据库中 `name` 字段设置为 NOT NULL 约束
+- 前端表单结构与数据库约束不匹配
+
+### 解决方案
+1. **字段名统一修复**：
+   ```javascript
+   // 修改前：
+   name="alipay_surname"  // ❌ 与数据库不匹配
+   
+   // 修改后：
+   name="name"            // ✅ 与数据库字段一致
+   ```
+
+2. **已执行修复**：
+   - 修改 `UnifiedSecondarySalesPage.js` 第270行
+   - 将字段名从 `alipay_surname` 改为 `name`
+   - 保持与一级销售注册一致
+
+3. **部署修复**：
+   - ✅ 已提交修改到GitHub (commit: 3b38b65)
+   - ✅ 已推送触发Vercel自动部署
+   - ✅ 部署完成，二级销售注册修复成功！
+
+4. **测试结果**：
+   - ✅ 二级销售注册成功，生成了用户购买链接
+   - ❌ 用户购买链接访问显示"下单拥挤，请等待"
+
+### 经验教训
+- 表单字段必须与数据库约束保持一致
+- NOT NULL 字段必须在前端表单中提供
+- 数据验证应该在前端和后端都进行
+
+---
+
+## 🔵 Error #012 - Missing Success Page Links Display
+
+### 错误现象
+一级销售注册成功后，页面没有显示：
+- 二级销售注册链接
+- 用户购买链接
+
+### 错误原因
+- 注册成功后的页面逻辑不完整
+- 缺少链接生成或显示逻辑
+- 前端状态管理可能有问题
+
+### 解决方案
+1. 检查一级销售注册成功后的页面跳转逻辑
+2. 验证链接生成功能
+3. 确保成功页面显示必要的操作链接
+
+### 经验教训
+- 注册成功后应该提供明确的下一步操作指引
+- 用户体验需要完整的流程闭环
+- 成功状态需要提供有用的操作链接
+
+---
+
+## 🔵 Error #013 - Purchase Link Shows "Busy" Error Message  
+
+### 错误现象
+二级销售注册成功生成购买链接，但访问链接时显示：
+```
+下单拥挤，请等待
+系统繁忙，请稍后再试
+```
+
+### 错误原因分析
+根据之前的需求[[memory:5085786]]，用户购买失败时统一显示"下单拥挤，请等待"，可能原因：
+1. **销售代码验证失败** - 生成的sales_code在数据库中不存在
+2. **API权限问题** - 购买页面无法访问销售数据  
+3. **数据不一致** - 注册成功但数据未正确存储
+4. **Link Code vs Sales Code** - 参数格式或字段名不匹配
+
+### 错误原因（已确认）
+1. **数据库层面正常** - sales_code `SEC1754532576400` 存在于 secondary_sales 表
+2. **前端逻辑正常** - 参数获取和API调用都正确
+3. **API查询逻辑问题** - 对 primary_sales 查询返回 406 (Not Acceptable)
+4. **错误处理缺陷** - 406错误阻止了后续对 secondary_sales 的查询
+
+### 解决方案
+1. **增强错误处理逻辑**：
+   ```javascript
+   // 修复前：只处理 PGRST116 (No rows returned)
+   if (error.code === 'PGRST116') {
+   
+   // 修复后：处理多种错误类型
+   if (error.code === 'PGRST116' || 
+       error.code === '406' || 
+       error.status === 406 ||
+       error.message?.includes('406') ||
+       error.message?.includes('Not Acceptable')) {
+   ```
+
+2. **部署状态**：
+   - ✅ 已提交修改到GitHub (commit: 626b634)
+   - ✅ 已推送触发Vercel自动部署
+   - 🔄 等待部署完成后测试...
+
+---
+
+## 🔵 Error #014 - Primary Sales Registration Missing Links Display
+
+### 错误现象  
+一级销售注册成功，显示"销售收款信息创建成功！"，但页面没有显示：
+- 二级销售注册链接
+- 用户购买链接
+
+### 错误原因分析
+1. **API返回数据缺失** - createPrimarySales没有返回链接数据
+2. **Redux状态问题** - createdLinks状态没有正确更新
+3. **条件渲染逻辑** - 链接显示的条件判断有问题
+4. **后端链接生成逻辑** - 后端没有生成链接并返回
+
+### 错误原因（已确认）
+**数据结构不匹配问题**：
+- `SalesAPI.registerPrimary` 返回 `{success: true, data: {...links}, message}`
+- `createPrimarySales` 期望直接获取链接数据
+- 导致 `createdLinks` 得到整个包装对象而不是链接数据
+
+### 解决方案
+1. **修复数据提取逻辑**：
+   ```javascript
+   // 修复前：
+   return response.data; // 错误：返回包装对象
+   
+   // 修复后：
+   if (response.success && response.data) {
+     return response.data; // 正确：提取实际链接数据
+   }
+   ```
+
+2. **第二个修复 - Redux数据访问错误**：
+   ```javascript
+   // 错误：Redux处理器访问错误
+   state.createdLinks = action.payload.data; // undefined!
+   
+   // 正确：action.payload已经是链接数据
+   state.createdLinks = action.payload; // ✅ 正确
+   ```
+
+3. **部署状态**：
+   - ✅ 第一次修复API数据提取 (commit: 880bd9b)
+   - ✅ 第二次修复Redux数据访问 (commit: 8861aa6) 
+   - 🔄 等待最新部署完成后测试...
+
+---
+
 ## 📊 错误统计
 
 | 错误类型 | 数量 | 主要原因 |
 |---------|------|----------|
 | API架构不一致 | 3 | 混用不同数据访问方式 |
+| 数据库约束 | 3 | 字段约束与表单不匹配, Schema不一致 |
 | 前端逻辑错误 | 2 | Redux状态管理、路由跳转 |
-| 数据库约束 | 2 | 字段约束与表单不匹配 |
 | 编码问题 | 1 | Unicode字符处理 |
 | 路由问题 | 1 | 路径错误 |
 

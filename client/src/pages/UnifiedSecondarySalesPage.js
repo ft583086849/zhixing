@@ -284,6 +284,16 @@ const UnifiedSecondarySalesPage = () => {
             {paymentMethod === 'crypto' && (
               <>
                 <Form.Item
+                  name="name"
+                  label="收款人姓名"
+                  rules={[{ required: true, message: '请输入收款人姓名' }]}
+                 >
+                  <Input 
+                    placeholder="请输入收款人姓名"
+                    size="large"
+                  />
+                </Form.Item>
+                <Form.Item
                   name="chain_name"
                   label="链名"
                   rules={[{ required: true, message: '请输入链名' }]}
