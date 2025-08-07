@@ -224,7 +224,13 @@ const salesSlice = createSlice({
       })
       .addCase(getSalesByLink.fulfilled, (state, action) => {
         state.loading = false;
-        state.currentSales = action.payload.data;
+        console.log('Redux收到getSalesByLink数据:', action.payload);
+        // 修复：如果payload包含success字段，说明是包装格式，提取data
+        if (action.payload && action.payload.success && action.payload.data) {
+          state.currentSales = action.payload.data;
+        } else {
+          state.currentSales = action.payload;
+        }
       })
       .addCase(getSalesByLink.rejected, (state, action) => {
         state.loading = false;
