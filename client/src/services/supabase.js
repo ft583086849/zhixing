@@ -160,15 +160,6 @@ export class SupabaseService {
   }
 
   // 订单操作
-  static async getOrders() {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data;
-  }
 
   static async getOrderById(orderId) {
     const { data, error } = await supabase
