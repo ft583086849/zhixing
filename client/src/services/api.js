@@ -373,12 +373,13 @@ export const AdminAPI = {
    */
   async getSales() {
     const cacheKey = 'admin-sales';
-    const cached = CacheManager.get(cacheKey);
-    if (cached) return cached;
+    // 🔧 修复：暂时禁用缓存确保数据实时性
+    // const cached = CacheManager.get(cacheKey);
+    // if (cached) return cached;
 
     try {
-      // 0. 首先尝试同步销售微信号（如果需要）
-      await this.syncSalesWechatNames();
+      // 🔧 修复：移除自动同步，避免性能问题
+      // await this.syncSalesWechatNames();
       
       // 1. 获取基础销售数据和订单数据
       const [primarySales, secondarySales, orders] = await Promise.all([
@@ -387,11 +388,20 @@ export const AdminAPI = {
         SupabaseService.getOrders()
       ]);
       
-      console.log('销售数据获取:', {
+      console.log('📊 销售数据获取:', {
         一级销售: primarySales.length,
         二级销售: secondarySales.length,
-        订单数: orders.length
+        订单总数: orders.length
       });
+      
+      // 🔧 添加订单统计日志
+      const ordersBySalesCode = {};
+      orders.forEach(order => {
+        if (order.sales_code) {
+          ordersBySalesCode[order.sales_code] = (ordersBySalesCode[order.sales_code] || 0) + 1;
+        }
+      });
+      console.log('📊 订单按sales_code分布:', ordersBySalesCode);
       
       // 2. 处理一级销售数据
       const processedPrimarySales = primarySales.map(sale => {
@@ -407,13 +417,9 @@ export const AdminAPI = {
           ['confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
         ).length;
         
-        // 计算总金额和佣金
+        // 计算总金额（所有订单金额）
         const totalAmount = saleOrders.reduce((sum, order) => {
-          // 🔧 修复：根据数据库实际情况，优先使用amount
           let amount = parseFloat(order.amount || 0);
-          if (order.actual_payment_amount && parseFloat(order.actual_payment_amount) > 0) {
-            amount = parseFloat(order.actual_payment_amount);
-          }
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -421,22 +427,25 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 计算佣金金额
-        const commissionAmount = saleOrders.reduce((sum, order) => {
-          const commission = parseFloat(order.commission_amount || 0);
-          // 人民币转美元
+        // 🔧 修复：计算已配置确认订单金额（只计算confirmed_configuration和active状态）
+        const confirmedOrders = saleOrders.filter(order => 
+          ['confirmed_configuration', 'active'].includes(order.status)
+        );
+        const confirmedAmount = confirmedOrders.reduce((sum, order) => {
+          let amount = parseFloat(order.amount || 0);
           if (order.payment_method === 'alipay') {
-            return sum + (commission / 7.15);
+            return sum + (amount / 7.15);
           }
-          return sum + commission;
+          return sum + amount;
         }, 0);
         
-        // 一级销售佣金率计算逻辑
-        let commissionRate = 40; // 默认40%
-        if (totalOrders > 0) {
-          // 这里使用简化的佣金率计算，可以后续根据需求文档完善
-          commissionRate = commissionAmount > 0 ? Math.round((commissionAmount / totalAmount) * 100) : 40;
-        }
+        // 一级销售佣金率：默认40%（可根据需求文档调整）
+        const commissionRate = sale.commission_rate || 40;
+        
+        // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率
+        const commissionAmount = confirmedAmount * (commissionRate / 100);
+        
+        console.log(`📊 一级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${commissionRate}%, 应返佣金$${commissionAmount.toFixed(2)}`);
         
         // 🔧 修复：确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
         const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
@@ -455,6 +464,7 @@ export const AdminAPI = {
           total_orders: totalOrders,
           valid_orders: validOrders,
           total_amount: Math.round(totalAmount * 100) / 100,
+          confirmed_amount: Math.round(confirmedAmount * 100) / 100,  // 🔧 新增：已配置确认订单金额
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
           hierarchy_info: '一级销售'
@@ -475,13 +485,9 @@ export const AdminAPI = {
           ['confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
         ).length;
         
-        // 计算总金额和佣金
+        // 计算总金额（所有订单金额）
         const totalAmount = saleOrders.reduce((sum, order) => {
-          // 🔧 修复：根据数据库实际情况，优先使用amount
           let amount = parseFloat(order.amount || 0);
-          if (order.actual_payment_amount && parseFloat(order.actual_payment_amount) > 0) {
-            amount = parseFloat(order.actual_payment_amount);
-          }
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -489,23 +495,34 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 计算佣金金额
-        const commissionAmount = saleOrders.reduce((sum, order) => {
-          const commission = parseFloat(order.commission_amount || 0);
-          // 人民币转美元
+        // 🔧 修复：计算已配置确认订单金额（只计算confirmed_configuration和active状态）
+        const confirmedOrders = saleOrders.filter(order => 
+          ['confirmed_configuration', 'active'].includes(order.status)
+        );
+        const confirmedAmount = confirmedOrders.reduce((sum, order) => {
+          let amount = parseFloat(order.amount || 0);
           if (order.payment_method === 'alipay') {
-            return sum + (commission / 7.15);
+            return sum + (amount / 7.15);
           }
-          return sum + commission;
+          return sum + amount;
         }, 0);
         
         // 二级销售佣金率：独立二级销售30%，一级销售下的二级销售由一级销售设置
         let commissionRate = 30; // 默认30%
         if (sale.commission_rate) {
           commissionRate = sale.commission_rate;
-        } else if (commissionAmount > 0 && totalAmount > 0) {
-          commissionRate = Math.round((commissionAmount / totalAmount) * 100);
+        } else if (sale.primary_sales_id) {
+          // 如果是关联二级销售，使用一级销售设置的佣金率（如果有）
+          const primarySale = primarySales.find(p => p.id === sale.primary_sales_id);
+          if (primarySale && primarySale.secondary_commission_rate) {
+            commissionRate = primarySale.secondary_commission_rate;
+          }
         }
+        
+        // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率
+        const commissionAmount = confirmedAmount * (commissionRate / 100);
+        
+        console.log(`📊 二级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${commissionRate}%, 应返佣金$${commissionAmount.toFixed(2)}`);
         
         // 判断二级销售类型
         let salesDisplayType = '';
@@ -544,6 +561,7 @@ export const AdminAPI = {
           total_orders: totalOrders,
           valid_orders: validOrders,
           total_amount: Math.round(totalAmount * 100) / 100,
+          confirmed_amount: Math.round(confirmedAmount * 100) / 100,  // 🔧 新增：已配置确认订单金额
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
           hierarchy_info: hierarchyInfo

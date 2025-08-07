@@ -55,15 +55,10 @@ const AdminSales = () => {
     if (sales && sales.length > 0) {
       const uniqueRates = new Set();
       sales.forEach(sale => {
-        if (sale.sales?.commission_rate) {
-          uniqueRates.add(sale.sales.commission_rate);
-        }
-        // 为一级销售添加计算出的佣金比率
-        if (sale.sales_type === 'primary') {
-          const calculatedRate = calculatePrimaryCommissionRate(sale);
-          if (calculatedRate && calculatedRate > 0) {
-            uniqueRates.add(Math.round(calculatedRate));
-          }
+        // 🔧 修复：直接使用API返回的commission_rate
+        const rate = sale.commission_rate || sale.sales?.commission_rate;
+        if (rate && rate > 0) {
+          uniqueRates.add(rate);
         }
       });
       
@@ -171,12 +166,14 @@ const AdminSales = () => {
     const exportData = sales.map(sale => ({
       '销售类型': sale.sales?.sales_type === 'primary' ? '一级销售' : '二级销售',
       '微信号': sale.sales?.wechat_name,
-      '链接代码': sale.link_code,
+      '销售代码': sale.sales?.sales_code,
       '层级关系': getHierarchyInfo(sale),
       '总订单数': sale.total_orders,
       '有效订单数': sale.valid_orders,
       '总金额': sale.total_amount,
-      '佣金率': `${sale.sales?.commission_rate || 0}%`,
+      '已配置确认订单金额': sale.confirmed_amount || 0,
+      '佣金率': `${sale.commission_rate || sale.sales?.commission_rate || 0}%`,
+      '应返佣金额': sale.commission_amount || 0,
       '创建时间': sale.sales?.created_at
     }));
 
@@ -350,25 +347,14 @@ const AdminSales = () => {
       dataIndex: 'valid_orders',
       key: 'valid_orders',
       width: 100,
-      render: (_, record) => {
-        // 计算已配置确认的订单（移除config_confirmed过滤）
-        const validOrders = record.orders?.filter(order => 
-          order.status === 'confirmed_config'
-        ) || [];
-        return validOrders.length;
-      }
+      render: (value) => value || 0  // 🔧 修复：直接使用API返回的valid_orders
     },
     {
       title: '总金额',
       dataIndex: 'total_amount',
       key: 'total_amount',
       width: 100,
-      render: (_, record) => {
-        // 计算所有订单金额（移除config_confirmed过滤）
-        const validOrders = record.orders || [];
-        const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-        return `$${totalAmount.toFixed(2)}`;
-      }
+      render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：直接使用API返回的total_amount
     },
     {
       title: '佣金率',
@@ -377,16 +363,8 @@ const AdminSales = () => {
       render: (_, record) => {
         const salesId = record.sales?.id;
         
-        // 为一级销售使用新的佣金比率计算逻辑
-        let autoRate;
-        if (record.sales?.sales_type === 'primary') {
-          autoRate = calculatePrimaryCommissionRate(record);
-        } else {
-          autoRate = calculateAutoCommissionRate(record.orders);
-        }
-        
-        const currentRate = editingCommissionRates[salesId] || record.sales?.commission_rate || autoRate;
-        const finalRate = getFinalCommissionRate(record);
+        // 🔧 修复：直接使用API返回的commission_rate
+        const currentRate = editingCommissionRates[salesId] || record.commission_rate || record.sales?.commission_rate || 0;
         
         if (editingCommissionRates[salesId] !== undefined) {
           return (
@@ -415,11 +393,11 @@ const AdminSales = () => {
         } else {
           return (
             <Space size="small">
-              <Tag color={finalRate === autoRate ? "blue" : "green"}>{currentRate}%</Tag>
+              <Tag color="blue">{currentRate}%</Tag>
               <Button
                 type="link"
                 icon={<EditOutlined />}
-                onClick={() => handleCommissionRateEdit(salesId, finalRate)}
+                onClick={() => handleCommissionRateEdit(salesId, currentRate)}
               />
             </Space>
           );
@@ -428,28 +406,17 @@ const AdminSales = () => {
     },
     {
       title: '已配置确认订单金额',
-      key: 'confirmed_config_amount',
+      dataIndex: 'confirmed_amount',
+      key: 'confirmed_amount',
       width: 140,
-      render: (_, record) => {
-        // 计算已配置确认的订单金额
-        const confirmedConfigOrders = record.orders?.filter(order => 
-          order.status === 'confirmed_config'
-        ) || [];
-        const totalAmount = confirmedConfigOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-        return `$${totalAmount.toFixed(2)}`;
-      }
+      render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：使用API返回的confirmed_amount字段
     },
     {
       title: '应返佣金额',
+      dataIndex: 'commission_amount',
       key: 'commission_amount',
       width: 120,
-      render: (_, record) => {
-        const salesId = record.sales?.id;
-        const finalRate = getFinalCommissionRate(record);
-        const commissionRate = editingCommissionRates[salesId] || finalRate;
-        const commissionAmount = calculateCommissionAmount(record.orders, commissionRate);
-        return `$${commissionAmount.toFixed(2)}`;
-      }
+      render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：直接使用API返回的commission_amount
     },
     {
       title: '已返佣金额',
@@ -492,9 +459,7 @@ const AdminSales = () => {
       width: 100,
       render: (_, record) => {
         const salesId = record.sales?.id;
-        const finalRate = getFinalCommissionRate(record);
-        const commissionRate = editingCommissionRates[salesId] || finalRate;
-        const commissionAmount = calculateCommissionAmount(record.orders, commissionRate);
+        const commissionAmount = record.commission_amount || 0;  // 🔧 修复：使用API返回的commission_amount
         const paidAmount = paidCommissionData[salesId] || 0;
         const pendingAmount = commissionAmount - paidAmount;
         
