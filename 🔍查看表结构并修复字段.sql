@@ -38,3 +38,4 @@ SELECT
 UNION ALL
 SELECT 
   'orders' as table_name, COUNT(*) as count FROM orders;
+

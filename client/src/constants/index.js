@@ -16,7 +16,7 @@ export const API_STATUS = {
 export const ORDER_STATUS = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
-  CONFIRMED_CONFIGURATION: 'confirmed_configuration',
+  CONFIRMED_CONFIG: 'confirmed_config',
   CANCELLED: 'cancelled'
 };
 

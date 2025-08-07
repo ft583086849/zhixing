@@ -25,3 +25,4 @@ CREATE POLICY "Allow anonymous update payment_config" ON payment_config FOR UPDA
 SELECT tablename, policyname, permissive, roles, cmd, qual 
 FROM pg_policies 
 WHERE tablename IN ('primary_sales', 'secondary_sales', 'payment_config', 'orders');
+           

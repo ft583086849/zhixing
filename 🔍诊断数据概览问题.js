@@ -120,3 +120,4 @@ async function diagnoseDashboardData() {
 
 // 执行诊断
 diagnoseDashboardData();
+

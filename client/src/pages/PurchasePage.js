@@ -197,7 +197,36 @@ const PurchasePage = () => {
       };
 
       await dispatch(createOrder(formData)).unwrap();
-      message.success('订单提交成功！');
+      
+      // 根据订单类型显示不同的提示信息
+      if (selectedDuration === '7days') {
+        // 免费订单
+        message.success('订单提交成功！');
+      } else {
+        // 付费订单 - 显示特定提示信息，包含销售申请链接
+        Modal.success({
+          title: '订单提交成功',
+          content: (
+            <div>
+              <p>您的订单已提交，请等待管理员确认配置。</p>
+              <p style={{ marginTop: 12 }}>
+                欢迎您加入一起销售。每笔获取30%用户付款收益，
+                <a 
+                  href="https://zhixing-seven.vercel.app/secondary-sales" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ color: '#1890ff', textDecoration: 'underline' }}
+                >
+                  点此链接到销售申请页面
+                </a>
+              </p>
+            </div>
+          ),
+          okText: '确定',
+          width: 480
+        });
+      }
+      
       form.resetFields();
       setFileList([]);
       setAlipayAmount('');

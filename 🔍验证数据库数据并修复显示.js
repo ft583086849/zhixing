@@ -223,3 +223,4 @@ async function verifyAndFixDisplay() {
 // 执行验证和修复
 console.log('💡 开始验证数据并修复显示...\n');
 verifyAndFixDisplay();
+

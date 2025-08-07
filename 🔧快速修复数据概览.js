@@ -92,3 +92,4 @@
   console.log('如果还是没有数据，可能需要在Supabase禁用orders表的RLS');
   console.log('='.repeat(60));
 })();
+

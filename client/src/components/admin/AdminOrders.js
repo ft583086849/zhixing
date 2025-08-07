@@ -24,7 +24,8 @@ import {
   ExportOutlined,
   EyeOutlined,
   CheckOutlined,
-  CloseOutlined
+  CloseOutlined,
+  StopOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getAdminOrders, updateAdminOrderStatus, exportOrders } from '../../store/slices/adminSlice';
@@ -293,10 +294,10 @@ const AdminOrders = () => {
           'confirmed': { text: '已付款', color: 'blue' }, // 兼容旧状态
           'confirmed_payment': { text: '已付款', color: 'blue' },
           'pending_config': { text: '待配置', color: 'purple' },
-          'confirmed_configuration': { text: '已完成', color: 'green' },
-          'confirmed_config': { text: '已完成', color: 'green' }, // 新标准状态
+          'confirmed_config': { text: '已完成', color: 'green' }, // 标准状态，限制在20字符内
           
           // 特殊状态
+          'incomplete': { text: '未完成购买', color: 'gray' }, // 新增状态
           'active': { text: '已生效', color: 'green' },
           'expired': { text: '已过期', color: 'gray' },
           'cancelled': { text: '已取消', color: 'red' },
@@ -431,7 +432,7 @@ const AdminOrders = () => {
                     type="primary" 
                     size="small"
                     icon={<CheckOutlined />}
-                    onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
+                    onClick={() => handleUpdateStatus(record.id, 'confirmed_config')}
                   >
                     配置确认
                   </Button>
@@ -447,10 +448,17 @@ const AdminOrders = () => {
                 </>
               );
               
-            case 'confirmed_configuration':
+            case 'confirmed_config':
               return (
                 <span style={{ color: '#52c41a', fontSize: '12px' }}>
                   ✓ 已完成
+                </span>
+              );
+              
+            case 'incomplete':
+              return (
+                <span style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                  ⛔ 未完成购买
                 </span>
               );
               
@@ -547,7 +555,8 @@ const AdminOrders = () => {
                   <Option value="pending_payment">待付款确认</Option>
                   <Option value="confirmed_payment">已付款确认</Option>
                   <Option value="pending_config">待配置确认</Option>
-                  <Option value="confirmed_configuration">已配置确认</Option>
+                  <Option value="confirmed_config">已配置确认</Option>
+                  <Option value="incomplete">未完成购买</Option>
                   <Option value="active">已生效</Option>
                   <Option value="expired">已过期</Option>
                   <Option value="cancelled">已取消</Option>

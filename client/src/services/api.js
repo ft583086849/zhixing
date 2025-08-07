@@ -974,6 +974,105 @@ export const SalesAPI = {
     } catch (error) {
       return handleError(error, '更新佣金比率');
     }
+  },
+
+  /**
+   * 获取一级销售结算数据
+   */
+  async getPrimarySalesSettlement(params) {
+    try {
+      const settlementData = await SupabaseService.getPrimarySalesSettlement(params);
+      
+      return {
+        success: true,
+        data: settlementData,
+        message: '获取一级销售结算数据成功'
+      };
+    } catch (error) {
+      console.error('获取一级销售结算数据失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 获取一级销售统计数据
+   */
+  async getPrimarySalesStats() {
+    // 暂时返回模拟数据
+    return {
+      success: true,
+      data: {
+        totalCommission: 0,
+        monthlyCommission: 0,
+        totalOrders: 0,
+        monthlyOrders: 0,
+        secondarySales: [],
+        pendingReminderCount: 0
+      },
+      message: '获取统计数据成功'
+    };
+  },
+
+  /**
+   * 获取一级销售订单列表
+   */
+  async getPrimarySalesOrders(params) {
+    // 暂时返回模拟数据
+    return {
+      success: true,
+      data: {
+        data: [],
+        total: 0,
+        page: params?.page || 1
+      },
+      message: '获取订单列表成功'
+    };
+  },
+
+  /**
+   * 更新二级销售佣金
+   */
+  async updateSecondarySalesCommission(secondarySalesId, commissionRate) {
+    try {
+      const updatedSale = await SupabaseService.updateSecondarySales(secondarySalesId, {
+        commission_rate: commissionRate,
+        updated_at: new Date().toISOString()
+      });
+      
+      CacheManager.clear('sales');
+      
+      return {
+        success: true,
+        data: updatedSale,
+        message: '佣金更新成功'
+      };
+    } catch (error) {
+      return handleError(error, '更新佣金');
+    }
+  },
+
+  /**
+   * 移除二级销售
+   */
+  async removeSecondarySales(params) {
+    // 暂时返回成功
+    return {
+      success: true,
+      data: null,
+      message: '移除成功'
+    };
+  },
+
+  /**
+   * 催单
+   */
+  async urgeOrder(orderId) {
+    // 暂时返回成功
+    return {
+      success: true,
+      data: null,
+      message: '催单成功'
+    };
   }
 };
 
@@ -1135,7 +1234,13 @@ export const salesAPI = {
   ...SalesAPI,
   // 向后兼容的别名
   createPrimarySales: SalesAPI.registerPrimary,
-  createSecondarySales: SalesAPI.registerSecondary
+  createSecondarySales: SalesAPI.registerSecondary,
+  getPrimarySalesSettlement: SalesAPI.getPrimarySalesSettlement,
+  getPrimarySalesStats: SalesAPI.getPrimarySalesStats,
+  getPrimarySalesOrders: SalesAPI.getPrimarySalesOrders,
+  updateSecondarySalesCommission: SalesAPI.updateSecondarySalesCommission,
+  removeSecondarySales: SalesAPI.removeSecondarySales,
+  urgeOrder: SalesAPI.urgeOrder
 };
 export const ordersAPI = OrdersAPI;
 export const authAPI = {

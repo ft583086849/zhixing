@@ -73,7 +73,9 @@ const PrimarySalesSettlementPage = () => {
       
       message.success('查询成功');
     } catch (error) {
-      message.error('查询失败');
+      console.error('查询失败详情:', error);
+      const errorMsg = error.message || error || '查询失败';
+      message.error(`查询失败: ${errorMsg}`);
     }
   };
 
@@ -267,7 +269,7 @@ const PrimarySalesSettlementPage = () => {
           'pending_payment': { text: '待付款确认', color: 'orange' },
           'confirmed_payment': { text: '已付款确认', color: 'blue' },
           'pending_config': { text: '待配置确认', color: 'purple' },
-          'confirmed_configuration': { text: '已配置确认', color: 'green' },
+          'confirmed_config': { text: '已配置确认', color: 'green' },
           'confirmed': { text: '已确认', color: 'green' },
           'approved': { text: '已通过', color: 'green' },
           'rejected': { text: '已拒绝', color: 'red' },

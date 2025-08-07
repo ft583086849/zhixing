@@ -173,7 +173,7 @@ const SalesReconciliationPage = () => {
                   'pending_payment': { text: '待付款确认', color: 'processing' },
         'pending_config': { text: '待配置确认', color: 'warning' },
           'confirmed_payment': { text: '已付款确认', color: 'success' },
-          'confirmed_configuration': { text: '已配置确认', color: 'success' },
+          'confirmed_config': { text: '已配置确认', color: 'success' },
           'rejected': { text: '已拒绝', color: 'error' }
         };
         const statusInfo = statusMap[status] || { text: status, color: 'default' };

@@ -71,9 +71,11 @@ export const getPrimarySalesSettlement = createAsyncThunk(
   async (params, { rejectWithValue }) => {
     try {
       const response = await salesAPI.getPrimarySalesSettlement(params);
-      return response.data.data; // 返回API的data字段
+      // 修复：正确处理响应数据结构
+      return response.data || response; // 返回实际数据
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '获取失败');
+      console.error('getPrimarySalesSettlement error:', error);
+      return rejectWithValue(error.message || error.response?.data?.message || '获取失败');
     }
   }
 );
