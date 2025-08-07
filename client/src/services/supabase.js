@@ -204,6 +204,21 @@ export class SupabaseService {
     return data;
   }
 
+  // 订单查询
+  static async getOrders() {
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        primary_sales:primary_sales_id(name, wechat_name, phone),
+        secondary_sales:secondary_sales_id(name, wechat_name, phone)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return orders || [];
+  }
+
   // 统计查询
   static async getOrderStats() {
     const { data: orders, error } = await supabase

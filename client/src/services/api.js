@@ -164,20 +164,31 @@ export const AdminAPI = {
       // 去重并整理客户信息
       const customerMap = new Map();
       orders.forEach(order => {
-        const key = `${order.customer_name}-${order.customer_phone}`;
-        if (!customerMap.has(key)) {
+        // 修复字段名称映射
+        const customerWechat = order.customer_wechat || '';
+        const tradingviewUser = order.tradingview_username || '';
+        const key = `${customerWechat}-${tradingviewUser}`;
+        
+        if (!customerMap.has(key) && (customerWechat || tradingviewUser)) {
+          // 获取销售微信号
+          const salesWechat = order.primary_sales?.wechat_name || 
+                            order.secondary_sales?.wechat_name || 
+                            order.sales_wechat_name || '';
+          
           customerMap.set(key, {
-            name: order.customer_name,
-            phone: order.customer_phone,
-            email: order.customer_email,
+            customer_wechat: customerWechat,
+            tradingview_username: tradingviewUser,
+            sales_wechat_name: salesWechat,
             first_order: order.created_at,
             order_count: 1,
-            total_amount: parseFloat(order.amount || 0)
+            total_amount: parseFloat(order.amount || 0),
+            commission_amount: parseFloat(order.commission_amount || 0)
           });
-        } else {
+        } else if (customerMap.has(key)) {
           const customer = customerMap.get(key);
           customer.order_count++;
           customer.total_amount += parseFloat(order.amount || 0);
+          customer.commission_amount += parseFloat(order.commission_amount || 0);
         }
       });
 
