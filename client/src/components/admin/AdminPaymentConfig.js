@@ -109,13 +109,21 @@ const AdminPaymentConfig = () => {
   };
 
   const alipayUploadProps = {
-    beforeUpload: (file) => handleUpload(file, 'alipay'),
+    beforeUpload: (file) => {
+      handleUpload(file, 'alipay');
+      return false; // 阻止自动上传
+    },
     showUploadList: false,
+    fileList: [], // 确保文件列表为空
   };
 
   const cryptoUploadProps = {
-    beforeUpload: (file) => handleUpload(file, 'crypto'),
+    beforeUpload: (file) => {
+      handleUpload(file, 'crypto');
+      return false; // 阻止自动上传
+    },
     showUploadList: false,
+    fileList: [], // 确保文件列表为空
   };
 
   return (

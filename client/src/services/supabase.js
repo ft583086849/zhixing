@@ -319,11 +319,14 @@ export class SupabaseService {
           console.warn(`订单 ${order.order_number} 无法关联销售信息`);
         }
         
-        // 计算生效时间和到期时间
-        if (order.status === 'confirmed_configuration' && order.created_at) {
+        // 计算生效时间和到期时间 - 所有订单都显示
+        if (order.created_at && order.duration) {
           const createdDate = new Date(order.created_at);
+          
+          // 生效时间：统一使用创建时间
           order.effective_time = order.created_at;
           
+          // 到期时间计算 - 基于创建时间计算
           const expiryDate = new Date(createdDate);
           if (order.duration === '7days') {
             expiryDate.setDate(expiryDate.getDate() + 7);

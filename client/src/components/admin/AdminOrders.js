@@ -363,7 +363,7 @@ const AdminOrders = () => {
                       icon={<CheckOutlined />}
                       onClick={() => handleUpdateStatus(record.id, 'pending_config')}
                     >
-                      进入配置确认
+                      配置确认
                     </Button>
                     <Button 
                       type="link" 
@@ -386,7 +386,7 @@ const AdminOrders = () => {
                     icon={<CheckOutlined />}
                     onClick={() => handleUpdateStatus(record.id, 'confirmed_payment')}
                   >
-                    确认付款
+                    付款确认
                   </Button>
                   <Button 
                     type="link" 
@@ -409,7 +409,7 @@ const AdminOrders = () => {
                     icon={<CheckOutlined />}
                     onClick={() => handleUpdateStatus(record.id, 'pending_config')}
                   >
-                    进入配置确认
+                    配置确认
                   </Button>
                   <Button 
                     type="link" 
@@ -432,7 +432,7 @@ const AdminOrders = () => {
                     icon={<CheckOutlined />}
                     onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
                   >
-                    确认配置完成
+                    配置确认
                   </Button>
                   <Button 
                     type="link" 

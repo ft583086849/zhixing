@@ -7,7 +7,8 @@ export const getStats = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getStats(params);
-      return response.data;
+      // AdminAPI.getStats() 直接返回统计数据对象
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取统计信息失败');
     }
@@ -183,9 +184,9 @@ const adminSlice = createSlice({
       })
       .addCase(getStats.fulfilled, (state, action) => {
         state.loading = false;
-        // 修复：AdminAPI.getStats()返回的data直接是stats对象
+        // 修复：AdminAPI.getStats() 直接返回统计数据对象
         console.log('getStats收到数据:', action.payload);
-        state.stats = { ...state.stats, ...action.payload };
+        state.stats = action.payload || {};
       })
       .addCase(getStats.rejected, (state, action) => {
         state.loading = false;
