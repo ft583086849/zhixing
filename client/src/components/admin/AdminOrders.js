@@ -283,31 +283,35 @@ const AdminOrders = () => {
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status) => {
+      render: (status, record) => {
+        // 标准化状态映射
         const statusMap = {
-          'pending_payment': { text: '待付款确认', color: 'orange' },
-          'pending_review': { text: '待付款确认', color: 'orange' }, // 兼容旧状态名
-          'pending': { text: '待付款确认', color: 'orange' }, // 修复：添加pending状态映射
-          'confirmed': { text: '已确认', color: 'blue' }, // 修复：添加confirmed状态映射
-          'confirmed_payment': { text: '已付款确认', color: 'blue' },
-          'pending_config': { text: '待配置确认', color: 'purple' },
-          'confirmed_configuration': { text: '已配置确认', color: 'green' },
+          // 主流程状态
+          'pending_payment': { text: '待付款', color: 'orange' },
+          'pending_review': { text: '待付款', color: 'orange' }, // 兼容旧状态
+          'pending': { text: '待付款', color: 'orange' }, // 兼容旧状态
+          'confirmed': { text: '已付款', color: 'blue' }, // 兼容旧状态
+          'confirmed_payment': { text: '已付款', color: 'blue' },
+          'pending_config': { text: '待配置', color: 'purple' },
+          'confirmed_configuration': { text: '已完成', color: 'green' },
+          'confirmed_config': { text: '已完成', color: 'green' }, // 新标准状态
+          
+          // 特殊状态
           'active': { text: '已生效', color: 'green' },
           'expired': { text: '已过期', color: 'gray' },
           'cancelled': { text: '已取消', color: 'red' },
+          'refunded': { text: '已退款', color: 'red' },
           'rejected': { text: '已拒绝', color: 'red' }
         };
-        const statusInfo = statusMap[status] || { text: status, color: 'default' };
+        
+        // 7天免费订单特殊处理：如果是pending状态直接显示为待配置
+        let displayStatus = status;
+        if (record.duration === '7days' && (status === 'pending' || status === 'pending_payment')) {
+          displayStatus = 'pending_config';
+        }
+        
+        const statusInfo = statusMap[displayStatus] || { text: displayStatus, color: 'default' };
         return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
-      }
-    },
-    {
-      title: '状态(英文)',
-      dataIndex: 'status',
-      key: 'status_en',
-      width: 140,
-      render: (status) => {
-        return <Tag color="blue">{status}</Tag>;
       }
     },
     {
@@ -362,37 +366,18 @@ const AdminOrders = () => {
           if (currentStatus === 'pending_review' || currentStatus === 'pending') {
             currentStatus = 'pending_payment';
           }
-          // 修复：confirmed状态应该是待配置确认，不是已付款确认
+          // 修复：confirmed状态应该映射为confirmed_payment
           if (currentStatus === 'confirmed') {
-            currentStatus = 'pending_config'; // 修复：confirmed = 待配置确认
+            currentStatus = 'confirmed_payment';
+          }
+          
+          // 7天免费订单特殊处理：跳过付款状态
+          if (record.duration === '7days' && (currentStatus === 'pending_payment' || currentStatus === 'pending')) {
+            currentStatus = 'pending_config';
           }
           
           switch (currentStatus) {
             case 'pending_payment':
-              // 7天免费订单直接跳到配置确认状态
-              if (record.duration === '7days') {
-                return (
-                  <>
-                    <Button 
-                      type="primary" 
-                      size="small"
-                      icon={<CheckOutlined />}
-                      onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
-                    >
-                      配置确认
-                    </Button>
-                    <Button 
-                      type="link" 
-                      size="small"
-                      danger
-                      icon={<CloseOutlined />}
-                      onClick={() => handleUpdateStatus(record.id, 'rejected')}
-                    >
-                      拒绝订单
-                    </Button>
-                  </>
-                );
-              }
               // 付费订单需要付款确认
               return (
                 <>
@@ -425,7 +410,7 @@ const AdminOrders = () => {
                     icon={<CheckOutlined />}
                     onClick={() => handleUpdateStatus(record.id, 'pending_config')}
                   >
-                    配置确认
+                    开始配置
                   </Button>
                   <Button 
                     type="link" 

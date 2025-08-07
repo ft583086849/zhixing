@@ -27,11 +27,36 @@ const AdminOverview = () => {
   useEffect(() => {
     // 只有在已登录的情况下才获取数据
     if (admin) {
+      console.log('📊 AdminOverview: 开始获取统计数据...');
       if (timeRange === 'custom' && customRange.length > 0) {
-        dispatch(getStats({ timeRange: 'custom', customRange }));
+        dispatch(getStats({ timeRange: 'custom', customRange }))
+          .then((result) => {
+            console.log('✅ 统计数据获取结果:', result);
+            if (!result.payload) {
+              console.error('❌ 统计数据为空，尝试重新获取...');
+              // 如果没有数据，尝试不带参数调用
+              dispatch(getStats());
+            }
+          })
+          .catch((error) => {
+            console.error('❌ 获取统计数据失败:', error);
+          });
       } else {
-        dispatch(getStats({ timeRange }));
+        dispatch(getStats({ timeRange }))
+          .then((result) => {
+            console.log('✅ 统计数据获取结果:', result);
+            if (!result.payload) {
+              console.error('❌ 统计数据为空，尝试重新获取...');
+              // 如果没有数据，尝试不带参数调用
+              dispatch(getStats());
+            }
+          })
+          .catch((error) => {
+            console.error('❌ 获取统计数据失败:', error);
+          });
       }
+    } else {
+      console.log('⚠️ AdminOverview: 用户未登录，跳过数据加载');
     }
   }, [dispatch, timeRange, customRange, admin]);
 
