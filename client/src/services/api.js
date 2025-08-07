@@ -205,6 +205,39 @@ export const AdminAPI = {
     } catch (error) {
       return handleError(error, '获取客户列表');
     }
+  },
+
+  /**
+   * 获取支付配置
+   */
+  async getPaymentConfig() {
+    const cacheKey = 'payment-config';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const config = await SupabaseService.getPaymentConfig();
+      
+      const result = {
+        success: true,
+        data: config,
+        message: '获取支付配置成功'
+      };
+
+      CacheManager.set(cacheKey, result);
+      return result.data; // 直接返回配置数据
+    } catch (error) {
+      console.error('获取支付配置失败:', error);
+      // 返回默认配置
+      return {
+        alipay_account: '752304285@qq.com',
+        alipay_name: '梁',
+        crypto_chain_name: 'TRC10/TRC20',
+        crypto_address: 'TDnNfU9GYcDbzFqf8LUNzBuTsaDbCh5LTo',
+        alipay_qr_code: null,
+        crypto_qr_code: null
+      };
+    }
   }
 };
 

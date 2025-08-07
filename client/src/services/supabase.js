@@ -240,6 +240,23 @@ export class SupabaseService {
       totalSales: primarySales.length + secondarySales.length
     };
   }
+
+  // 获取支付配置
+  static async getPaymentConfig() {
+    const { data: config, error } = await supabase
+      .from('payment_config')
+      .select('*')
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+    
+    if (error) {
+      console.error('获取支付配置失败:', error);
+      throw error;
+    }
+    
+    return config;
+  }
 }
 
 console.log('🚀 Supabase服务层初始化完成');

@@ -1,21 +1,18 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { AdminAPI } from '../../services/api';
 
 // 异步action：获取支付配置
 export const getPaymentConfig = createAsyncThunk(
   'paymentConfig/getPaymentConfig',
   async (_, { rejectWithValue }) => {
-    // 返回默认支付配置
-    // 注意：这里没有使用try-catch因为没有真正的异步操作或可能抛出错误的代码
-    return {
-      alipay: {
-        enabled: true,
-        account: '支付宝账户配置'
-      },
-      crypto: {
-        enabled: true,
-        address: '加密货币地址配置'
-      }
-    };
+    try {
+      const response = await AdminAPI.getPaymentConfig();
+      console.log('获取到的支付配置:', response);
+      return response;
+    } catch (error) {
+      console.error('获取支付配置失败:', error);
+      return rejectWithValue(error.message || '获取支付配置失败');
+    }
   }
 );
 

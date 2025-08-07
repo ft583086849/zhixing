@@ -31,6 +31,7 @@ import {
 import dayjs from 'dayjs';
 import { getSalesByLink, clearCurrentSales } from '../store/slices/salesSlice';
 import { createOrder, clearCreatedOrder } from '../store/slices/ordersSlice';
+import { getPaymentConfig } from '../store/slices/paymentConfigSlice';
 import QRCodeDisplay from '../components/QRCodeDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -46,6 +47,7 @@ const PurchasePage = () => {
   const linkCode = searchParams.get('sales_code') || pathLinkCode;
   const { currentSales, loading: salesLoading, error: salesError } = useSelector((state) => state.sales);
   const { loading: orderLoading, error: orderError, createdOrder } = useSelector((state) => state.orders);
+  const { config: paymentConfig, loading: configLoading, error: configError } = useSelector((state) => state.paymentConfig);
   const [form] = Form.useForm();
 
   const [selectedDuration, setSelectedDuration] = useState('');
@@ -67,10 +69,11 @@ const PurchasePage = () => {
     { value: '1year', label: '1年', price: 1588 }
   ];
 
-  // 获取销售信息
+  // 获取销售信息和管理员收款配置
   useEffect(() => {
     if (linkCode) {
       dispatch(getSalesByLink(linkCode));
+      dispatch(getPaymentConfig());
     }
     return () => {
       dispatch(clearCurrentSales());
@@ -251,7 +254,7 @@ const PurchasePage = () => {
 
   // 显示收款信息
   const renderPaymentInfo = () => {
-    if (!currentSales || !paymentMethod || selectedDuration === '7days') return null;
+    if (!currentSales || !paymentMethod || !paymentConfig || selectedDuration === '7days') return null;
 
     if (paymentMethod === 'alipay') {
       return (
@@ -259,24 +262,24 @@ const PurchasePage = () => {
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>
               <Text strong>支付宝账号：</Text>
-              <Text copyable>{currentSales.payment_address}</Text>
+              <Text copyable>{paymentConfig.alipay_account}</Text>
             </div>
             <div>
               <Text strong>收款人姓名：</Text>
-              <Text>{currentSales.name}</Text>
+              <Text>{paymentConfig.alipay_name}</Text>
             </div>
             
             {/* 支付宝收款码图片 */}
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <Text strong style={{ display: 'block', marginBottom: 8 }}>支付宝收款码</Text>
-              {currentSales.qr_code ? (
+              {paymentConfig.alipay_qr_code ? (
                 <Image
                   width={200}
                   height={200}
-                  src={currentSales.qr_code}
+                  src={paymentConfig.alipay_qr_code}
                   style={{ objectFit: 'cover', borderRadius: 8 }}
                   preview={{
-                    src: currentSales.qr_code,
+                    src: paymentConfig.alipay_qr_code,
                   }}
                 />
               ) : (
@@ -320,25 +323,25 @@ const PurchasePage = () => {
           <Card title="链上收款信息" size="small" role="region">
             <Space direction="vertical" style={{ width: '100%' }}>
               <div>
-                <Text strong>收款人姓名：</Text>
-                <Text>{currentSales.name}</Text>
+                <Text strong>链名：</Text>
+                <Text>{paymentConfig.crypto_chain_name}</Text>
               </div>
               <div>
                 <Text strong>收款地址：</Text>
-                <Text copyable>{currentSales.payment_address}</Text>
+                <Text copyable>{paymentConfig.crypto_address}</Text>
               </div>
               
               {/* 链上收款码图片 */}
-              {currentSales.qr_code ? (
+              {paymentConfig.crypto_qr_code ? (
                 <div style={{ textAlign: 'center', marginTop: 16 }}>
                   <Text strong style={{ display: 'block', marginBottom: 8 }}>收款码图片</Text>
                   <Image
                     width={200}
                     height={200}
-                    src={currentSales.qr_code}
+                    src={paymentConfig.crypto_qr_code}
                     style={{ objectFit: 'cover', borderRadius: 8 }}
                     preview={{
-                      src: currentSales.qr_code,
+                      src: paymentConfig.crypto_qr_code,
                     }}
                   />
                 </div>
