@@ -138,6 +138,91 @@ export class SupabaseService {
     return data;
   }
 
+  // 获取一级销售结算数据
+  static async getPrimarySalesSettlement(params) {
+    try {
+      // 1. 首先根据微信号或销售代码查询一级销售
+      let primarySalesQuery = supabase.from('primary_sales').select('*');
+      
+      if (params.wechat_name) {
+        primarySalesQuery = primarySalesQuery.eq('wechat_name', params.wechat_name);
+      }
+      if (params.sales_code) {
+        primarySalesQuery = primarySalesQuery.eq('sales_code', params.sales_code);
+      }
+      
+      const { data: primarySales, error: salesError } = await primarySalesQuery.single();
+      
+      if (salesError) {
+        console.error('查询一级销售失败:', salesError);
+        throw new Error('未找到匹配的一级销售');
+      }
+      
+      // 2. 获取该一级销售的所有订单（通过sales_code关联）
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('sales_code', primarySales.sales_code)
+        .order('created_at', { ascending: false });
+      
+      if (ordersError) {
+        console.error('查询订单失败:', ordersError);
+      }
+      
+      // 3. 获取该一级销售的所有二级销售
+      const { data: secondarySales, error: secondaryError } = await supabase
+        .from('secondary_sales')
+        .select('*')
+        .eq('primary_sales_id', primarySales.id)
+        .order('created_at', { ascending: false });
+      
+      if (secondaryError) {
+        console.error('查询二级销售失败:', secondaryError);
+      }
+      
+      // 4. 计算统计数据
+      const confirmedOrders = orders?.filter(order => order.config_confirmed === true) || [];
+      const totalCommission = confirmedOrders.reduce((sum, order) => sum + (order.commission_amount || 0), 0);
+      const totalOrders = confirmedOrders.length;
+      
+      // 5. 获取待催单订单
+      const reminderOrders = orders?.filter(order => 
+        order.status === 'pending_payment' || 
+        order.status === 'pending_config'
+      ) || [];
+      
+      // 6. 为二级销售计算统计数据
+      const secondarySalesWithStats = (secondarySales || []).map(sales => {
+        const salesOrders = confirmedOrders.filter(order => order.secondary_sales_name === sales.wechat_name);
+        const totalAmount = salesOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+        const totalCommission = salesOrders.reduce((sum, order) => sum + (order.commission_amount || 0), 0);
+        
+        return {
+          ...sales,
+          order_count: salesOrders.length,
+          total_amount: totalAmount,
+          total_commission: totalCommission,
+          commission_rate: sales.commission_rate || 0.1 // 默认10%
+        };
+      });
+      
+      return {
+        sales: primarySales,
+        orders: confirmedOrders,
+        secondarySales: secondarySalesWithStats,
+        reminderOrders: reminderOrders,
+        stats: {
+          totalCommission: totalCommission,
+          totalOrders: totalOrders,
+          pendingReminderCount: reminderOrders.length
+        }
+      };
+    } catch (error) {
+      console.error('获取一级销售结算数据失败:', error);
+      throw error;
+    }
+  }
+
   // 验证二级销售注册码
   static async validateSecondaryRegistrationCode(registrationCode) {
     const { data, error } = await supabase
@@ -407,7 +492,7 @@ export class SupabaseService {
       ['confirmed_payment', 'confirmed'].includes(order.status)
     ).length;
     const pendingConfig = orders.filter(order => order.status === 'pending_config').length;
-    const confirmedConfig = orders.filter(order => order.status === 'confirmed_configuration').length;
+    const confirmedConfig = orders.filter(order => order.status === 'confirmed_config').length;
     
     // 计算总佣金（美元）
     const totalCommission = orders.reduce((sum, order) => {
