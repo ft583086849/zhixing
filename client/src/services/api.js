@@ -465,49 +465,102 @@ export const AdminAPI = {
    */
   async getStats() {
     const cacheKey = 'admin-stats';
-    // 暂时禁用缓存，强制获取最新数据
-    CacheManager.remove(cacheKey);
-    // const cached = CacheManager.get(cacheKey);
-    // if (cached) return cached;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
 
     try {
-      console.log('开始获取统计数据...');
-      const [orderStats, salesStats] = await Promise.all([
-        SupabaseService.getOrderStats(),
-        SupabaseService.getSalesStats()
+      console.log('🔍 开始获取统计数据...');
+      
+      // 简化方案：直接查询订单数据计算统计
+      const orders = await SupabaseService.getOrders();
+      console.log(`📊 查询到订单数据: ${orders.length} 个订单`);
+      
+      if (!orders || orders.length === 0) {
+        console.log('⚠️  订单数据为空，返回零值统计');
+        const emptyStats = {
+          total_orders: 0,
+          total_amount: 0,
+          today_orders: 0,
+          pending_payment_orders: 0,
+          confirmed_payment_orders: 0,
+          pending_config_orders: 0,
+          confirmed_config_orders: 0,
+          total_commission: 0,
+          primary_sales_count: 0,
+          secondary_sales_count: 0,
+          total_sales: 0
+        };
+        CacheManager.set(cacheKey, emptyStats);
+        return emptyStats;
+      }
+      
+      // 手动计算统计数据
+      const today = new Date().toDateString();
+      const todayOrders = orders.filter(order => 
+        new Date(order.created_at).toDateString() === today
+      ).length;
+      
+      const pendingPayment = orders.filter(order => 
+        ['pending_payment', 'pending', 'pending_review'].includes(order.status)
+      ).length;
+      
+      const confirmedPayment = orders.filter(order => 
+        ['confirmed_payment', 'confirmed'].includes(order.status)
+      ).length;
+      
+      const pendingConfig = orders.filter(order => 
+        order.status === 'pending_config'
+      ).length;
+      
+      const confirmedConfig = orders.filter(order => 
+        order.status === 'confirmed_configuration'
+      ).length;
+      
+      // 计算总金额和佣金
+      let totalAmount = 0;
+      let totalCommission = 0;
+      
+      orders.forEach(order => {
+        const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+        const commission = parseFloat(order.commission_amount || 0);
+        
+        // 人民币转美元
+        if (order.payment_method === 'alipay') {
+          totalAmount += (amount / 7.15);
+          totalCommission += (commission / 7.15);
+        } else {
+          totalAmount += amount;
+          totalCommission += commission;
+        }
+      });
+      
+      // 获取销售统计
+      const [primarySales, secondarySales] = await Promise.all([
+        SupabaseService.getPrimarySales(),
+        SupabaseService.getSecondarySales()
       ]);
       
-      console.log('原始统计数据:', { orderStats, salesStats });
-      console.log('orderStats.total:', orderStats?.total);
-      console.log('orderStats类型:', typeof orderStats);
-      
       const stats = {
-        total_orders: orderStats.total || 0,
-        total_amount: orderStats.totalAmount || 0,
-        today_orders: orderStats.todayOrders || 0,
-        pending_payment_orders: orderStats.pendingPayment || 0,
-        confirmed_payment_orders: orderStats.confirmedPayment || 0,
-        pending_config_orders: orderStats.pendingConfig || 0,
-        confirmed_config_orders: orderStats.confirmedConfig || 0,
-        total_commission: orderStats.totalCommission || 0,
-        primary_sales_count: salesStats.primaryCount || 0,
-        secondary_sales_count: salesStats.secondaryCount || 0,
-        total_sales: salesStats.totalSales || 0
+        total_orders: orders.length,
+        total_amount: Math.round(totalAmount * 100) / 100,
+        today_orders: todayOrders,
+        pending_payment_orders: pendingPayment,
+        confirmed_payment_orders: confirmedPayment,
+        pending_config_orders: pendingConfig,
+        confirmed_config_orders: confirmedConfig,
+        total_commission: Math.round(totalCommission * 100) / 100,
+        primary_sales_count: primarySales.length,
+        secondary_sales_count: secondarySales.length,
+        total_sales: primarySales.length + secondarySales.length
       };
       
-      console.log('处理后的统计数据:', stats);
+      console.log('📈 计算完成的统计数据:', stats);
       
-      const result = {
-        success: true,
-        data: stats,
-        message: '获取统计数据成功'
-      };
-
-      CacheManager.set(cacheKey, result);
-      return result.data; // 直接返回统计数据
+      CacheManager.set(cacheKey, stats);
+      return stats;
+      
     } catch (error) {
-      console.error('获取统计数据失败:', error);
-      // 返回默认的空统计数据，而不是抛出错误
+      console.error('❌ 获取统计数据失败:', error);
       const defaultStats = {
         total_orders: 0,
         total_amount: 0,
@@ -521,7 +574,7 @@ export const AdminAPI = {
         secondary_sales_count: 0,
         total_sales: 0
       };
-      console.log('返回默认统计数据:', defaultStats);
+      console.log('📊 返回默认统计数据:', defaultStats);
       return defaultStats;
     }
   },

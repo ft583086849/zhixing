@@ -73,7 +73,7 @@ export const updateAdminOrderStatus = createAsyncThunk(
   async ({ orderId, status }, { rejectWithValue }) => {
     try {
       const response = await adminAPI.updateOrderStatus(orderId, status);
-      return response.data;
+      return response; // AdminAPI直接返回result对象
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '更新订单状态失败');
     }
