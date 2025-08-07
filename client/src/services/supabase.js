@@ -102,16 +102,6 @@ export class SupabaseService {
   }
 
   // 二级销售操作
-  static async getSecondarySales() {
-    const { data, error } = await supabase
-      .from('secondary_sales')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data;
-  }
-
   static async getSecondarySalesByCode(salesCode) {
     const { data, error } = await supabase
       .from('secondary_sales')
