@@ -320,7 +320,11 @@ export const AdminAPI = {
         
         // 计算总金额和佣金
         const totalAmount = saleOrders.reduce((sum, order) => {
-          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          // 🔧 修复：根据数据库实际情况，优先使用amount
+          let amount = parseFloat(order.amount || 0);
+          if (order.actual_payment_amount && parseFloat(order.actual_payment_amount) > 0) {
+            amount = parseFloat(order.actual_payment_amount);
+          }
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -380,7 +384,11 @@ export const AdminAPI = {
         
         // 计算总金额和佣金
         const totalAmount = saleOrders.reduce((sum, order) => {
-          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          // 🔧 修复：根据数据库实际情况，优先使用amount
+          let amount = parseFloat(order.amount || 0);
+          if (order.actual_payment_amount && parseFloat(order.actual_payment_amount) > 0) {
+            amount = parseFloat(order.actual_payment_amount);
+          }
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -460,7 +468,8 @@ export const AdminAPI = {
         message: '获取销售列表成功'
       };
 
-      CacheManager.set(cacheKey, result);
+      // 🔧 禁用缓存，确保数据稳定性
+      // CacheManager.set(cacheKey, result);
       return result.data; // 直接返回销售数组
     } catch (error) {
       console.error('获取销售列表失败:', error);
@@ -530,8 +539,14 @@ export const AdminAPI = {
       let total_commission = 0;
       
       orders.forEach(order => {
-        // 优先使用actual_payment_amount，其次amount
-        const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+        // 🔧 修复：根据数据库实际情况，优先使用amount，actual_payment_amount大部分为0
+        let amount = parseFloat(order.amount || 0);
+        
+        // 如果actual_payment_amount有值且大于0，则使用它
+        if (order.actual_payment_amount && parseFloat(order.actual_payment_amount) > 0) {
+          amount = parseFloat(order.actual_payment_amount);
+        }
+        
         const commission = parseFloat(order.commission_amount || 0);
         
         // 人民币转美元 (汇率7.15)
@@ -585,10 +600,8 @@ export const AdminAPI = {
       
       console.log('📈 新API计算完成的统计数据:', stats);
       
-      // 🔧 缓存策略优化：仅在数据正常时缓存
-      if (stats.total_orders > 0) {
-        CacheManager.set(cacheKey, stats);
-      }
+      // 🔧 禁用缓存，确保数据实时性和稳定性
+      // CacheManager.set(cacheKey, stats);
       
       return stats;
     } catch (error) {
