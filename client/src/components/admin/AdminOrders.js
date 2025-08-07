@@ -379,7 +379,7 @@ const AdminOrders = () => {
                       icon={<CheckOutlined />}
                       onClick={() => handleUpdateStatus(record.id, 'confirmed_configuration')}
                     >
-                      直接配置确认
+                      配置确认
                     </Button>
                     <Button 
                       type="link" 

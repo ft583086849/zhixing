@@ -160,19 +160,40 @@ export const AdminAPI = {
     // if (cached) return cached;
 
     try {
+      console.log('📊 AdminAPI.getCustomers: 开始获取客户数据');
+      
       // 0. 首先尝试同步销售微信号（如果需要）
       await this.syncSalesWechatNames();
       
       // 🔧 修复：获取订单数据和销售数据用于正确关联
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
+      console.log('🔄 正在从 Supabase 获取数据...');
+      
       const [ordersResult, primarySalesResult, secondarySalesResult] = await Promise.all([
         supabaseClient.from('orders').select('*'),
         supabaseClient.from('primary_sales').select('sales_code, name, wechat_name'),
         supabaseClient.from('secondary_sales').select('sales_code, name, wechat_name')
       ]);
       
+      // 检查是否有 RLS 错误
+      if (ordersResult.error) {
+        console.error('❌ 获取订单数据失败:', ordersResult.error);
+        if (ordersResult.error.message?.includes('row-level security')) {
+          throw new Error('数据库权限错误：orders表的RLS策略阻止了访问。请在Supabase控制台检查RLS设置。');
+        }
+      }
+      
+      if (primarySalesResult.error || secondarySalesResult.error) {
+        console.error('❌ 获取销售数据失败:', { 
+          primary: primarySalesResult.error, 
+          secondary: secondarySalesResult.error 
+        });
+      }
+      
       const orders = ordersResult.data || [];
       const allSales = [...(primarySalesResult.data || []), ...(secondarySalesResult.data || [])];
+      
+      console.log(`✅ 数据获取成功: ${orders.length} 订单, ${allSales.length} 销售记录`);
       
       // 去重并整理客户信息
       const customerMap = new Map();
@@ -226,6 +247,8 @@ export const AdminAPI = {
 
       const customers = Array.from(customerMap.values());
       
+      console.log(`✅ 客户数据整理完成: ${customers.length} 个客户`);
+      
       const result = {
         success: true,
         data: customers,
@@ -236,9 +259,19 @@ export const AdminAPI = {
       // CacheManager.set(cacheKey, result);
       return customers; // 修复：直接返回customers数组
     } catch (error) {
-      console.error('获取客户列表失败:', error);
+      console.error('❌ 获取客户列表失败:', error);
+      
+      // 提供更详细的错误信息给用户
+      if (error.message?.includes('数据库权限错误')) {
+        console.error('🔴 RLS 权限问题检测到');
+        // 可以在这里触发一个全局通知或警告
+        if (window.showRLSWarning) {
+          window.showRLSWarning();
+        }
+      }
+      
       // 返回空数组而不是抛出错误，确保页面不崩溃
-      console.log('返回空客户数组');
+      console.log('⚠️ 返回空客户数组以避免页面崩溃');
       return [];
     }
   },
