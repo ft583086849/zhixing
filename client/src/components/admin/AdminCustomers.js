@@ -88,9 +88,11 @@ const AdminCustomers = () => {
     },
     {
       title: '销售微信号',
-      dataIndex: 'sales_wechat',
-      key: 'sales_wechat',
+      dataIndex: 'sales_wechat_name',
+      key: 'sales_wechat_name',
       width: 120,
+      // 🔧 修复：添加渲染函数处理空值
+      render: (text) => text || '-'
     },
     {
       title: '总订单数',
@@ -200,7 +202,7 @@ const AdminCustomers = () => {
                   const exportData = customers.map(customer => ({
                     '客户微信号': customer.customer_wechat || '',
                     'TradingView用户名': customer.tradingview_username || '',
-                    '销售微信号': customer.sales_wechat || '',
+                    '销售微信号': customer.sales_wechat_name || '',
                     '总订单数': customer.total_orders || 0,
                     '总金额': customer.total_amount ? `$${customer.total_amount}` : '$0',
                     '实付金额': customer.actual_payment_amount ? `$${parseFloat(customer.actual_payment_amount).toFixed(2)}` : '$0.00',

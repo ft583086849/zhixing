@@ -21,7 +21,8 @@ export const getAdminOrders = createAsyncThunk(
   async (params, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getOrders(params);
-      return response.data;
+      // 🔧 修复：需要检查adminAPI.getOrders返回格式，保持一致性
+      return response.data || response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取订单列表失败');
     }
@@ -34,7 +35,8 @@ export const exportOrders = createAsyncThunk(
   async (params, { rejectWithValue }) => {
     try {
       const response = await adminAPI.exportOrders(params);
-      return response.data;
+      // 🔧 修复：导出数据可能需要保持.data格式，但先保持一致性
+      return response.data || response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '导出失败');
     }
@@ -47,7 +49,8 @@ export const getSalesLinks = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getSalesLinks(params);
-      return response.data;
+      // 🔧 修复：保持一致性，直接返回response
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取销售链接列表失败');
     }
@@ -60,7 +63,8 @@ export const getCustomers = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getCustomers(params);
-      return response.data;
+      // 🔧 修复：adminAPI.getCustomers直接返回客户数组，不需要.data
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取客户列表失败');
     }
@@ -86,7 +90,8 @@ export const getSales = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getSales(params);
-      return response.data;
+      // 🔧 修复：adminAPI.getSales直接返回销售数组，不需要.data
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取销售列表失败');
     }
@@ -99,7 +104,8 @@ export const getSalesHierarchyStats = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getSalesHierarchyStats(params);
-      return response.data;
+      // 🔧 修复：保持一致性，直接返回response
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取销售层级统计失败');
     }
@@ -112,7 +118,8 @@ export const updateCommissionRate = createAsyncThunk(
   async ({ salesId, commissionRate }, { rejectWithValue }) => {
     try {
       const response = await adminAPI.updateCommissionRate(salesId, commissionRate);
-      return response.data;
+      // 🔧 修复：保持一致性，直接返回response
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '更新佣金比率失败');
     }
@@ -125,7 +132,8 @@ export const downloadCommissionData = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await adminAPI.downloadCommissionData(params);
-      return response.data;
+      // 🔧 修复：保持一致性，直接返回response
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '下载佣金数据失败');
     }
