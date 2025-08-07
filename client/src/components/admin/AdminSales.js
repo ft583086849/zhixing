@@ -92,7 +92,7 @@ const AdminSales = () => {
     if (!orders || orders.length === 0) return 0;
     
     const totalAmount = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
-    const validOrders = orders.filter(order => order.status === 'confirmed_configuration');
+    const validOrders = orders.filter(order => order.status === 'confirmed_config');
     
     if (validOrders.length === 0) return 0;
     
@@ -169,7 +169,6 @@ const AdminSales = () => {
   const handleExport = () => {
     // 实现导出逻辑
     const exportData = sales.map(sale => ({
-      '销售ID': sale.sales?.id,
       '销售类型': sale.sales?.sales_type === 'primary' ? '一级销售' : '二级销售',
       '微信号': sale.sales?.wechat_name,
       '链接代码': sale.link_code,
@@ -227,7 +226,7 @@ const AdminSales = () => {
     if (!orders || orders.length === 0) return 0;
     // 计算已配置确认的订单（移除config_confirmed过滤）
     const validOrders = orders.filter(order => 
-      order.status === 'confirmed_configuration'
+      order.status === 'confirmed_config'
     );
     const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     return (totalAmount * commissionRate) / 100;
@@ -317,12 +316,6 @@ const AdminSales = () => {
   // 表格列定义
   const columns = [
     {
-      title: '销售ID',
-      dataIndex: ['sales', 'id'],
-      key: 'sales_id',
-      width: 80,
-    },
-    {
       title: '销售类型',
       key: 'sales_type',
       width: 120,
@@ -360,7 +353,7 @@ const AdminSales = () => {
       render: (_, record) => {
         // 计算已配置确认的订单（移除config_confirmed过滤）
         const validOrders = record.orders?.filter(order => 
-          order.status === 'confirmed_configuration'
+          order.status === 'confirmed_config'
         ) || [];
         return validOrders.length;
       }
@@ -440,7 +433,7 @@ const AdminSales = () => {
       render: (_, record) => {
         // 计算已配置确认的订单金额
         const confirmedConfigOrders = record.orders?.filter(order => 
-          order.status === 'confirmed_configuration'
+          order.status === 'confirmed_config'
         ) || [];
         const totalAmount = confirmedConfigOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
         return `$${totalAmount.toFixed(2)}`;

@@ -189,8 +189,8 @@ export const AdminAPI = {
           if (order.sales_code) {
             const matchingSale = allSales.find(sale => sale.sales_code === order.sales_code);
             if (matchingSale) {
-              // 优先使用wechat_name字段，其次name字段
-              salesWechat = matchingSale.wechat_name || matchingSale.name || '-';
+              // 使用wechat_name字段作为销售微信号（name字段是收款人姓名，不应使用）
+              salesWechat = matchingSale.wechat_name || '-';
             }
           }
           
@@ -217,7 +217,8 @@ export const AdminAPI = {
             if (order.sales_code) {
               const matchingSale = allSales.find(sale => sale.sales_code === order.sales_code);
               if (matchingSale) {
-                customer.sales_wechat_name = matchingSale.name || matchingSale.wechat_name || '-';
+                // 使用wechat_name字段作为销售微信号（name字段是收款人姓名，不应使用）
+                customer.sales_wechat_name = matchingSale.wechat_name || '-';
               }
             }
           }
