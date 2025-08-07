@@ -240,6 +240,82 @@ export const AdminAPI = {
         crypto_qr_code: null
       };
     }
+  },
+
+  /**
+   * 获取销售列表
+   */
+  async getSales() {
+    const cacheKey = 'admin-sales';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const [primarySales, secondarySales] = await Promise.all([
+        SupabaseService.getPrimarySales(),
+        SupabaseService.getSecondarySales()
+      ]);
+      
+      // 组合销售数据，添加类型标识
+      const allSales = [
+        ...primarySales.map(sale => ({ ...sale, sales_type: 'primary' })),
+        ...secondarySales.map(sale => ({ ...sale, sales_type: 'secondary' }))
+      ];
+      
+      const result = {
+        success: true,
+        data: allSales,
+        message: '获取销售列表成功'
+      };
+
+      CacheManager.set(cacheKey, result);
+      return result.data; // 直接返回销售数组
+    } catch (error) {
+      console.error('获取销售列表失败:', error);
+      return handleError(error, '获取销售列表');
+    }
+  },
+
+  /**
+   * 获取统计数据
+   */
+  async getStats() {
+    const cacheKey = 'admin-stats';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const [orderStats, salesStats] = await Promise.all([
+        SupabaseService.getOrderStats(),
+        SupabaseService.getSalesStats()
+      ]);
+      
+      const stats = {
+        total_orders: orderStats.total,
+        total_amount: orderStats.totalAmount,
+        today_orders: orderStats.todayOrders,
+        pending_payment_orders: 0, // TODO: 需要从orders中计算
+        confirmed_payment_orders: 0, // TODO: 需要从orders中计算
+        pending_config_orders: 0, // TODO: 需要从orders中计算
+        confirmed_config_orders: 0, // TODO: 需要从orders中计算
+        total_commission: 0, // TODO: 需要从orders中计算
+        primary_sales_count: salesStats.primaryCount,
+        secondary_sales_count: salesStats.secondaryCount,
+        total_sales: salesStats.totalSales
+      };
+      
+      const result = {
+        success: true,
+        data: stats,
+        message: '获取统计数据成功'
+      };
+
+      CacheManager.set(cacheKey, result);
+      return result.data; // 直接返回统计数据
+    } catch (error) {
+      console.error('获取统计数据失败:', error);
+      return handleError(error, '获取统计数据');
+    }
   }
 };
 

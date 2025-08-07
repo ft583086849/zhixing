@@ -183,8 +183,9 @@ const adminSlice = createSlice({
       })
       .addCase(getStats.fulfilled, (state, action) => {
         state.loading = false;
-        // 修复：后端返回的是 { success: true, data: {...} } 结构
-        state.stats = action.payload.data || action.payload;
+        // 修复：AdminAPI.getStats()返回的data直接是stats对象
+        console.log('getStats收到数据:', action.payload);
+        state.stats = { ...state.stats, ...action.payload };
       })
       .addCase(getStats.rejected, (state, action) => {
         state.loading = false;
@@ -197,12 +198,9 @@ const adminSlice = createSlice({
       })
       .addCase(getSales.fulfilled, (state, action) => {
         state.loading = false;
-        // 修复：后端返回的是 { success: true, data: { sales: [...], pagination: {...} } } 结构
-        const data = action.payload.data || action.payload;
-        state.sales = data.sales || data || [];
-        if (data.pagination) {
-          state.pagination = data.pagination;
-        }
+        // 修复：AdminAPI.getSales()返回的data直接是sales数组
+        console.log('getSales收到数据:', action.payload);
+        state.sales = action.payload || [];
       })
       .addCase(getSales.rejected, (state, action) => {
         state.loading = false;
