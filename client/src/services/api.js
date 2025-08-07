@@ -268,24 +268,154 @@ export const AdminAPI = {
   },
 
   /**
-   * 获取销售列表
+   * 获取销售列表 - 包含订单关联和佣金计算
    */
   async getSales() {
     const cacheKey = 'admin-sales';
-    const cached = CacheManager.get(cacheKey);
-    if (cached) return cached;
+    // 暂时禁用缓存，确保获取最新数据
+    // const cached = CacheManager.get(cacheKey);
+    // if (cached) return cached;
 
     try {
-      const [primarySales, secondarySales] = await Promise.all([
+      // 1. 获取基础销售数据和订单数据
+      const [primarySales, secondarySales, orders] = await Promise.all([
         SupabaseService.getPrimarySales(),
-        SupabaseService.getSecondarySales()
+        SupabaseService.getSecondarySales(),
+        SupabaseService.getOrders()
       ]);
       
-      // 组合销售数据，添加类型标识
-      const allSales = [
-        ...primarySales.map(sale => ({ ...sale, sales_type: 'primary' })),
-        ...secondarySales.map(sale => ({ ...sale, sales_type: 'secondary' }))
-      ];
+      console.log('销售数据获取:', {
+        一级销售: primarySales.length,
+        二级销售: secondarySales.length,
+        订单数: orders.length
+      });
+      
+      // 2. 处理一级销售数据
+      const processedPrimarySales = primarySales.map(sale => {
+        // 获取该销售的所有订单
+        const saleOrders = orders.filter(order => 
+          order.sales_code === sale.sales_code || 
+          order.primary_sales_id === sale.id
+        );
+        
+        // 计算订单统计
+        const totalOrders = saleOrders.length;
+        const validOrders = saleOrders.filter(order => 
+          ['confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
+        ).length;
+        
+        // 计算总金额和佣金
+        const totalAmount = saleOrders.reduce((sum, order) => {
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          // 人民币转美元
+          if (order.payment_method === 'alipay') {
+            return sum + (amount / 7.15);
+          }
+          return sum + amount;
+        }, 0);
+        
+        // 计算佣金金额
+        const commissionAmount = saleOrders.reduce((sum, order) => {
+          const commission = parseFloat(order.commission_amount || 0);
+          // 人民币转美元
+          if (order.payment_method === 'alipay') {
+            return sum + (commission / 7.15);
+          }
+          return sum + commission;
+        }, 0);
+        
+        // 一级销售佣金率计算逻辑
+        let commissionRate = 40; // 默认40%
+        if (totalOrders > 0) {
+          // 这里使用简化的佣金率计算，可以后续根据需求文档完善
+          commissionRate = commissionAmount > 0 ? Math.round((commissionAmount / totalAmount) * 100) : 40;
+        }
+        
+        return {
+          ...sale,
+          sales_type: 'primary',
+          total_orders: totalOrders,
+          valid_orders: validOrders,
+          total_amount: Math.round(totalAmount * 100) / 100,
+          commission_rate: commissionRate,
+          commission_amount: Math.round(commissionAmount * 100) / 100,
+          orders: saleOrders,
+          hierarchy_info: '一级销售'
+        };
+      });
+      
+      // 3. 处理二级销售数据
+      const processedSecondarySales = secondarySales.map(sale => {
+        // 获取该销售的所有订单
+        const saleOrders = orders.filter(order => 
+          order.sales_code === sale.sales_code || 
+          order.secondary_sales_id === sale.id
+        );
+        
+        // 计算订单统计
+        const totalOrders = saleOrders.length;
+        const validOrders = saleOrders.filter(order => 
+          ['confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
+        ).length;
+        
+        // 计算总金额和佣金
+        const totalAmount = saleOrders.reduce((sum, order) => {
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          // 人民币转美元
+          if (order.payment_method === 'alipay') {
+            return sum + (amount / 7.15);
+          }
+          return sum + amount;
+        }, 0);
+        
+        // 计算佣金金额
+        const commissionAmount = saleOrders.reduce((sum, order) => {
+          const commission = parseFloat(order.commission_amount || 0);
+          // 人民币转美元
+          if (order.payment_method === 'alipay') {
+            return sum + (commission / 7.15);
+          }
+          return sum + commission;
+        }, 0);
+        
+        // 二级销售佣金率：独立二级销售30%，一级销售下的二级销售由一级销售设置
+        let commissionRate = 30; // 默认30%
+        if (sale.commission_rate) {
+          commissionRate = sale.commission_rate;
+        } else if (commissionAmount > 0 && totalAmount > 0) {
+          commissionRate = Math.round((commissionAmount / totalAmount) * 100);
+        }
+        
+        // 查找所属一级销售
+        let hierarchyInfo = '独立二级销售';
+        if (sale.primary_sales_id) {
+          const primarySale = primarySales.find(p => p.id === sale.primary_sales_id);
+          if (primarySale) {
+            hierarchyInfo = `${primarySale.name || primarySale.wechat_name} 的二级销售`;
+          }
+        }
+        
+        return {
+          ...sale,
+          sales_type: 'secondary',
+          total_orders: totalOrders,
+          valid_orders: validOrders,
+          total_amount: Math.round(totalAmount * 100) / 100,
+          commission_rate: commissionRate,
+          commission_amount: Math.round(commissionAmount * 100) / 100,
+          orders: saleOrders,
+          hierarchy_info: hierarchyInfo
+        };
+      });
+      
+      // 4. 合并所有销售数据
+      const allSales = [...processedPrimarySales, ...processedSecondarySales];
+      
+      console.log('处理后的销售数据:', {
+        总数: allSales.length,
+        一级销售: processedPrimarySales.length,
+        二级销售: processedSecondarySales.length
+      });
       
       const result = {
         success: true,
