@@ -34,7 +34,21 @@ const AdminCustomers = () => {
 
   // 初始化数据
   useEffect(() => {
-    dispatch(getCustomers());
+    console.log('📦 AdminCustomers: 组件加载，开始获取客户数据');
+    dispatch(getCustomers())
+      .then((result) => {
+        if (result.payload && result.payload.length > 0) {
+          console.log(`✅ 成功加载 ${result.payload.length} 个客户`);
+        } else {
+          console.warn('⚠️ 没有获取到客户数据');
+          // 显示提示信息
+          message.warning('暂无客户数据，可能是权限问题或数据库为空');
+        }
+      })
+      .catch((error) => {
+        console.error('❌ 获取客户数据失败:', error);
+        message.error('获取客户数据失败，请刷新页面重试');
+      });
   }, [dispatch]);
 
   // 移除未使用的LoadingSkeleton组件
@@ -252,7 +266,7 @@ const AdminCustomers = () => {
         <Table
           columns={columns}
           dataSource={Array.isArray(customers) ? customers : []}
-          rowKey="id"
+          rowKey={(record, index) => `${record.customer_wechat}-${record.tradingview_username}-${index}`}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,
@@ -260,6 +274,9 @@ const AdminCustomers = () => {
           }}
           loading={loading}
           scroll={{ x: 1400 }}
+          locale={{
+            emptyText: loading ? '加载中...' : '暂无客户数据（可能是权限问题或没有订单）'
+          }}
         />
       </Card>
 
