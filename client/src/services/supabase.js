@@ -610,9 +610,10 @@ export class SupabaseService {
           
           // 设置统一的销售字段（前端期望的格式）
           order.sales_type = salesType;
-          order.sales_wechat_name = salesInfo.wechat_name;
-          order.sales_name = salesInfo.name;
-          order.sales_phone = salesInfo.phone;
+          // 只使用wechat_name字段，不存在则显示'-'
+          order.sales_wechat_name = salesInfo.wechat_name || '-';
+          order.sales_name = salesInfo.name || '-';
+          order.sales_phone = salesInfo.phone || '-';
           
           console.log(`订单 ${order.order_number} 关联${salesType}销售:`, salesInfo.name);
         } else {
