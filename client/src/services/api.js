@@ -182,12 +182,14 @@ export const AdminAPI = {
             first_order: order.created_at,
             order_count: 1,
             total_amount: parseFloat(order.amount || 0),
+            actual_payment_amount: parseFloat(order.actual_payment_amount || 0),
             commission_amount: parseFloat(order.commission_amount || 0)
           });
         } else if (customerMap.has(key)) {
           const customer = customerMap.get(key);
           customer.order_count++;
           customer.total_amount += parseFloat(order.amount || 0);
+          customer.actual_payment_amount += parseFloat(order.actual_payment_amount || 0);
           customer.commission_amount += parseFloat(order.commission_amount || 0);
         }
       });
