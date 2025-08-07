@@ -210,7 +210,8 @@ const salesSlice = createSlice({
       })
       .addCase(createPrimarySales.fulfilled, (state, action) => {
         state.loading = false;
-        state.createdLinks = action.payload.data;
+        console.log('Redux收到createPrimarySales数据:', action.payload);
+        state.createdLinks = action.payload; // 修复：action.payload已经是链接数据
       })
       .addCase(createPrimarySales.rejected, (state, action) => {
         state.loading = false;
