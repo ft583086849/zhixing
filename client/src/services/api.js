@@ -442,16 +442,21 @@ export const AdminAPI = {
         const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
         
         return {
-          ...sale,
-          wechat_name: wechatName, // 🔧 确保微信号字段有值
+          // 保留原始销售数据作为sales对象（前端组件需要）
+          sales: {
+            ...sale,
+            wechat_name: wechatName,
+            sales_type: 'primary',
+            commission_rate: commissionRate
+          },
+          // 顶层字段用于显示
           sales_type: 'primary',
-          sales_display_type: '一级销售', // 新增：用于显示的销售类型
+          sales_display_type: '一级销售',
           total_orders: totalOrders,
           valid_orders: validOrders,
           total_amount: Math.round(totalAmount * 100) / 100,
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
-          // orders: saleOrders, // 移除orders字段，避免循环引用和大数据量
           hierarchy_info: '一级销售'
         };
       });
@@ -526,16 +531,21 @@ export const AdminAPI = {
         const wechatName = sale.wechat_name || sale.name || sale.phone || `二级销售-${sale.sales_code}`;
         
         return {
-          ...sale,
-          wechat_name: wechatName, // 🔧 确保微信号字段有值
+          // 保留原始销售数据作为sales对象（前端组件需要）
+          sales: {
+            ...sale,
+            wechat_name: wechatName,
+            sales_type: 'secondary',
+            commission_rate: commissionRate
+          },
+          // 顶层字段用于显示
           sales_type: 'secondary',
-          sales_display_type: salesDisplayType, // 新增：用于显示的销售类型
+          sales_display_type: salesDisplayType,
           total_orders: totalOrders,
           valid_orders: validOrders,
           total_amount: Math.round(totalAmount * 100) / 100,
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
-          // orders: saleOrders, // 移除orders字段，避免循环引用和大数据量
           hierarchy_info: hierarchyInfo
         };
       });
