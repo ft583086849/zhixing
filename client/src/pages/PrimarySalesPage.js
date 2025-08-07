@@ -120,7 +120,7 @@ const PrimarySalesPage = () => {
                 aria-label="请选择收款方式"
               >
                 <Option value="alipay">支付宝</Option>
-                <Option value="crypto">线上地址码</Option>
+                <Option value="crypto">链上地址</Option>
               </Select>
             </Form.Item>
 
@@ -152,7 +152,7 @@ const PrimarySalesPage = () => {
               </>
             )}
 
-            {/* 线上地址码收款信息 */}
+            {/* 链上地址收款信息 */}
             {paymentMethod === 'crypto' && (
               <>
                 <Form.Item
@@ -168,14 +168,14 @@ const PrimarySalesPage = () => {
                 </Form.Item>
                 <Form.Item
                   name="payment_address"
-                  label="线上地址码"
-                  rules={[{ required: true, message: '请输入线上地址码' }]}
+                  label="链上地址"
+                  rules={[{ required: true, message: '请输入链上地址' }]}
                  >
                   <Input.TextArea 
-                    placeholder="请输入线上地址码"
+                    placeholder="请输入链上地址"
                     rows={3}
                     size="large"
-                    aria-label="请输入线上地址码"
+                    aria-label="请输入链上地址"
                   />
                 </Form.Item>
               </>

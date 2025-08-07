@@ -126,8 +126,8 @@ const AdminPaymentConfig = () => {
       >
         {/* 支付宝收款配置已移除 */}
 
-        {/* 线上地址收款配置 */}
-        <Card title="线上地址收款配置" style={{ marginBottom: 24 }}>
+        {/* 链上地址收款配置 */}
+        <Card title="链上地址收款配置" style={{ marginBottom: 24 }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Form.Item
               label="链名"

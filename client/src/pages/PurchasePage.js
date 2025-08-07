@@ -51,7 +51,7 @@ const PurchasePage = () => {
   const [form] = Form.useForm();
 
   const [selectedDuration, setSelectedDuration] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认选择线上地址码
+  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认选择链上地址
   const [purchaseType, setPurchaseType] = useState('immediate');
   const [effectiveTime, setEffectiveTime] = useState(null);
   const [fileList, setFileList] = useState([]);
@@ -154,7 +154,7 @@ const PurchasePage = () => {
       // 免费订单不需要验证付款金额和截图
       if (selectedDuration !== '7days') {
         if (!cryptoAmount) {
-          message.error('请输入线上地址码付款金额');
+          message.error('请输入链上地址付款金额');
           return;
         }
         // 付款截图必填验证
@@ -278,7 +278,7 @@ const PurchasePage = () => {
   const renderPaymentInfo = () => {
     if (!currentSales || !paymentMethod || !paymentConfig || selectedDuration === '7days') return null;
 
-    // 只支持线上地址码支付
+    // 只支持链上地址支付
     if (paymentMethod === 'crypto') {
       return (
         <div style={{ marginBottom: 16 }}>
@@ -328,7 +328,7 @@ const PurchasePage = () => {
             </Space>
           </Card>
           
-          {/* 线上地址码付款金额输入 */}
+          {/* 链上地址付款金额输入 */}
           <Form.Item
             label="付款金额（美元）"
             required>
@@ -520,7 +520,7 @@ const PurchasePage = () => {
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
               >
-                <Radio.Button value="crypto">线上地址码</Radio.Button>
+                <Radio.Button value="crypto">链上地址</Radio.Button>
               </Radio.Group>
 
             </Form.Item>

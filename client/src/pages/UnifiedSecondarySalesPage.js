@@ -30,7 +30,7 @@ const UnifiedSecondarySalesPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [createdLinks, setCreatedLinks] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认使用线上地址码
+  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认使用链上地址
 
   // 关联注册相关状态
   const [registrationCode, setRegistrationCode] = useState('');
@@ -248,13 +248,13 @@ const UnifiedSecondarySalesPage = () => {
                 aria-label="请选择收款方式"
                 defaultValue="crypto"
               >
-                <Option value="crypto">线上地址码</Option>
+                <Option value="crypto">链上地址</Option>
               </Select>
             </Form.Item>
 
             {/* 支付宝收款信息已移除 */}
 
-            {/* 线上地址码收款信息 - 完全相同 */}
+            {/* 链上地址收款信息 - 完全相同 */}
             {(paymentMethod === 'crypto' || !paymentMethod) && (
               <>
                 <Form.Item

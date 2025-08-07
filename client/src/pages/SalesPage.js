@@ -28,7 +28,7 @@ const SalesPage = () => {
   const { loading, error, createdLinks } = useSelector((state) => state.sales);
   const [form] = Form.useForm();
 
-  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认使用线上地址码
+  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认使用链上地址
 
   // 设置页面标题
   useEffect(() => {
@@ -133,13 +133,13 @@ const SalesPage = () => {
                 aria-label="请选择收款方式"
                 defaultValue="crypto"
               >
-                <Option value="crypto">线上地址码</Option>
+                <Option value="crypto">链上地址</Option>
               </Select>
             </Form.Item>
 
             {/* 支付宝收款信息已移除 */}
 
-            {/* 线上地址码收款信息 */}
+            {/* 链上地址收款信息 */}
             {(paymentMethod === 'crypto' || !paymentMethod) && (
               <>
                 <Form.Item

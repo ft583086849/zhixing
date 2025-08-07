@@ -578,7 +578,7 @@ const AdminSales = () => {
               <Form.Item name="payment_method" label="收款方式">
                 <Select placeholder="请选择收款方式" allowClear>
                   <Option value="alipay">支付宝</Option>
-                  <Option value="crypto">线上地址码</Option>
+                  <Option value="crypto">链上地址</Option>
                 </Select>
               </Form.Item>
             </Col>
