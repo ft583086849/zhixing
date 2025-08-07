@@ -77,9 +77,17 @@ export const updateAdminOrderStatus = createAsyncThunk(
   async ({ orderId, status }, { rejectWithValue }) => {
     try {
       const response = await adminAPI.updateOrderStatus(orderId, status);
+      
+      // 检查响应是否成功
+      if (response && response.success === false) {
+        console.error('订单状态更新失败 - API返回错误:', response);
+        return rejectWithValue(response.error || '更新订单状态失败');
+      }
+      
       return response; // AdminAPI直接返回result对象
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '更新订单状态失败');
+      console.error('订单状态更新失败 - 异常:', error);
+      return rejectWithValue(error.message || error.response?.data?.message || '更新订单状态失败');
     }
   }
 );

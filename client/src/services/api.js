@@ -747,8 +747,20 @@ export const AdminAPI = {
       
       return result;
     } catch (error) {
-      console.error('更新订单状态失败:', error);
-      return handleError(error, '更新订单状态');
+      console.error('更新订单状态失败 - 详细错误:', {
+        error: error,
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      
+      // 不使用handleError，直接返回错误信息
+      return {
+        success: false,
+        error: error.message || '更新订单状态失败',
+        details: error
+      };
     }
   }
 };
