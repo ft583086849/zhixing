@@ -296,16 +296,16 @@ const AdminOrders = () => {
         // 标准化状态映射
         const statusMap = {
           // 主流程状态
-          'pending_payment': { text: '待付款', color: 'orange' },
-          'pending_review': { text: '待付款', color: 'orange' }, // 兼容旧状态
-          'pending': { text: '待付款', color: 'orange' }, // 兼容旧状态
-          'confirmed': { text: '已付款', color: 'blue' }, // 兼容旧状态
-          'confirmed_payment': { text: '已付款', color: 'blue' },
-          'pending_config': { text: '待配置', color: 'purple' },
-          'confirmed_config': { text: '已完成', color: 'green' }, // 标准状态，限制在20字符内
+          'pending_payment': { text: '待付款确认', color: 'orange' },
+          'pending_review': { text: '待付款确认', color: 'orange' }, // 兼容旧状态
+          'pending': { text: '待付款确认', color: 'orange' }, // 兼容旧状态
+          'confirmed': { text: '待配置确认', color: 'blue' }, // 兼容旧状态
+          'confirmed_payment': { text: '待配置确认', color: 'blue' },
+          'pending_config': { text: '待配置确认', color: 'purple' },
+          'confirmed_config': { text: '已完成', color: 'green' },
           
           // 特殊状态
-          'incomplete': { text: '未完成购买', color: 'gray' }, // 新增状态
+          'incomplete': { text: '未完成购买', color: 'gray' },
           'active': { text: '已生效', color: 'green' },
           'expired': { text: '已过期', color: 'gray' },
           'cancelled': { text: '已取消', color: 'red' },
@@ -380,13 +380,32 @@ const AdminOrders = () => {
             currentStatus = 'confirmed_payment';
           }
           
-          // 7天免费订单特殊处理：跳过付款状态
-          if (record.duration === '7days' && (currentStatus === 'pending_payment' || currentStatus === 'pending')) {
-            currentStatus = 'pending_config';
-          }
-          
           switch (currentStatus) {
             case 'pending_payment':
+              // 7天免费订单特殊处理：直接显示"配置确认"按钮
+              if (record.duration === '7days') {
+                return (
+                  <>
+                    <Button 
+                      type="primary" 
+                      size="small"
+                      icon={<CheckOutlined />}
+                      onClick={() => handleUpdateStatus(record.id, 'confirmed_config')}
+                    >
+                      配置确认
+                    </Button>
+                    <Button 
+                      type="link" 
+                      size="small"
+                      danger
+                      icon={<CloseOutlined />}
+                      onClick={() => handleUpdateStatus(record.id, 'rejected')}
+                    >
+                      拒绝订单
+                    </Button>
+                  </>
+                );
+              }
               // 付费订单需要付款确认
               return (
                 <>
@@ -394,9 +413,9 @@ const AdminOrders = () => {
                     type="primary" 
                     size="small"
                     icon={<CheckOutlined />}
-                    onClick={() => handleUpdateStatus(record.id, 'confirmed_payment')}
+                    onClick={() => handleUpdateStatus(record.id, 'pending_config')}
                   >
-                    付款确认
+                    确认付款
                   </Button>
                   <Button 
                     type="link" 
@@ -411,15 +430,16 @@ const AdminOrders = () => {
               );
               
             case 'confirmed_payment':
+              // confirmed_payment状态也应该显示待配置确认
               return (
                 <>
                   <Button 
                     type="primary" 
                     size="small"
                     icon={<CheckOutlined />}
-                    onClick={() => handleUpdateStatus(record.id, 'pending_config')}
+                    onClick={() => handleUpdateStatus(record.id, 'confirmed_config')}
                   >
-                    开始配置
+                    配置确认
                   </Button>
                   <Button 
                     type="link" 
@@ -459,14 +479,14 @@ const AdminOrders = () => {
             case 'confirmed_config':
               return (
                 <span style={{ color: '#52c41a', fontSize: '12px' }}>
-                  ✓ 已完成
+                  ✓ 完成
                 </span>
               );
               
             case 'incomplete':
               return (
                 <span style={{ color: '#8c8c8c', fontSize: '12px' }}>
-                  ⛔ 未完成购买
+                  未完成购买
                 </span>
               );
               

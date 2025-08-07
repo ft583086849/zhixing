@@ -445,8 +445,12 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 🔧 修复：一级销售佣金率 - 数据库存储为百分比格式
-        const commissionRate = sale.commission_rate || 40;
+        // 🔧 修复：一级销售佣金率 - 处理小数和百分比两种格式
+        let commissionRate = sale.commission_rate || 40;
+        // 如果是小数格式（0.4），转换为百分比（40）
+        if (commissionRate > 0 && commissionRate < 1) {
+          commissionRate = commissionRate * 100;
+        }
         
         // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率
         const commissionAmount = confirmedAmount * (commissionRate / 100);
@@ -515,12 +519,12 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 二级销售佣金率：独立二级销售30%，一级销售下的二级销售由一级销售设置
-        let commissionRate = sale.commission_rate || 0.3; // 默认30%（小数格式）
+        // 🔧 修复：二级销售佣金率 - 统一使用百分比格式
+        let commissionRate = sale.commission_rate || 30; // 默认30%
         
-        // 兼容性处理：如果是百分比则转换
-        if (commissionRate > 1) {
-          commissionRate = commissionRate / 100;
+        // 如果是小数格式（0.3），转换为百分比（30）
+        if (commissionRate > 0 && commissionRate < 1) {
+          commissionRate = commissionRate * 100;
         }
         
         if (sale.primary_sales_id) {
@@ -528,18 +532,18 @@ export const AdminAPI = {
           const primarySale = primarySales.find(p => p.id === sale.primary_sales_id);
           if (primarySale && primarySale.secondary_commission_rate) {
             let rate = primarySale.secondary_commission_rate;
-            // 兼容性处理
-            if (rate > 1) {
-              rate = rate / 100;
+            // 如果是小数格式，转换为百分比
+            if (rate > 0 && rate < 1) {
+              rate = rate * 100;
             }
             commissionRate = rate;
           }
         }
         
-        // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率（小数格式）
-        const commissionAmount = confirmedAmount * commissionRate;
+        // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率（百分比格式）
+        const commissionAmount = confirmedAmount * (commissionRate / 100);
         
-        console.log(`📊 二级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${(commissionRate * 100).toFixed(1)}%, 应返佣金$${commissionAmount.toFixed(2)}`);
+        console.log(`📊 二级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${commissionRate}%, 应返佣金$${commissionAmount.toFixed(2)}`);
         
         // 判断二级销售类型
         let salesDisplayType = '';

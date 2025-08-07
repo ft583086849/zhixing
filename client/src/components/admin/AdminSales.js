@@ -249,13 +249,25 @@ const AdminSales = () => {
   const handleConfirmCommissionRate = async (salesId, record) => {
     try {
       const newRate = editingCommissionRates[salesId];
-      // 🔧 修复：佣金率保持百分比格式存储（40% -> 40）
-      console.log('更新佣金率:', { salesId, newRate, salesType: record.sales_type });
+      // 🔧 修复：根据数据库当前格式决定存储格式
+      // 如果当前值小于1（说明是小数格式），则转换为小数存储
+      let rateToStore = newRate;
+      if (record.sales?.commission_rate && record.sales.commission_rate < 1) {
+        // 数据库是小数格式，转换百分比为小数
+        rateToStore = newRate / 100;
+      }
+      
+      console.log('更新佣金率:', { 
+        salesId, 
+        输入值: newRate, 
+        存储值: rateToStore,
+        salesType: record.sales_type 
+      });
       
       // 🔧 修复：传递salesType参数
       await dispatch(updateCommissionRate({ 
         salesId, 
-        commissionRate: newRate,  // 直接使用百分比值
+        commissionRate: rateToStore,
         salesType: record.sales_type || 'secondary'
       })).unwrap();
       

@@ -2,12 +2,17 @@
 // 执行方式：node 🔍诊断管理员仪表板数据问题.js
 
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '.env.local' });
 
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-);
+// 直接使用项目中的 Supabase 配置
+const supabaseUrl = 'https://itvmeamoqthfqtkpubdv.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0dm1lYW1vcXRoZnF0a3B1YmR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0ODEyMzUsImV4cCI6MjA3MDA1NzIzNX0.ypBF3lJJTJtSPLEu1zWXqPorS-FDSZzRUy_0ge_Y-r0';
+
+console.log('🔍 使用Supabase配置:');
+console.log('   URL:', supabaseUrl);
+console.log('   项目ID:', 'itvmeamoqthfqtkpubdv');
+console.log('');
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function diagnose() {
   console.log('🔍 开始诊断管理员仪表板数据问题...\n');
