@@ -160,40 +160,19 @@ export const AdminAPI = {
     // if (cached) return cached;
 
     try {
-      console.log('📊 AdminAPI.getCustomers: 开始获取客户数据');
-      
       // 0. 首先尝试同步销售微信号（如果需要）
       await this.syncSalesWechatNames();
       
       // 🔧 修复：获取订单数据和销售数据用于正确关联
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
-      console.log('🔄 正在从 Supabase 获取数据...');
-      
       const [ordersResult, primarySalesResult, secondarySalesResult] = await Promise.all([
         supabaseClient.from('orders').select('*'),
         supabaseClient.from('primary_sales').select('sales_code, name, wechat_name'),
         supabaseClient.from('secondary_sales').select('sales_code, name, wechat_name')
       ]);
       
-      // 检查是否有 RLS 错误
-      if (ordersResult.error) {
-        console.error('❌ 获取订单数据失败:', ordersResult.error);
-        if (ordersResult.error.message?.includes('row-level security')) {
-          throw new Error('数据库权限错误：orders表的RLS策略阻止了访问。请在Supabase控制台检查RLS设置。');
-        }
-      }
-      
-      if (primarySalesResult.error || secondarySalesResult.error) {
-        console.error('❌ 获取销售数据失败:', { 
-          primary: primarySalesResult.error, 
-          secondary: secondarySalesResult.error 
-        });
-      }
-      
       const orders = ordersResult.data || [];
       const allSales = [...(primarySalesResult.data || []), ...(secondarySalesResult.data || [])];
-      
-      console.log(`✅ 数据获取成功: ${orders.length} 订单, ${allSales.length} 销售记录`);
       
       // 去重并整理客户信息
       const customerMap = new Map();
@@ -204,14 +183,14 @@ export const AdminAPI = {
         const key = `${customerWechat}-${tradingviewUser}`;
         
         if (!customerMap.has(key) && (customerWechat || tradingviewUser)) {
-          // 🔧 修复：正确的销售微信号获取逻辑 - 通过sales_code查找sales表的name字段
+          // 🔧 修复：通过sales_code查找销售表获取微信号
           let salesWechat = '-';
           
           if (order.sales_code) {
             const matchingSale = allSales.find(sale => sale.sales_code === order.sales_code);
             if (matchingSale) {
-              // 优先使用name字段，其次wechat_name (根据用户指出销售表微信号是name字段)
-              salesWechat = matchingSale.name || matchingSale.wechat_name || '-';
+              // 优先使用wechat_name字段，其次name字段
+              salesWechat = matchingSale.wechat_name || matchingSale.name || '-';
             }
           }
           
@@ -247,8 +226,6 @@ export const AdminAPI = {
 
       const customers = Array.from(customerMap.values());
       
-      console.log(`✅ 客户数据整理完成: ${customers.length} 个客户`);
-      
       const result = {
         success: true,
         data: customers,
@@ -259,19 +236,9 @@ export const AdminAPI = {
       // CacheManager.set(cacheKey, result);
       return customers; // 修复：直接返回customers数组
     } catch (error) {
-      console.error('❌ 获取客户列表失败:', error);
-      
-      // 提供更详细的错误信息给用户
-      if (error.message?.includes('数据库权限错误')) {
-        console.error('🔴 RLS 权限问题检测到');
-        // 可以在这里触发一个全局通知或警告
-        if (window.showRLSWarning) {
-          window.showRLSWarning();
-        }
-      }
-      
+      console.error('获取客户列表失败:', error);
       // 返回空数组而不是抛出错误，确保页面不崩溃
-      console.log('⚠️ 返回空客户数组以避免页面崩溃');
+      console.log('返回空客户数组');
       return [];
     }
   },
@@ -335,37 +302,24 @@ export const AdminAPI = {
   },
 
   /**
-   * 同步销售微信号 - 从订单表数据同步到销售表
+   * 同步销售微信号 - 确保销售表有微信号数据
    */
   async syncSalesWechatNames() {
     try {
       console.log('开始同步销售微信号...');
       
-      // 1. 获取所有订单和销售数据
-      const [orders, primarySales, secondarySales] = await Promise.all([
-        SupabaseService.getOrders(),
+      // 1. 获取所有销售数据
+      const [primarySales, secondarySales] = await Promise.all([
         SupabaseService.getPrimarySales(),
         SupabaseService.getSecondarySales()
       ]);
       
-      // 2. 建立销售代码到微信号的映射（从订单中提取）
-      const salesCodeToWechat = new Map();
-      orders.forEach(order => {
-        if (order.sales_wechat_name && order.sales_code) {
-          // 如果该销售代码还没有微信号，或者有更新的微信号，就更新映射
-          if (!salesCodeToWechat.has(order.sales_code)) {
-            salesCodeToWechat.set(order.sales_code, order.sales_wechat_name);
-          }
-        }
-      });
-      
-      console.log(`找到 ${salesCodeToWechat.size} 个销售代码与微信号的映射`);
-      
-      // 3. 更新一级销售的微信号
+      // 2. 确保每个销售都有微信号（如果没有，使用name或phone作为备用）
       let primaryUpdated = 0;
       for (const sale of primarySales) {
-        if (!sale.wechat_name && salesCodeToWechat.has(sale.sales_code)) {
-          const wechatName = salesCodeToWechat.get(sale.sales_code);
+        if (!sale.wechat_name) {
+          // 使用name作为微信号，如果name也没有则使用phone或sales_code
+          const wechatName = sale.name || sale.phone || `销售_${sale.sales_code}`;
           try {
             await SupabaseService.updatePrimarySales(sale.id, { wechat_name: wechatName });
             primaryUpdated++;
@@ -376,11 +330,11 @@ export const AdminAPI = {
         }
       }
       
-      // 4. 更新二级销售的微信号
+      // 3. 更新二级销售的微信号
       let secondaryUpdated = 0;
       for (const sale of secondarySales) {
-        if (!sale.wechat_name && salesCodeToWechat.has(sale.sales_code)) {
-          const wechatName = salesCodeToWechat.get(sale.sales_code);
+        if (!sale.wechat_name) {
+          const wechatName = sale.name || sale.phone || `销售_${sale.sales_code}`;
           try {
             await SupabaseService.updateSecondarySales(sale.id, { wechat_name: wechatName });
             secondaryUpdated++;
@@ -393,7 +347,7 @@ export const AdminAPI = {
       
       console.log(`同步完成: 更新了 ${primaryUpdated} 个一级销售，${secondaryUpdated} 个二级销售`);
       
-      // 5. 清除缓存，确保下次获取最新数据
+      // 4. 清除缓存，确保下次获取最新数据
       CacheManager.clear('admin-sales');
       CacheManager.clear('admin-customers');
       
@@ -483,8 +437,7 @@ export const AdminAPI = {
           commissionRate = commissionAmount > 0 ? Math.round((commissionAmount / totalAmount) * 100) : 40;
         }
         
-        // 🔧 修复：通过sales_code反向获取销售微信号
-        // 确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
+        // 🔧 修复：确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
         const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
         
         return {
@@ -568,8 +521,7 @@ export const AdminAPI = {
           hierarchyInfo = '独立运营';
         }
         
-        // 🔧 修复：通过sales_code反向获取销售微信号
-        // 确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
+        // 🔧 修复：确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
         const wechatName = sale.wechat_name || sale.name || sale.phone || `二级销售-${sale.sales_code}`;
         
         return {
