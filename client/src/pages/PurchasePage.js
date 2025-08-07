@@ -51,13 +51,13 @@ const PurchasePage = () => {
   const [form] = Form.useForm();
 
   const [selectedDuration, setSelectedDuration] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('alipay'); // 默认选择支付宝
+  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认选择线上地址码
   const [purchaseType, setPurchaseType] = useState('immediate');
   const [effectiveTime, setEffectiveTime] = useState(null);
   const [fileList, setFileList] = useState([]);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
-  const [alipayAmount, setAlipayAmount] = useState('');
+  // const [alipayAmount, setAlipayAmount] = useState(''); // 已移除支付宝
   const [cryptoAmount, setCryptoAmount] = useState('');
 
   // 时长选项和价格
@@ -153,11 +153,7 @@ const PurchasePage = () => {
       }
       // 免费订单不需要验证付款金额和截图
       if (selectedDuration !== '7days') {
-        if (paymentMethod === 'alipay' && !alipayAmount) {
-          message.error('请输入支付宝付款金额');
-          return;
-        }
-        if (paymentMethod === 'crypto' && !cryptoAmount) {
+        if (!cryptoAmount) {
           message.error('请输入线上地址码付款金额');
           return;
         }
@@ -175,9 +171,7 @@ const PurchasePage = () => {
       }
 
       // 计算实付金额：对于免费订单为0，对于付费订单使用用户输入的金额
-      const actualPaymentAmount = selectedDuration === '7days' ? 0 : 
-        (paymentMethod === 'alipay' ? parseFloat(alipayAmount) || 0 : 
-         paymentMethod === 'crypto' ? parseFloat(cryptoAmount) || 0 : 0);
+      const actualPaymentAmount = selectedDuration === '7days' ? 0 : parseFloat(cryptoAmount) || 0;
 
       const formData = {
         sales_code: linkCode, // 使用新的sales_code字段
@@ -192,8 +186,7 @@ const PurchasePage = () => {
         purchase_type: purchaseType, // 发送原始值，后端负责映射
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
         screenshot_data: screenshotData,
-        alipay_amount: paymentMethod === 'alipay' ? alipayAmount : null,
-        crypto_amount: paymentMethod === 'crypto' ? cryptoAmount : null
+        crypto_amount: cryptoAmount || null
       };
 
       await dispatch(createOrder(formData)).unwrap();
@@ -229,7 +222,7 @@ const PurchasePage = () => {
       
       form.resetFields();
       setFileList([]);
-      setAlipayAmount('');
+      // setAlipayAmount(''); // 已移除支付宝
       setCryptoAmount('');
       setPurchaseType('immediate');
       setEffectiveTime(null);
@@ -285,67 +278,7 @@ const PurchasePage = () => {
   const renderPaymentInfo = () => {
     if (!currentSales || !paymentMethod || !paymentConfig || selectedDuration === '7days') return null;
 
-    if (paymentMethod === 'alipay') {
-      return (
-        <Card title="支付宝收款信息" style={{ marginBottom: 16 }} role="region">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <div>
-              <Text strong>支付宝账号：</Text>
-              <Text copyable>{paymentConfig.alipay_account}</Text>
-            </div>
-            <div>
-              <Text strong>收款人姓名：</Text>
-              <Text>{paymentConfig.alipay_name}</Text>
-            </div>
-            
-            {/* 支付宝收款码图片 */}
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>支付宝收款码</Text>
-              {paymentConfig.alipay_qr_code ? (
-                <Image
-                  width={200}
-                  height={200}
-                  src={paymentConfig.alipay_qr_code}
-                  style={{ objectFit: 'cover', borderRadius: 8 }}
-                  preview={{
-                    src: paymentConfig.alipay_qr_code,
-                  }}
-                />
-              ) : (
-                <div style={{ 
-                  width: 200, 
-                  height: 200, 
-                  border: '2px dashed #d9d9d9', 
-                  borderRadius: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#fafafa'
-                }}>
-                  <Text type="secondary">暂无收款码图片</Text>
-                </div>
-              )}
-            </div>
-            
-            <Form.Item
-              label="付款金额（人民币）"
-              required>
-              <Input
-                type="number"
-                placeholder="请输入付款金额"
-                value={alipayAmount}
-                onChange={(e) => setAlipayAmount(e.target.value)}
-                aria-label="请输入付款金额"
-                addonAfter="元"
-                size="large"
-              />
-            </Form.Item>
-
-          </Space>
-        </Card>
-      );
-    }
-
+    // 只支持线上地址码支付
     if (paymentMethod === 'crypto') {
       return (
         <div style={{ marginBottom: 16 }}>
@@ -587,16 +520,9 @@ const PurchasePage = () => {
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
               >
-                <Radio.Button value="alipay">支付宝</Radio.Button>
                 <Radio.Button value="crypto">线上地址码</Radio.Button>
               </Radio.Group>
-              {paymentMethod === 'alipay' && selectedDuration && selectedDuration !== '7days' && (
-                <div style={{ marginTop: 8 }}>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    默认汇率按照7.15计算，建议付款金额：¥{(getSelectedPrice() * 7.15).toFixed(2)}
-                  </Text>
-                </div>
-              )}
+
             </Form.Item>
 
             {/* 收款信息 - 根据付款方式动态显示 */}
@@ -700,8 +626,7 @@ const PurchasePage = () => {
                 disabled={
                   !selectedDuration || 
                   (selectedDuration !== '7days' && !paymentMethod) || 
-                  (paymentMethod === 'alipay' && selectedDuration !== '7days' && !alipayAmount) ||
-                  (paymentMethod === 'crypto' && selectedDuration !== '7days' && !cryptoAmount) ||
+                  (selectedDuration !== '7days' && !cryptoAmount) ||
                   (purchaseType === 'advance' && !effectiveTime)
                 }
                 style={{

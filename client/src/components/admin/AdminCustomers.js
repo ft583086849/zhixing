@@ -21,6 +21,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getCustomers } from '../../store/slices/adminSlice';
+import { formatCommissionAmount } from '../../utils/commissionUtils';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -133,7 +134,7 @@ const AdminCustomers = () => {
       dataIndex: 'commission_amount',
       key: 'commission_amount',
       width: 100,
-      render: (amount) => `$${parseFloat(amount || 0).toFixed(2)}`,
+      render: (amount) => formatCommissionAmount(amount),
     },
     {
       title: '到期时间',

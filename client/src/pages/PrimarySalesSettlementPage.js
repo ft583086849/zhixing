@@ -3,6 +3,12 @@ import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, m
 import { DollarOutlined, UserOutlined, ShoppingCartOutlined, TeamOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPrimarySalesStats, fetchPrimarySalesOrders, updateSecondarySalesCommission, removeSecondarySales, getPrimarySalesSettlement } from '../store/slices/salesSlice';
+import { 
+  formatCommissionRate,
+  percentToDecimal,
+  decimalToPercent,
+  calculatePrimaryCommissionRate
+} from '../utils/commissionUtils';
 
 const { Option } = Select;
 const { Title } = Typography;
@@ -158,7 +164,7 @@ const PrimarySalesSettlementPage = () => {
               
               // 5. 计算一级销售总佣金
               const primaryDirectCommission = primaryDirectAmount * 0.40; // 一级销售直接用户佣金：40%
-              const primaryFromSecondaryCommission = secondaryTotalAmount * ((40 - averageSecondaryRate * 100) / 100); // 一级销售从二级销售获得的佣金：(40%-二级销售平均佣金率)
+              const primaryFromSecondaryCommission = secondaryTotalAmount * (0.4 - averageSecondaryRate); // 一级销售从二级销售获得的佣金：(40%-二级销售平均佣金率)
               const totalPrimaryCommission = primaryDirectCommission + primaryFromSecondaryCommission;
               
               // 6. 计算一级销售佣金比率

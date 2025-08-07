@@ -138,95 +138,204 @@ export class SupabaseService {
     return data;
   }
 
-  // 获取一级销售结算数据
+  // 获取一级销售结算数据（优化版：使用数据库视图）
   static async getPrimarySalesSettlement(params) {
     try {
-      // 1. 首先根据微信号或销售代码查询一级销售
-      let primarySalesQuery = supabase.from('primary_sales').select('*');
+      // 1. 从统计视图获取一级销售数据
+      let statsQuery = supabase
+        .from('primary_sales_stats')
+        .select('*');
       
       if (params.wechat_name) {
-        primarySalesQuery = primarySalesQuery.eq('wechat_name', params.wechat_name);
+        statsQuery = statsQuery.eq('wechat_name', params.wechat_name);
       }
       if (params.sales_code) {
-        primarySalesQuery = primarySalesQuery.eq('sales_code', params.sales_code);
+        statsQuery = statsQuery.eq('sales_code', params.sales_code);
       }
       
-      const { data: primarySales, error: salesError } = await primarySalesQuery.single();
+      const { data: primaryStats, error: statsError } = await statsQuery.single();
       
-      if (salesError) {
-        console.error('查询一级销售失败:', salesError);
+      if (statsError) {
+        console.error('查询一级销售统计失败:', statsError);
         throw new Error('未找到匹配的一级销售');
       }
       
-      // 2. 获取该一级销售的所有二级销售
-      const { data: secondarySales, error: secondaryError } = await supabase
-        .from('secondary_sales')
+      // 2. 获取该一级销售的所有二级销售统计
+      const { data: secondaryStats, error: secondaryError } = await supabase
+        .from('secondary_sales_stats')
         .select('*')
-        .eq('primary_sales_id', primarySales.id)
-        .order('created_at', { ascending: false });
+        .eq('primary_sales_id', primaryStats.id)
+        .order('total_amount', { ascending: false });
       
       if (secondaryError) {
-        console.error('查询二级销售失败:', secondaryError);
+        console.error('查询二级销售统计失败:', secondaryError);
       }
       
-      // 3. 获取该一级销售相关的所有订单
-      // 包括：一级销售直接的订单 + 其二级销售的订单
-      let allSalesCodes = [primarySales.sales_code];
-      if (secondarySales && secondarySales.length > 0) {
-        const secondaryCodes = secondarySales.map(s => s.sales_code);
+      // 3. 获取订单列表（如果需要显示）
+      let allSalesCodes = [primaryStats.sales_code];
+      if (secondaryStats && secondaryStats.length > 0) {
+        const secondaryCodes = secondaryStats.map(s => s.sales_code);
         allSalesCodes = [...allSalesCodes, ...secondaryCodes];
       }
       
       const { data: orders, error: ordersError } = await supabase
-        .from('orders')
+        .from('confirmed_orders')  // 使用视图，只包含确认的订单
         .select('*')
         .in('sales_code', allSalesCodes)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);  // 限制返回数量
       
       if (ordersError) {
         console.error('查询订单失败:', ordersError);
       }
       
-      // 4. 计算统计数据
-      const confirmedOrders = orders?.filter(order => order.config_confirmed === true) || [];
-      const totalCommission = confirmedOrders.reduce((sum, order) => sum + (order.commission_amount || 0), 0);
-      const totalOrders = confirmedOrders.length;
+      // 4. 获取待催单订单
+      const { data: reminderOrders } = await supabase
+        .from('orders')
+        .select('*')
+        .in('sales_code', allSalesCodes)
+        .in('status', ['pending_payment', 'pending_config'])
+        .order('created_at', { ascending: false });
       
-      // 5. 获取待催单订单
-      const reminderOrders = orders?.filter(order => 
-        order.status === 'pending_payment' || 
-        order.status === 'pending_config'
-      ) || [];
+      // 5. 计算综合统计（一级 + 所有二级）
+      const totalStats = {
+        // 总计
+        totalOrders: primaryStats.total_orders,
+        totalAmount: primaryStats.total_amount,
+        totalCommission: primaryStats.total_commission,
+        // 本月
+        monthOrders: primaryStats.month_orders,
+        monthAmount: primaryStats.month_amount,
+        monthCommission: primaryStats.month_commission,
+        // 待处理
+        pendingReminderCount: reminderOrders?.length || 0
+      };
       
-      // 6. 为二级销售计算统计数据
-      const secondarySalesWithStats = (secondarySales || []).map(sales => {
-        // 通过sales_code匹配该二级销售的订单
-        const salesOrders = confirmedOrders.filter(order => order.sales_code === sales.sales_code);
-        const totalAmount = salesOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-        const totalCommission = salesOrders.reduce((sum, order) => sum + (order.commission_amount || 0), 0);
-        
-        return {
-          ...sales,
-          order_count: salesOrders.length,
-          total_amount: totalAmount,
-          total_commission: totalCommission,
-          commission_rate: sales.commission_rate || 0.1 // 默认10%
-        };
-      });
+      // 加上二级销售的数据
+      if (secondaryStats && secondaryStats.length > 0) {
+        secondaryStats.forEach(ss => {
+          totalStats.totalOrders += ss.total_orders;
+          totalStats.totalAmount += ss.total_amount;
+          totalStats.totalCommission += ss.total_commission;
+          totalStats.monthOrders += ss.month_orders;
+          totalStats.monthAmount += ss.month_amount;
+          totalStats.monthCommission += ss.month_commission;
+        });
+      }
       
       return {
-        sales: primarySales,
-        orders: confirmedOrders,
-        secondarySales: secondarySalesWithStats,
-        reminderOrders: reminderOrders,
-        stats: {
-          totalCommission: totalCommission,
-          totalOrders: totalOrders,
-          pendingReminderCount: reminderOrders.length
-        }
+        sales: {
+          id: primaryStats.id,
+          wechat_name: primaryStats.wechat_name,
+          sales_code: primaryStats.sales_code,
+          commission_rate: primaryStats.commission_rate,
+          payment_account: primaryStats.payment_account,
+          payment_method: primaryStats.payment_method,
+          // 自己的统计
+          direct_orders: primaryStats.total_orders,
+          direct_amount: primaryStats.total_amount,
+          direct_commission: primaryStats.total_commission
+        },
+        orders: orders || [],
+        secondarySales: secondaryStats || [],
+        reminderOrders: reminderOrders || [],
+        stats: totalStats
       };
     } catch (error) {
       console.error('获取一级销售结算数据失败:', error);
+      throw error;
+    }
+  }
+
+  // 获取二级销售结算数据（优化版：使用数据库视图）
+  static async getSecondarySalesSettlement(params) {
+    try {
+      // 1. 从统计视图获取销售数据（已经过滤了 config_confirmed）
+      let statsQuery = supabase
+        .from('secondary_sales_stats')
+        .select('*');
+      
+      if (params.wechat_name) {
+        statsQuery = statsQuery.eq('wechat_name', params.wechat_name);
+      }
+      if (params.sales_code) {
+        statsQuery = statsQuery.eq('sales_code', params.sales_code);
+      }
+      
+      const { data: salesStats, error: statsError } = await statsQuery.single();
+      
+      if (statsError) {
+        console.error('查询二级销售统计失败:', statsError);
+        throw new Error('未找到匹配的二级销售');
+      }
+      
+      // 2. 获取确认的订单详情（用于显示列表）
+      let ordersQuery = supabase
+        .from('confirmed_orders')  // 使用视图，只包含确认的订单
+        .select('*')
+        .eq('sales_code', salesStats.sales_code)
+        .order('created_at', { ascending: false })
+        .limit(50);  // 限制返回数量，提高性能
+      
+      // 添加日期筛选
+      if (params.payment_date_range) {
+        const [startDate, endDate] = params.payment_date_range.split(',');
+        ordersQuery = ordersQuery
+          .gte('payment_date', startDate)
+          .lte('payment_date', endDate);
+      }
+      
+      const { data: orders, error: ordersError } = await ordersQuery;
+      
+      if (ordersError) {
+        console.error('查询订单失败:', ordersError);
+      }
+      
+      // 3. 获取待催单（未确认的订单）
+      const { data: reminderOrders } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('sales_code', salesStats.sales_code)
+        .in('status', ['pending_payment', 'pending_config'])
+        .order('created_at', { ascending: false });
+      
+      // 4. 返回整合的数据
+      return {
+        sales: {
+          id: salesStats.id,
+          wechat_name: salesStats.wechat_name,
+          sales_code: salesStats.sales_code,
+          commission_rate: salesStats.commission_rate,
+          payment_account: salesStats.payment_account,
+          payment_method: salesStats.payment_method,
+          // 总计数据
+          total_orders: salesStats.total_orders,
+          total_amount: salesStats.total_amount,
+          total_commission: salesStats.total_commission,
+          // 本月数据
+          month_orders: salesStats.month_orders,
+          month_amount: salesStats.month_amount,
+          month_commission: salesStats.month_commission
+        },
+        orders: orders || [],
+        reminderOrders: reminderOrders || [],
+        stats: {
+          // 总计
+          totalOrders: salesStats.total_orders,
+          totalAmount: salesStats.total_amount,
+          totalCommission: salesStats.total_commission,
+          // 本月
+          monthOrders: salesStats.month_orders,
+          monthAmount: salesStats.month_amount,
+          monthCommission: salesStats.month_commission,
+          // 待处理
+          pendingReminderCount: reminderOrders?.length || 0,
+          // 当前佣金率
+          commissionRate: salesStats.commission_rate
+        }
+      };
+    } catch (error) {
+      console.error('获取二级销售结算数据失败:', error);
       throw error;
     }
   }

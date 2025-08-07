@@ -32,6 +32,13 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getSales, updateCommissionRate, downloadCommissionData } from '../../store/slices/adminSlice';
+import { 
+  formatCommissionRate, 
+  calculatePrimaryCommissionRate as calculateRate,
+  percentToDecimal,
+  decimalToPercent,
+  formatCommissionAmount
+} from '../../utils/commissionUtils';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -100,51 +107,38 @@ const AdminSales = () => {
 
   // 计算一级销售佣金比率（管理员页面）
   const calculatePrimaryCommissionRate = (record) => {
-    // 新的佣金比率计算逻辑：
-    // 佣金比率 = （（一级销售的用户下单金额×40%）+（二级销售订单总金额-二级销售分佣比率平均值×二级销售订单总金额））/（二级销售订单总金额+一级销售的用户下单金额）
-    
     if (!record.orders || record.orders.length === 0) {
-      return 40; // 没有订单时，显示40%
+      return 40; // 返回百分比数字用于显示
     }
     
-    // 获取所有订单（移除配置确认过滤）
     const confirmedOrders = record.orders;
-    
     if (confirmedOrders.length === 0) {
-      return 40; // 没有配置确认的订单时，显示40%
+      return 40;
     }
     
-    // 1. 计算一级销售的用户下单金额（没有secondary_sales_name的订单）
+    // 计算各项金额
     const primaryDirectOrders = confirmedOrders.filter(order => !order.secondary_sales_name);
     const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     
-    // 2. 计算二级销售订单总金额
     const secondaryOrders = confirmedOrders.filter(order => order.secondary_sales_name);
     const secondaryTotalAmount = secondaryOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     
-    // 3. 计算二级销售分佣比率平均值
-    let averageSecondaryRate = 0;
-    if (record.secondary_sales && record.secondary_sales.length > 0) {
-      const secondaryRates = record.secondary_sales.map(sales => sales.commission_rate || 0.30);
-      averageSecondaryRate = secondaryRates.reduce((sum, rate) => sum + rate, 0) / secondaryRates.length;
-    }
+    // 获取二级销售佣金率（确保是小数格式）
+    const secondaryRates = record.secondary_sales?.map(sales => {
+      const rate = sales.commission_rate || 0.3;
+      // 兼容处理：如果是百分比则转换
+      return rate > 1 ? rate / 100 : rate;
+    }) || [];
     
-    // 4. 计算总订单金额
-    const totalOrderAmount = primaryDirectAmount + secondaryTotalAmount;
+    // 使用工具函数计算
+    const rate = calculateRate({
+      primaryDirectAmount,
+      secondaryTotalAmount,
+      secondaryRates
+    });
     
-    if (totalOrderAmount === 0) {
-      return 40; // 总金额为0时，显示40%
-    }
-    
-    // 5. 计算一级销售总佣金
-    const primaryDirectCommission = primaryDirectAmount * 0.40; // 一级销售直接用户佣金：40%
-    const primaryFromSecondaryCommission = secondaryTotalAmount * ((40 - averageSecondaryRate * 100) / 100); // 一级销售从二级销售获得的佣金：(40%-二级销售平均佣金率)
-    const totalPrimaryCommission = primaryDirectCommission + primaryFromSecondaryCommission;
-    
-    // 6. 计算一级销售佣金比率
-    const primaryCommissionRate = (totalPrimaryCommission / totalOrderAmount) * 100;
-    
-    return parseFloat(primaryCommissionRate.toFixed(1));
+    // 返回百分比数字用于显示
+    return parseFloat((rate * 100).toFixed(1));
   };
 
   // 处理搜索
@@ -255,7 +249,10 @@ const AdminSales = () => {
   const handleConfirmCommissionRate = async (salesId, record) => {
     try {
       const newRate = editingCommissionRates[salesId];
-      await dispatch(updateCommissionRate({ salesId, commissionRate: newRate })).unwrap();
+      // 转换为小数格式再保存
+      const decimalRate = percentToDecimal(newRate);
+      
+      await dispatch(updateCommissionRate({ salesId, commissionRate: decimalRate })).unwrap();
       
       // 清除编辑状态
       setEditingCommissionRates(prev => {
@@ -363,8 +360,19 @@ const AdminSales = () => {
       render: (_, record) => {
         const salesId = record.sales?.id;
         
-        // 🔧 修复：直接使用API返回的commission_rate
-        const currentRate = editingCommissionRates[salesId] || record.commission_rate || record.sales?.commission_rate || 0;
+        // 一级销售使用计算的佣金率
+        if (record.sales_type === 'primary') {
+          const rate = calculatePrimaryCommissionRate(record);
+          return <Tag color="green">{rate}%</Tag>;
+        }
+        
+        // 二级销售的佣金率处理
+        const originalRate = record.sales?.commission_rate || 0.3;
+        // 兼容处理：确保是小数格式
+        const decimalRate = originalRate > 1 ? originalRate / 100 : originalRate;
+        const displayRate = editingCommissionRates[salesId] !== undefined 
+          ? editingCommissionRates[salesId] 
+          : decimalToPercent(decimalRate);
         
         if (editingCommissionRates[salesId] !== undefined) {
           return (
@@ -372,10 +380,11 @@ const AdminSales = () => {
               <InputNumber
                 size="small"
                 min={0}
-                max={100}
-                value={currentRate}
+                max={40}
+                value={displayRate}
                 onChange={(value) => handleCommissionRateEdit(salesId, value)}
-                style={{ width: 60 }}
+                style={{ width: 80 }}
+                addonAfter="%"
               />
               <Button
                 type="primary"
@@ -393,11 +402,11 @@ const AdminSales = () => {
         } else {
           return (
             <Space size="small">
-              <Tag color="blue">{currentRate}%</Tag>
+              <Tag color="blue">{formatCommissionRate(decimalRate)}</Tag>
               <Button
                 type="link"
                 icon={<EditOutlined />}
-                onClick={() => handleCommissionRateEdit(salesId, currentRate)}
+                onClick={() => handleCommissionRateEdit(salesId, displayRate)}
               />
             </Space>
           );

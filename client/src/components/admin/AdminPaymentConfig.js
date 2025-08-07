@@ -26,7 +26,7 @@ const AdminPaymentConfig = () => {
   const dispatch = useDispatch();
   const { config, loading } = useSelector((state) => state.paymentConfig);
   const [form] = Form.useForm();
-  const [alipayQRCode, setAlipayQRCode] = useState('');
+  // const [alipayQRCode, setAlipayQRCode] = useState(''); // 已移除支付宝
   const [cryptoQRCode, setCryptoQRCode] = useState('');
 
   useEffect(() => {
@@ -36,12 +36,10 @@ const AdminPaymentConfig = () => {
   useEffect(() => {
     if (config) {
       form.setFieldsValue({
-        alipay_account: config.alipay_account,
-        alipay_name: config.alipay_name, // 修复字段名
         crypto_chain_name: config.crypto_chain_name,
         crypto_address: config.crypto_address
       });
-      setAlipayQRCode(config.alipay_qr_code);
+      // setAlipayQRCode(config.alipay_qr_code); // 已移除支付宝
       setCryptoQRCode(config.crypto_qr_code);
     }
   }, [config, form]);
@@ -49,9 +47,6 @@ const AdminPaymentConfig = () => {
   const handleSave = async (values) => {
     try {
       const configData = {
-        alipay_account: values.alipay_account,
-        alipay_name: values.alipay_name, // 修复字段名
-        alipay_qr_code: alipayQRCode, // 包含二维码图片数据
         crypto_chain_name: values.crypto_chain_name,
         crypto_address: values.crypto_address,
         crypto_qr_code: cryptoQRCode // 包含二维码图片数据
@@ -84,9 +79,8 @@ const AdminPaymentConfig = () => {
     // 模拟上传
     const reader = new FileReader();
     reader.onload = (e) => {
-      if (type === 'alipay') {
-        setAlipayQRCode(e.target.result);
-      } else {
+      // 只处理crypto类型
+      if (type === 'crypto') {
         setCryptoQRCode(e.target.result);
       }
     };
@@ -101,24 +95,13 @@ const AdminPaymentConfig = () => {
   };
 
   const handleRemove = (type) => {
-    if (type === 'alipay') {
-      setAlipayQRCode('');
-    } else {
+    // 只处理crypto类型
+    if (type === 'crypto') {
       setCryptoQRCode('');
     }
   };
 
-  const alipayUploadProps = {
-    beforeUpload: (file) => {
-      handleUpload(file, 'alipay');
-      return false; // 阻止自动上传
-    },
-    showUploadList: false,
-    fileList: [], // 确保文件列表为空
-    accept: 'image/*',
-    multiple: false,
-    onRemove: () => false, // 禁用移除功能
-  };
+  // 已移除支付宝上传配置
 
   const cryptoUploadProps = {
     beforeUpload: (file) => {
@@ -141,65 +124,7 @@ const AdminPaymentConfig = () => {
         layout="vertical"
         onFinish={handleSave}
       >
-        {/* 支付宝收款配置 */}
-        <Card title="支付宝收款配置" style={{ marginBottom: 24 }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Form.Item
-              label="支付宝账号"
-              name="alipay_account"
-              rules={[{ required: true, message: '请输入支付宝账号' }]}
-            >
-              <Input placeholder="请输入支付宝账号" />
-            </Form.Item>
-            
-            <Form.Item
-              label="收款人姓名"
-              name="alipay_name"
-              rules={[{ required: true, message: '请输入收款人姓名' }]}
-            >
-              <Input placeholder="请输入收款人姓名" />
-            </Form.Item>
-            
-            <Form.Item label="支付宝收款码">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {alipayQRCode ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <Image
-                      width={100}
-                      height={100}
-                      src={alipayQRCode}
-                      style={{ objectFit: 'cover', borderRadius: 8 }}
-                    />
-                    <Space>
-                      <Button 
-                        type="link" 
-                        icon={<EyeOutlined />}
-                        onClick={() => handlePreview(alipayQRCode)}
-                      >
-                        预览
-                      </Button>
-                      <Button 
-                        type="link" 
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleRemove('alipay')}
-                      >
-                        删除
-                      </Button>
-                    </Space>
-                  </div>
-                ) : (
-                  <Upload {...alipayUploadProps}>
-                    <Button icon={<UploadOutlined />}>上传收款码</Button>
-                  </Upload>
-                )}
-                <Text type="secondary">支持 JPG、PNG、GIF、WebP 格式，最大 10MB</Text>
-              </Space>
-            </Form.Item>
-          </Space>
-        </Card>
-
-        <Divider />
+        {/* 支付宝收款配置已移除 */}
 
         {/* 线上地址收款配置 */}
         <Card title="线上地址收款配置" style={{ marginBottom: 24 }}>
