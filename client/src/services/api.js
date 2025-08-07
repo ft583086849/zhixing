@@ -428,25 +428,63 @@ export const OrdersAPI = {
    */
   async create(orderData) {
     try {
-      // 生成订单号
-      orderData.order_number = orderData.order_number || `ORD${Date.now()}`;
-      orderData.created_at = new Date().toISOString();
-      orderData.status = orderData.status || 'pending';
-      orderData.payment_status = orderData.payment_status || 'pending';
+      console.log('原始订单数据:', orderData);
+      
+      // 字段映射和数据清理
+      const processedOrderData = {
+        // 基础字段
+        order_number: orderData.order_number || `ORD${Date.now()}`,
+        created_at: new Date().toISOString(),
+        status: orderData.status || 'pending',
+        payment_status: orderData.payment_status || 'pending',
+        
+        // 销售相关字段
+        sales_code: orderData.sales_code,
+        link_code: orderData.link_code || orderData.sales_code, // 兼容性
+        
+        // 客户信息字段映射
+        customer_name: orderData.customer_wechat || orderData.customer_name || '', // 修复字段映射
+        customer_wechat: orderData.customer_wechat,
+        tradingview_username: orderData.tradingview_username,
+        
+        // 订单信息
+        duration: orderData.duration,
+        purchase_type: orderData.purchase_type,
+        effective_time: orderData.effective_time,
+        
+        // 金额处理 - 确保数字类型
+        amount: orderData.amount ? parseFloat(orderData.amount) : 0,
+        alipay_amount: orderData.alipay_amount ? parseFloat(orderData.alipay_amount) : null,
+        crypto_amount: orderData.crypto_amount ? parseFloat(orderData.crypto_amount) : null,
+        
+        // 支付相关
+        payment_method: orderData.payment_method,
+        payment_time: orderData.payment_time,
+        screenshot_data: orderData.screenshot_data
+      };
+      
+      console.log('处理后订单数据:', processedOrderData);
       
       // 计算佣金（基于销售代码）
-      if (orderData.sales_code) {
+      if (processedOrderData.sales_code && processedOrderData.amount > 0) {
         try {
-          const salesInfo = await this.calculateCommission(orderData.sales_code, orderData.amount);
-          orderData.commission_amount = salesInfo.commission;
-          orderData.sales_type = salesInfo.type;
+          const salesInfo = await this.calculateCommission(processedOrderData.sales_code, processedOrderData.amount);
+          processedOrderData.commission_amount = salesInfo.commission;
+          processedOrderData.sales_type = salesInfo.type;
+          processedOrderData.commission_rate = salesInfo.commission / processedOrderData.amount;
         } catch (error) {
           console.warn('计算佣金失败:', error.message);
-          // 即使佣金计算失败，订单仍然可以创建
+          // 免费订单或计算失败时的默认值
+          processedOrderData.commission_amount = 0;
+          processedOrderData.commission_rate = 0;
         }
+      } else {
+        // 免费订单
+        processedOrderData.commission_amount = 0;
+        processedOrderData.commission_rate = 0;
       }
       
-      const newOrder = await SupabaseService.createOrder(orderData);
+      const newOrder = await SupabaseService.createOrder(processedOrderData);
       
       CacheManager.clear(); // 清除所有缓存
       
@@ -456,6 +494,7 @@ export const OrdersAPI = {
         message: '订单创建成功'
       };
     } catch (error) {
+      console.error('订单创建失败:', error);
       return handleError(error, '创建订单');
     }
   },
