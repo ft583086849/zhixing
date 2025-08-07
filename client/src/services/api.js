@@ -57,6 +57,10 @@ class CacheManager {
   });
   }
   
+  static remove(key) {
+    this.cache.delete(key);
+  }
+  
   static clear(pattern = null) {
     if (pattern) {
       // 清除匹配模式的缓存
@@ -414,7 +418,7 @@ export const AdminAPI = {
         // 计算订单统计
         const totalOrders = saleOrders.length;
         const validOrders = saleOrders.filter(order => 
-          ['confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
         ).length;
         
         // 计算总金额（所有订单金额）
@@ -430,7 +434,7 @@ export const AdminAPI = {
         
         // 🔧 修复：计算已配置确认订单金额（只计算confirmed_configuration和active状态）
         const confirmedOrders = saleOrders.filter(order => 
-          ['confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_configuration', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
           // 🔧 修复：优先使用actual_payment_amount，其次使用amount
@@ -441,7 +445,7 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 一级销售佣金率：默认40%（可根据需求文档调整）
+        // 🔧 修复：一级销售佣金率 - 数据库存储为百分比格式
         const commissionRate = sale.commission_rate || 40;
         
         // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率
@@ -484,7 +488,7 @@ export const AdminAPI = {
         // 计算订单统计
         const totalOrders = saleOrders.length;
         const validOrders = saleOrders.filter(order => 
-          ['confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
         ).length;
         
         // 计算总金额（所有订单金额）
@@ -500,7 +504,7 @@ export const AdminAPI = {
         
         // 🔧 修复：计算已配置确认订单金额（只计算confirmed_configuration和active状态）
         const confirmedOrders = saleOrders.filter(order => 
-          ['confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_configuration', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
           // 🔧 修复：优先使用actual_payment_amount，其次使用amount

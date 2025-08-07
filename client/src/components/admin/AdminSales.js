@@ -249,10 +249,15 @@ const AdminSales = () => {
   const handleConfirmCommissionRate = async (salesId, record) => {
     try {
       const newRate = editingCommissionRates[salesId];
-      // 转换为小数格式再保存
-      const decimalRate = percentToDecimal(newRate);
+      // 🔧 修复：佣金率保持百分比格式存储（40% -> 40）
+      console.log('更新佣金率:', { salesId, newRate, salesType: record.sales_type });
       
-      await dispatch(updateCommissionRate({ salesId, commissionRate: decimalRate })).unwrap();
+      // 🔧 修复：传递salesType参数
+      await dispatch(updateCommissionRate({ 
+        salesId, 
+        commissionRate: newRate,  // 直接使用百分比值
+        salesType: record.sales_type || 'secondary'
+      })).unwrap();
       
       // 清除编辑状态
       setEditingCommissionRates(prev => {
@@ -262,8 +267,11 @@ const AdminSales = () => {
       });
       
       message.success('佣金率更新成功');
+      // 刷新销售数据
+      dispatch(getSales());
     } catch (error) {
-      message.error('佣金率更新失败');
+      console.error('佣金率更新失败:', error);
+      message.error('佣金率更新失败: ' + (error.message || '未知错误'));
     }
   };
 
@@ -359,29 +367,18 @@ const AdminSales = () => {
       width: 120,
       render: (_, record) => {
         const salesId = record.sales?.id;
+        // 🔧 修复：直接使用API返回的commission_rate
+        const currentRate = editingCommissionRates[salesId] || record.commission_rate || record.sales?.commission_rate || 0;
         
-        // 一级销售使用计算的佣金率
-        if (record.sales_type === 'primary') {
-          const rate = calculatePrimaryCommissionRate(record);
-          return <Tag color="green">{rate}%</Tag>;
-        }
-        
-        // 二级销售的佣金率处理
-        const originalRate = record.sales?.commission_rate || 0.3;
-        // 兼容处理：确保是小数格式
-        const decimalRate = originalRate > 1 ? originalRate / 100 : originalRate;
-        const displayRate = editingCommissionRates[salesId] !== undefined 
-          ? editingCommissionRates[salesId] 
-          : decimalToPercent(decimalRate);
-        
+        // 🔧 修复：一级销售和二级销售都可以编辑佣金率
         if (editingCommissionRates[salesId] !== undefined) {
           return (
             <Space size="small">
               <InputNumber
                 size="small"
                 min={0}
-                max={40}
-                value={displayRate}
+                max={100}
+                value={editingCommissionRates[salesId]}
                 onChange={(value) => handleCommissionRateEdit(salesId, value)}
                 style={{ width: 80 }}
                 addonAfter="%"
@@ -400,13 +397,16 @@ const AdminSales = () => {
             </Space>
           );
         } else {
+          // 根据销售类型显示不同颜色的标签
+          const tagColor = record.sales_type === 'primary' ? 'green' : 'blue';
           return (
             <Space size="small">
-              <Tag color="blue">{formatCommissionRate(decimalRate)}</Tag>
+              <Tag color={tagColor}>{currentRate}%</Tag>
               <Button
                 type="link"
+                size="small"
                 icon={<EditOutlined />}
-                onClick={() => handleCommissionRateEdit(salesId, displayRate)}
+                onClick={() => handleCommissionRateEdit(salesId, currentRate)}
               />
             </Space>
           );

@@ -138,40 +138,76 @@ export class SupabaseService {
     return data;
   }
 
-  // 获取一级销售结算数据（优化版：使用数据库视图）
+  // 获取一级销售结算数据（修复版：直接从表中查询）
   static async getPrimarySalesSettlement(params) {
     try {
-      // 1. 从统计视图获取一级销售数据
-      let statsQuery = supabase
-        .from('primary_sales_stats')
+      // 1. 直接从一级销售表获取数据（不依赖不存在的视图）
+      let salesQuery = supabase
+        .from('primary_sales')
         .select('*');
       
       if (params.wechat_name) {
-        statsQuery = statsQuery.eq('wechat_name', params.wechat_name);
+        // 精确匹配微信号
+        salesQuery = salesQuery.eq('wechat_name', params.wechat_name);
       }
       if (params.sales_code) {
-        statsQuery = statsQuery.eq('sales_code', params.sales_code);
+        salesQuery = salesQuery.eq('sales_code', params.sales_code);
       }
       
-      const { data: primaryStats, error: statsError } = await statsQuery.single();
+      const { data: primarySale, error: salesError } = await salesQuery.single();
       
-      if (statsError) {
-        console.error('查询一级销售统计失败:', statsError);
-        throw new Error('未找到匹配的一级销售');
+      if (salesError) {
+        console.error('查询一级销售失败:', salesError);
+        throw new Error('未找到匹配的一级销售，请输入完整的微信号（如：一级销售张三）');
       }
       
-      // 2. 获取该一级销售的所有二级销售统计
-      const { data: secondaryStats, error: secondaryError } = await supabase
-        .from('secondary_sales_stats')
+      // 构建统计数据对象（兼容原有结构）
+      const primaryStats = {
+        ...primarySale,
+        total_orders: 0,
+        total_amount: 0,
+        total_commission: 0,
+        month_orders: 0,
+        month_amount: 0,
+        month_commission: 0
+      };
+      
+      // 2. 获取该一级销售的所有二级销售（直接从表查询）
+      const { data: secondarySales, error: secondaryError } = await supabase
+        .from('secondary_sales')
         .select('*')
         .eq('primary_sales_id', primaryStats.id)
-        .order('total_amount', { ascending: false });
+        .order('created_at', { ascending: false });
       
       if (secondaryError) {
-        console.error('查询二级销售统计失败:', secondaryError);
+        console.error('查询二级销售失败:', secondaryError);
       }
       
-      // 3. 获取订单列表（如果需要显示）
+      // 为每个二级销售计算统计信息
+      const secondaryStats = [];
+      if (secondarySales && secondarySales.length > 0) {
+        for (const sale of secondarySales) {
+          // 获取该二级销售的订单统计
+          const { data: orders, error: ordersErr } = await supabase
+            .from('orders')
+            .select('amount, actual_payment_amount, status')
+            .eq('sales_code', sale.sales_code)
+            .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
+          
+          const totalAmount = orders?.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
+          const commissionAmount = totalAmount * (sale.commission_rate || 0.3);
+          
+          secondaryStats.push({
+            ...sale,
+            total_orders: orders?.length || 0,
+            total_amount: totalAmount,
+            total_commission: commissionAmount,
+            order_count: orders?.length || 0
+          });
+        }
+      }
+      
+      // 3. 获取订单列表（直接从orders表查询）
       let allSalesCodes = [primaryStats.sales_code];
       if (secondaryStats && secondaryStats.length > 0) {
         const secondaryCodes = secondaryStats.map(s => s.sales_code);
@@ -179,9 +215,10 @@ export class SupabaseService {
       }
       
       const { data: orders, error: ordersError } = await supabase
-        .from('confirmed_orders')  // 使用视图，只包含确认的订单
+        .from('orders')  // 直接从订单表查询
         .select('*')
         .in('sales_code', allSalesCodes)
+        .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'])  // 只获取确认的订单
         .order('created_at', { ascending: false })
         .limit(100);  // 限制返回数量
       
@@ -197,7 +234,20 @@ export class SupabaseService {
         .in('status', ['pending_payment', 'pending_config'])
         .order('created_at', { ascending: false });
       
-      // 5. 计算综合统计（一级 + 所有二级）
+      // 5. 计算一级销售的订单统计
+      const { data: primaryOrders } = await supabase
+        .from('orders')
+        .select('amount, actual_payment_amount, status')
+        .eq('sales_code', primaryStats.sales_code)
+        .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
+      
+      if (primaryOrders) {
+        primaryStats.total_orders = primaryOrders.length;
+        primaryStats.total_amount = primaryOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+        primaryStats.total_commission = primaryStats.total_amount * (primaryStats.commission_rate || 0.4);
+      }
+      
+      // 6. 计算综合统计（一级 + 所有二级）
       const totalStats = {
         // 总计
         totalOrders: primaryStats.total_orders,
@@ -247,33 +297,57 @@ export class SupabaseService {
     }
   }
 
-  // 获取二级销售结算数据（优化版：使用数据库视图）
+  // 获取二级销售结算数据（修复版：直接从表中查询）
   static async getSecondarySalesSettlement(params) {
     try {
-      // 1. 从统计视图获取销售数据（已经过滤了 config_confirmed）
-      let statsQuery = supabase
-        .from('secondary_sales_stats')
+      // 1. 直接从二级销售表获取数据（不依赖不存在的视图）
+      let salesQuery = supabase
+        .from('secondary_sales')
         .select('*');
       
       if (params.wechat_name) {
-        statsQuery = statsQuery.eq('wechat_name', params.wechat_name);
+        // 精确匹配微信号
+        salesQuery = salesQuery.eq('wechat_name', params.wechat_name);
       }
       if (params.sales_code) {
-        statsQuery = statsQuery.eq('sales_code', params.sales_code);
+        salesQuery = salesQuery.eq('sales_code', params.sales_code);
       }
       
-      const { data: salesStats, error: statsError } = await statsQuery.single();
+      const { data: secondarySale, error: salesError } = await salesQuery.single();
       
-      if (statsError) {
-        console.error('查询二级销售统计失败:', statsError);
-        throw new Error('未找到匹配的二级销售');
+      if (salesError) {
+        console.error('查询二级销售失败:', salesError);
+        throw new Error('未找到匹配的二级销售，请输入完整的微信号（如：一级下的二级王五）');
       }
+      
+      // 计算订单统计
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('sales_code', secondarySale.sales_code)
+        .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
+      
+      const totalOrders = orders?.length || 0;
+      const totalAmount = orders?.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
+      const totalCommission = totalAmount * (secondarySale.commission_rate || 0.3);
+      
+      // 构建统计数据对象（兼容原有结构）
+      const salesStats = {
+        ...secondarySale,
+        total_orders: totalOrders,
+        total_amount: totalAmount,
+        total_commission: totalCommission,
+        month_orders: totalOrders,  // 简化处理，本月数据等于总数据
+        month_amount: totalAmount,
+        month_commission: totalCommission
+      };
       
       // 2. 获取确认的订单详情（用于显示列表）
       let ordersQuery = supabase
-        .from('confirmed_orders')  // 使用视图，只包含确认的订单
+        .from('orders')  // 直接从订单表查询
         .select('*')
         .eq('sales_code', salesStats.sales_code)
+        .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'])  // 只获取确认的订单
         .order('created_at', { ascending: false })
         .limit(50);  // 限制返回数量，提高性能
       
@@ -281,11 +355,11 @@ export class SupabaseService {
       if (params.payment_date_range) {
         const [startDate, endDate] = params.payment_date_range.split(',');
         ordersQuery = ordersQuery
-          .gte('payment_date', startDate)
-          .lte('payment_date', endDate);
+          .gte('payment_time', startDate)  // 使用payment_time字段
+          .lte('payment_time', endDate);
       }
       
-      const { data: orders, error: ordersError } = await ordersQuery;
+      const { data: confirmedOrders, error: ordersError } = await ordersQuery;
       
       if (ordersError) {
         console.error('查询订单失败:', ordersError);
@@ -317,7 +391,7 @@ export class SupabaseService {
           month_amount: salesStats.month_amount,
           month_commission: salesStats.month_commission
         },
-        orders: orders || [],
+        orders: confirmedOrders || [],
         reminderOrders: reminderOrders || [],
         stats: {
           // 总计

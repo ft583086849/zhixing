@@ -174,16 +174,26 @@ const AdminOrders = () => {
       render: (_, record) => {
         // 优化销售微信号显示逻辑 - 支持多种字段名
         const wechatFields = [
-          'sales_wechat_name',     // 主要字段
+          'sales_wechat_name',     // 主要字段（从supabase.js设置）
+          'sales_name',            // 销售名字字段（备用）
           'wechat_name',           // 销售表字段
           'primary_sales_wechat',  // 一级销售微信
           'secondary_sales_wechat' // 二级销售微信
         ];
         
+        // 尝试从各个字段获取销售信息
         for (const field of wechatFields) {
-          if (record[field]) {
+          if (record[field] && record[field] !== '-') {
             return record[field];
           }
+        }
+        
+        // 尝试从嵌套的销售对象中获取
+        if (record.primary_sales?.wechat_name) {
+          return record.primary_sales.wechat_name;
+        }
+        if (record.secondary_sales?.wechat_name) {
+          return record.secondary_sales.wechat_name;
         }
         
         return '-';
