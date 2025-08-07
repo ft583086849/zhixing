@@ -215,8 +215,16 @@ export const SalesAPI = {
           message: '获取一级销售信息成功'
         };
       } catch (error) {
-        // 如果不是一级销售，查询二级销售
-        if (error.code === 'PGRST116') { // No rows returned
+        // 增强错误处理：处理更多错误类型
+        console.log('Primary sales query failed:', error.code, error.message);
+        
+        // 对于所有查询失败的情况，都尝试查询二级销售
+        if (error.code === 'PGRST116' || // No rows returned
+            error.code === '406' || // Not Acceptable 
+            error.status === 406 ||
+            error.message?.includes('406') ||
+            error.message?.includes('Not Acceptable')) {
+          
           try {
             const secondarySale = await SupabaseService.getSecondarySalesByCode(salesCode);
             return {
@@ -225,16 +233,31 @@ export const SalesAPI = {
               message: '获取二级销售信息成功'
             };
           } catch (secondaryError) {
+            console.log('Secondary sales query failed:', secondaryError.code, secondaryError.message);
+            
             if (secondaryError.code === 'PGRST116') {
               throw new Error('销售代码不存在');
             }
             throw secondaryError;
           }
         }
-        throw error;
+        
+        // 对于其他未知错误，也尝试查询二级销售
+        try {
+          const secondarySale = await SupabaseService.getSecondarySalesByCode(salesCode);
+          return {
+            success: true,
+            data: { ...secondarySale, type: 'secondary' },
+            message: '获取二级销售信息成功'
+          };
+        } catch (secondaryError) {
+          // 如果两个查询都失败，抛出原始错误
+          throw error;
+        }
       }
     } catch (error) {
-      return handleError(error, '获取销售信息');
+      console.error('getSalesByCode 最终错误:', error);
+      throw error; // 直接抛出错误，让上层处理
     }
   },
 
