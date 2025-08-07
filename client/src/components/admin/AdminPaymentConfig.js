@@ -37,7 +37,7 @@ const AdminPaymentConfig = () => {
     if (config) {
       form.setFieldsValue({
         alipay_account: config.alipay_account,
-        alipay_surname: config.alipay_surname,
+        alipay_name: config.alipay_name, // 修复字段名
         crypto_chain_name: config.crypto_chain_name,
         crypto_address: config.crypto_address
       });
@@ -50,7 +50,7 @@ const AdminPaymentConfig = () => {
     try {
       const configData = {
         alipay_account: values.alipay_account,
-        alipay_surname: values.alipay_surname,
+        alipay_name: values.alipay_name, // 修复字段名
         alipay_qr_code: alipayQRCode, // 包含二维码图片数据
         crypto_chain_name: values.crypto_chain_name,
         crypto_address: values.crypto_address,
@@ -139,11 +139,11 @@ const AdminPaymentConfig = () => {
             </Form.Item>
             
             <Form.Item
-              label="收款人姓氏"
-              name="alipay_surname"
-              rules={[{ required: true, message: '请输入收款人姓氏' }]}
+              label="收款人姓名"
+              name="alipay_name"
+              rules={[{ required: true, message: '请输入收款人姓名' }]}
             >
-              <Input placeholder="请输入收款人姓氏" />
+              <Input placeholder="请输入收款人姓名" />
             </Form.Item>
             
             <Form.Item label="支付宝收款码">

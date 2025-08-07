@@ -243,6 +243,31 @@ export const AdminAPI = {
   },
 
   /**
+   * 更新支付配置
+   */
+  async updatePaymentConfig(configData) {
+    try {
+      console.log('正在更新支付配置到数据库:', configData);
+      
+      const updatedConfig = await SupabaseService.updatePaymentConfig(configData);
+      
+      // 清除缓存，确保下次获取最新数据
+      CacheManager.remove('payment-config');
+      
+      const result = {
+        success: true,
+        data: updatedConfig,
+        message: '支付配置更新成功'
+      };
+
+      return result.data; // 直接返回更新后的配置数据
+    } catch (error) {
+      console.error('更新支付配置失败:', error);
+      return handleError(error, '更新支付配置');
+    }
+  },
+
+  /**
    * 获取销售列表
    */
   async getSales() {

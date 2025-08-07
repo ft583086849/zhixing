@@ -20,12 +20,15 @@ export const getPaymentConfig = createAsyncThunk(
 export const updatePaymentConfig = createAsyncThunk(
   'paymentConfig/updatePaymentConfig',
   async (configData, { rejectWithValue }) => {
-    // 模拟API更新调用
-    console.log('更新支付配置:', configData);
-    
-    // 返回更新后的配置
-    // 注意：如果后续需要真正的API调用，再添加适当的try-catch错误处理
-    return configData;
+    try {
+      console.log('Redux: 正在更新支付配置', configData);
+      const response = await AdminAPI.updatePaymentConfig(configData);
+      console.log('Redux: 支付配置更新成功', response);
+      return response;
+    } catch (error) {
+      console.error('Redux: 更新支付配置失败', error);
+      return rejectWithValue(error.message || '更新支付配置失败');
+    }
   }
 );
 

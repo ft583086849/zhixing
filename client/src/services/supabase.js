@@ -293,6 +293,66 @@ export class SupabaseService {
     
     return config;
   }
+
+  static async updatePaymentConfig(configData) {
+    try {
+      console.log('SupabaseService: 更新支付配置', configData);
+      
+      // 首先检查是否已有配置记录
+      const { data: existingConfig } = await supabase
+        .from('payment_config')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      let result;
+      if (existingConfig) {
+        // 更新现有配置
+        const { data, error } = await supabase
+          .from('payment_config')
+          .update({
+            alipay_account: configData.alipay_account,
+            alipay_name: configData.alipay_name,
+            alipay_qr_code: configData.alipay_qr_code,
+            crypto_chain_name: configData.crypto_chain_name,
+            crypto_address: configData.crypto_address,
+            crypto_qr_code: configData.crypto_qr_code,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConfig.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      } else {
+        // 创建新配置
+        const { data, error } = await supabase
+          .from('payment_config')
+          .insert({
+            alipay_account: configData.alipay_account,
+            alipay_name: configData.alipay_name,
+            alipay_qr_code: configData.alipay_qr_code,
+            crypto_chain_name: configData.crypto_chain_name,
+            crypto_address: configData.crypto_address,
+            crypto_qr_code: configData.crypto_qr_code,
+            is_active: true
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      }
+      
+      console.log('SupabaseService: 支付配置更新成功', result);
+      return result;
+    } catch (error) {
+      console.error('SupabaseService: 更新支付配置失败', error);
+      throw error;
+    }
+  }
 }
 
 console.log('🚀 Supabase服务层初始化完成');
