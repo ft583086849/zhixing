@@ -57,6 +57,16 @@ export class SupabaseService {
     return data;
   }
 
+  static async getSecondarySales() {
+    const { data, error } = await supabase
+      .from('secondary_sales')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data;
+  }
+
   static async getPrimarySalesByCode(salesCode) {
     const { data, error } = await supabase
       .from('primary_sales')
@@ -196,17 +206,53 @@ export class SupabaseService {
   }
 
   // 订单查询
-  static async getOrders() {
+    static async getOrders() {
     const { data: orders, error } = await supabase
       .from('orders')
-      .select(`
-        *,
-        primary_sales:primary_sales_id(name, wechat_name, phone),
-        secondary_sales:secondary_sales_id(name, wechat_name, phone)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) throw error;
+    
+    // 手动关联销售信息（基于sales_code）
+    if (orders && orders.length > 0) {
+      const salesCodes = [...new Set(orders.map(order => order.sales_code).filter(Boolean))];
+      
+      // 并行获取一级和二级销售数据
+      const [primarySales, secondarySales] = await Promise.all([
+        supabase.from('primary_sales').select('sales_code, name, wechat_name, phone').in('sales_code', salesCodes),
+        supabase.from('secondary_sales').select('sales_code, name, wechat_name, phone').in('sales_code', salesCodes)
+      ]);
+      
+      // 创建销售映射
+      const primarySalesMap = new Map();
+      const secondarySalesMap = new Map();
+      
+      if (primarySales.data) {
+        primarySales.data.forEach(sale => primarySalesMap.set(sale.sales_code, sale));
+      }
+      
+      if (secondarySales.data) {
+        secondarySales.data.forEach(sale => secondarySalesMap.set(sale.sales_code, sale));
+      }
+      
+      // 为每个订单添加销售信息
+      orders.forEach(order => {
+        if (order.sales_code) {
+          const primarySale = primarySalesMap.get(order.sales_code);
+          const secondarySale = secondarySalesMap.get(order.sales_code);
+          
+          if (primarySale) {
+            order.primary_sales = primarySale;
+            order.sales_type = 'primary';
+          } else if (secondarySale) {
+            order.secondary_sales = secondarySale;
+            order.sales_type = 'secondary';
+          }
+        }
+      });
+    }
+    
     return orders || [];
   }
 
