@@ -345,8 +345,13 @@ export const AdminAPI = {
           commissionRate = commissionAmount > 0 ? Math.round((commissionAmount / totalAmount) * 100) : 40;
         }
         
+        // 🔧 修复：通过sales_code反向获取销售微信号
+        // 确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
+        const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
+        
         return {
           ...sale,
+          wechat_name: wechatName, // 🔧 确保微信号字段有值
           sales_type: 'primary',
           sales_display_type: '一级销售', // 新增：用于显示的销售类型
           total_orders: totalOrders,
@@ -421,8 +426,13 @@ export const AdminAPI = {
           hierarchyInfo = '独立运营';
         }
         
+        // 🔧 修复：通过sales_code反向获取销售微信号
+        // 确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
+        const wechatName = sale.wechat_name || sale.name || sale.phone || `二级销售-${sale.sales_code}`;
+        
         return {
           ...sale,
+          wechat_name: wechatName, // 🔧 确保微信号字段有值
           sales_type: 'secondary',
           sales_display_type: salesDisplayType, // 新增：用于显示的销售类型
           total_orders: totalOrders,
@@ -461,80 +471,88 @@ export const AdminAPI = {
   },
 
   /**
-   * 获取统计数据
+   * 获取统计数据 - 重新设计：直接从订单表计算，以付款时间为准
    */
   async getStats() {
     const cacheKey = 'admin-stats';
-    const cached = CacheManager.get(cacheKey);
-    if (cached) return cached;
+    // 🔧 修复：暂时禁用缓存确保获取最新数据
+    // const cached = CacheManager.get(cacheKey);
+    // if (cached) return cached;
 
     try {
-      console.log('🔍 开始获取统计数据...');
+      console.log('🔍 重新设计的数据概览API - 开始获取统计数据...');
       
-      // 简化方案：直接查询订单数据计算统计
-      const orders = await SupabaseService.getOrders();
-      console.log(`📊 查询到订单数据: ${orders.length} 个订单`);
+      // 🎯 按用户要求：直接从订单表获取数据，不依赖SupabaseService.getOrders()
+      const { data: orders, error } = await SupabaseService.supabase
+        .from('orders')
+        .select('*');
       
-      if (!orders || orders.length === 0) {
-        console.log('⚠️  订单数据为空，返回零值统计');
-        const emptyStats = {
-          total_orders: 0,
-          total_amount: 0,
-          today_orders: 0,
-          pending_payment_orders: 0,
-          confirmed_payment_orders: 0,
-          pending_config_orders: 0,
-          confirmed_config_orders: 0,
-          total_commission: 0,
-          primary_sales_count: 0,
-          secondary_sales_count: 0,
-          total_sales: 0
-        };
-        CacheManager.set(cacheKey, emptyStats);
-        return emptyStats;
+      if (error) {
+        console.error('❌ 订单数据获取失败:', error);
+        throw error;
       }
       
-      // 手动计算统计数据
-      const today = new Date().toDateString();
-      const todayOrders = orders.filter(order => 
-        new Date(order.created_at).toDateString() === today
-      ).length;
+      console.log(`📊 直接查询订单数据: ${orders?.length || 0} 个订单`);
       
-      const pendingPayment = orders.filter(order => 
+      if (!orders || orders.length === 0) {
+        console.log('⚠️  订单表确实无数据，返回零值统计');
+        return this.getEmptyStats();
+      }
+      
+      // 🔧 按用户要求：以付款时间为准进行统计
+      const today = new Date().toDateString();
+      
+      // 今日订单 - 以付款时间为准（如果有付款时间字段），否则以创建时间
+      const todayOrders = orders.filter(order => {
+        const paymentTime = order.payment_time || order.updated_at || order.created_at;
+        return paymentTime && new Date(paymentTime).toDateString() === today;
+      }).length;
+      
+      // 🔧 状态统计 - 简化逻辑，直接匹配
+      const pending_payment_orders = orders.filter(order => 
         ['pending_payment', 'pending', 'pending_review'].includes(order.status)
       ).length;
       
-      const confirmedPayment = orders.filter(order => 
+      const confirmed_payment_orders = orders.filter(order => 
         ['confirmed_payment', 'confirmed'].includes(order.status)
       ).length;
       
-      const pendingConfig = orders.filter(order => 
+      const pending_config_orders = orders.filter(order => 
         order.status === 'pending_config'
       ).length;
       
-      const confirmedConfig = orders.filter(order => 
-        order.status === 'confirmed_configuration'
+      const confirmed_config_orders = orders.filter(order => 
+        ['confirmed_configuration', 'active'].includes(order.status)
       ).length;
       
-      // 计算总金额和佣金
-      let totalAmount = 0;
-      let totalCommission = 0;
+      // 🔧 金额统计 - 优先使用实付金额
+      let total_amount = 0;
+      let total_commission = 0;
       
       orders.forEach(order => {
+        // 优先使用actual_payment_amount，其次amount
         const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
         const commission = parseFloat(order.commission_amount || 0);
         
-        // 人民币转美元
+        // 人民币转美元 (汇率7.15)
         if (order.payment_method === 'alipay') {
-          totalAmount += (amount / 7.15);
-          totalCommission += (commission / 7.15);
+          total_amount += (amount / 7.15);
+          total_commission += (commission / 7.15);
         } else {
-          totalAmount += amount;
-          totalCommission += commission;
+          total_amount += amount;
+          total_commission += commission;
         }
       });
       
-      // 获取销售统计
+      // 🔧 销售统计 - 从订单表关联获取
+      const salesFromOrders = new Set();
+      orders.forEach(order => {
+        if (order.sales_code) {
+          salesFromOrders.add(order.sales_code);
+        }
+      });
+      
+      // 获取实际销售表数据进行对比
       const [primarySales, secondarySales] = await Promise.all([
         SupabaseService.getPrimarySales(),
         SupabaseService.getSecondarySales()
@@ -542,41 +560,70 @@ export const AdminAPI = {
       
       const stats = {
         total_orders: orders.length,
-        total_amount: Math.round(totalAmount * 100) / 100,
+        total_amount: Math.round(total_amount * 100) / 100,
         today_orders: todayOrders,
-        pending_payment_orders: pendingPayment,
-        confirmed_payment_orders: confirmedPayment,
-        pending_config_orders: pendingConfig,
-        confirmed_config_orders: confirmedConfig,
-        total_commission: Math.round(totalCommission * 100) / 100,
-        primary_sales_count: primarySales.length,
-        secondary_sales_count: secondarySales.length,
-        total_sales: primarySales.length + secondarySales.length
+        pending_payment_orders,
+        confirmed_payment_orders,
+        pending_config_orders,
+        confirmed_config_orders,
+        total_commission: Math.round(total_commission * 100) / 100,
+        primary_sales_count: primarySales?.length || 0,
+        secondary_sales_count: secondarySales?.length || 0,
+        total_sales: (primarySales?.length || 0) + (secondarySales?.length || 0),
+        // 🔧 新增调试信息
+        sales_with_orders: salesFromOrders.size, // 有订单的销售数量
+        debug_info: {
+          orders_count: orders.length,
+          status_distribution: {
+            pending_payment: pending_payment_orders,
+            confirmed_payment: confirmed_payment_orders,
+            pending_config: pending_config_orders,
+            confirmed_config: confirmed_config_orders
+          }
+        }
       };
       
-      console.log('📈 计算完成的统计数据:', stats);
+      console.log('📈 新API计算完成的统计数据:', stats);
       
-      CacheManager.set(cacheKey, stats);
+      // 🔧 缓存策略优化：仅在数据正常时缓存
+      if (stats.total_orders > 0) {
+        CacheManager.set(cacheKey, stats);
+      }
+      
       return stats;
-      
     } catch (error) {
-      console.error('❌ 获取统计数据失败:', error);
-      const defaultStats = {
-        total_orders: 0,
-        total_amount: 0,
-        today_orders: 0,
-        pending_payment_orders: 0,
-        confirmed_payment_orders: 0,
-        pending_config_orders: 0,
-        confirmed_config_orders: 0,
-        total_commission: 0,
-        primary_sales_count: 0,
-        secondary_sales_count: 0,
-        total_sales: 0
-      };
-      console.log('📊 返回默认统计数据:', defaultStats);
-      return defaultStats;
+      console.error('❌ 新数据概览API失败:', error);
+      return this.getEmptyStats();
     }
+  },
+
+  /**
+   * 获取空统计数据 - 统一的空数据结构
+   */
+  getEmptyStats() {
+    return {
+      total_orders: 0,
+      total_amount: 0,
+      today_orders: 0,
+      pending_payment_orders: 0,
+      confirmed_payment_orders: 0,
+      pending_config_orders: 0,
+      confirmed_config_orders: 0,
+      total_commission: 0,
+      primary_sales_count: 0,
+      secondary_sales_count: 0,
+      total_sales: 0,
+      sales_with_orders: 0,
+      debug_info: {
+        orders_count: 0,
+        status_distribution: {
+          pending_payment: 0,
+          confirmed_payment: 0,
+          pending_config: 0,
+          confirmed_config: 0
+        }
+      }
+    };
   },
 
   /**

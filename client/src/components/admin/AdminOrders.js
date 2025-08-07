@@ -302,6 +302,15 @@ const AdminOrders = () => {
       }
     },
     {
+      title: '状态(英文)',
+      dataIndex: 'status',
+      key: 'status_en',
+      width: 140,
+      render: (status) => {
+        return <Tag color="blue">{status}</Tag>;
+      }
+    },
+    {
       title: '付款截图',
       dataIndex: 'screenshot_data',
       key: 'screenshot_data',
