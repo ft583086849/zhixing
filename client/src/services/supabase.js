@@ -22,6 +22,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  * 数据库操作基础类
  */
 export class SupabaseService {
+  // 添加静态属性以便其他地方访问
+  static supabase = supabase;
   
   // 管理员操作
   static async getAdminByUsername(username) {
