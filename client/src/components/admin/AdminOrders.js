@@ -299,19 +299,21 @@ const AdminOrders = () => {
     },
     {
       title: '付款截图',
-      dataIndex: 'screenshot_path',
-      key: 'screenshot_path',
+      dataIndex: 'screenshot_data',
+      key: 'screenshot_data',
       width: 120,
-      render: (path) => {
-        if (!path) return '-';
+      render: (screenshotData) => {
+        if (!screenshotData) return '-';
         return (
-          <Tooltip title="查看截图">
+          <Tooltip title="查看付款截图">
             <Button 
               type="link" 
               icon={<EyeOutlined />}
-              onClick={() => handlePreviewImage(path)}
+              onClick={() => handlePreviewImage(screenshotData)}
               size="small"
-            />
+            >
+              查看截图
+            </Button>
           </Tooltip>
         );
       }
