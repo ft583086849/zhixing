@@ -465,8 +465,10 @@ export const AdminAPI = {
    */
   async getStats() {
     const cacheKey = 'admin-stats';
-    const cached = CacheManager.get(cacheKey);
-    if (cached) return cached;
+    // 暂时禁用缓存，强制获取最新数据
+    CacheManager.remove(cacheKey);
+    // const cached = CacheManager.get(cacheKey);
+    // if (cached) return cached;
 
     try {
       console.log('开始获取统计数据...');
@@ -476,6 +478,8 @@ export const AdminAPI = {
       ]);
       
       console.log('原始统计数据:', { orderStats, salesStats });
+      console.log('orderStats.total:', orderStats?.total);
+      console.log('orderStats类型:', typeof orderStats);
       
       const stats = {
         total_orders: orderStats.total || 0,

@@ -353,8 +353,9 @@ const AdminOrders = () => {
           if (currentStatus === 'pending_review' || currentStatus === 'pending') {
             currentStatus = 'pending_payment';
           }
+          // 修复：confirmed状态应该是待配置确认，不是已付款确认
           if (currentStatus === 'confirmed') {
-            currentStatus = 'confirmed_payment';
+            currentStatus = 'pending_config'; // 修复：confirmed = 待配置确认
           }
           
           switch (currentStatus) {
