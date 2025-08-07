@@ -158,18 +158,7 @@ export class SupabaseService {
         throw new Error('未找到匹配的一级销售');
       }
       
-      // 2. 获取该一级销售的所有订单（通过sales_code关联）
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('sales_code', primarySales.sales_code)
-        .order('created_at', { ascending: false });
-      
-      if (ordersError) {
-        console.error('查询订单失败:', ordersError);
-      }
-      
-      // 3. 获取该一级销售的所有二级销售
+      // 2. 获取该一级销售的所有二级销售
       const { data: secondarySales, error: secondaryError } = await supabase
         .from('secondary_sales')
         .select('*')
@@ -178,6 +167,24 @@ export class SupabaseService {
       
       if (secondaryError) {
         console.error('查询二级销售失败:', secondaryError);
+      }
+      
+      // 3. 获取该一级销售相关的所有订单
+      // 包括：一级销售直接的订单 + 其二级销售的订单
+      let allSalesCodes = [primarySales.sales_code];
+      if (secondarySales && secondarySales.length > 0) {
+        const secondaryCodes = secondarySales.map(s => s.sales_code);
+        allSalesCodes = [...allSalesCodes, ...secondaryCodes];
+      }
+      
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .in('sales_code', allSalesCodes)
+        .order('created_at', { ascending: false });
+      
+      if (ordersError) {
+        console.error('查询订单失败:', ordersError);
       }
       
       // 4. 计算统计数据
@@ -193,7 +200,8 @@ export class SupabaseService {
       
       // 6. 为二级销售计算统计数据
       const secondarySalesWithStats = (secondarySales || []).map(sales => {
-        const salesOrders = confirmedOrders.filter(order => order.secondary_sales_name === sales.wechat_name);
+        // 通过sales_code匹配该二级销售的订单
+        const salesOrders = confirmedOrders.filter(order => order.sales_code === sales.sales_code);
         const totalAmount = salesOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
         const totalCommission = salesOrders.reduce((sum, order) => sum + (order.commission_amount || 0), 0);
         
