@@ -52,7 +52,7 @@ const PurchasePage = () => {
   const [form] = Form.useForm();
 
   const [selectedDuration, setSelectedDuration] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('alipay'); // 默认选择支付宝
   const [purchaseType, setPurchaseType] = useState('immediate');
   const [effectiveTime, setEffectiveTime] = useState(null);
   const [fileList, setFileList] = useState([]);
@@ -80,6 +80,13 @@ const PurchasePage = () => {
       dispatch(clearCurrentSales());
     };
   }, [dispatch, linkCode]);
+
+  // 7天免费时自动选择即时购买
+  useEffect(() => {
+    if (selectedDuration === '7days') {
+      setPurchaseType('immediate');
+    }
+  }, [selectedDuration]);
 
   // 获取选中时长的价格
   const getSelectedPrice = () => {
