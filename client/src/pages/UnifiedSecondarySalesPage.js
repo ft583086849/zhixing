@@ -267,7 +267,7 @@ const UnifiedSecondarySalesPage = () => {
                   />
                 </Form.Item>
                 <Form.Item
-                  name="alipay_surname"
+                  name="name"
                   label="收款人姓氏"
                   rules={[{ required: true, message: '请输入收款人姓氏' }]}
                  >
