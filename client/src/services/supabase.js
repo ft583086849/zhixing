@@ -196,7 +196,7 @@ export class SupabaseService {
   }
 
   // 订单查询
-    static async getOrders() {
+  static async getOrders() {
     const { data: orders, error } = await supabase
       .from('orders')
       .select('*')
