@@ -138,6 +138,7 @@ const AdminOrders = () => {
   // 更新订单状态
   const handleUpdateStatus = async (orderId, status) => {
     try {
+      console.log('开始更新订单状态:', { orderId, status });
       await dispatch(updateAdminOrderStatus({ orderId, status })).unwrap();
       message.success('状态更新成功');
       // 延迟刷新订单列表，确保后端状态已更新
@@ -145,7 +146,8 @@ const AdminOrders = () => {
         fetchOrders();
       }, 500);
     } catch (error) {
-      message.error('状态更新失败');
+      console.error('状态更新失败:', error);
+      message.error(`状态更新失败: ${error.message || error}`);
     }
   };
 

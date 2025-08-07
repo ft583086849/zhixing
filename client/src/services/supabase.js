@@ -195,6 +195,28 @@ export class SupabaseService {
     return data;
   }
 
+  static async updateOrderStatus(orderId, status) {
+    const updates = {
+      status: status,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('更新订单状态失败:', error);
+      throw error;
+    }
+    
+    console.log('订单状态更新成功:', data);
+    return data;
+  }
+
   // 订单查询
   static async getOrders() {
     const { data: orders, error } = await supabase

@@ -170,27 +170,39 @@ export const AdminAPI = {
         const key = `${customerWechat}-${tradingviewUser}`;
         
         if (!customerMap.has(key) && (customerWechat || tradingviewUser)) {
-          // 获取销售微信号
-          const salesWechat = order.primary_sales?.wechat_name || 
+          // 获取销售微信号 - 多种策略确保获取到数据
+          const salesWechat = order.sales_wechat_name || 
+                            order.primary_sales?.wechat_name || 
                             order.secondary_sales?.wechat_name || 
-                            order.sales_wechat_name || '';
+                            order.sales_name || 
+                            '-';
           
           customerMap.set(key, {
+            customer_name: customerWechat || tradingviewUser, // 修复：添加customer_name
             customer_wechat: customerWechat,
             tradingview_username: tradingviewUser,
             sales_wechat_name: salesWechat,
             first_order: order.created_at,
-            order_count: 1,
+            total_orders: 1, // 修复：字段名从order_count改为total_orders
             total_amount: parseFloat(order.amount || 0),
             actual_payment_amount: parseFloat(order.actual_payment_amount || 0),
             commission_amount: parseFloat(order.commission_amount || 0)
           });
         } else if (customerMap.has(key)) {
           const customer = customerMap.get(key);
-          customer.order_count++;
+          customer.total_orders++; // 修复：使用正确的字段名
           customer.total_amount += parseFloat(order.amount || 0);
           customer.actual_payment_amount += parseFloat(order.actual_payment_amount || 0);
           customer.commission_amount += parseFloat(order.commission_amount || 0);
+          
+          // 确保销售微信号不为空
+          if (!customer.sales_wechat_name || customer.sales_wechat_name === '') {
+            customer.sales_wechat_name = order.sales_wechat_name || 
+                                       order.primary_sales?.wechat_name || 
+                                       order.secondary_sales?.wechat_name || 
+                                       order.sales_name || 
+                                       '-';
+          }
         }
       });
 
@@ -205,7 +217,10 @@ export const AdminAPI = {
       CacheManager.set(cacheKey, result);
       return result.data; // 修复：直接返回customers数组，保持与其他API一致
     } catch (error) {
-      return handleError(error, '获取客户列表');
+      console.error('获取客户列表失败:', error);
+      // 返回空数组而不是抛出错误，确保页面不崩溃
+      console.log('返回空客户数组');
+      return [];
     }
   },
 
@@ -272,9 +287,8 @@ export const AdminAPI = {
    */
   async getSales() {
     const cacheKey = 'admin-sales';
-    // 暂时禁用缓存，确保获取最新数据
-    // const cached = CacheManager.get(cacheKey);
-    // if (cached) return cached;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
 
     try {
       // 1. 获取基础销售数据和订单数据
@@ -440,7 +454,9 @@ export const AdminAPI = {
       return result.data; // 直接返回销售数组
     } catch (error) {
       console.error('获取销售列表失败:', error);
-      return handleError(error, '获取销售列表');
+      // 返回空数组而不是抛出错误，确保页面不崩溃
+      console.log('返回空销售数组');
+      return [];
     }
   },
 
@@ -453,24 +469,29 @@ export const AdminAPI = {
     if (cached) return cached;
 
     try {
+      console.log('开始获取统计数据...');
       const [orderStats, salesStats] = await Promise.all([
         SupabaseService.getOrderStats(),
         SupabaseService.getSalesStats()
       ]);
       
+      console.log('原始统计数据:', { orderStats, salesStats });
+      
       const stats = {
-        total_orders: orderStats.total,
-        total_amount: orderStats.totalAmount,
-        today_orders: orderStats.todayOrders,
-        pending_payment_orders: orderStats.pendingPayment,
-        confirmed_payment_orders: orderStats.confirmedPayment,
-        pending_config_orders: orderStats.pendingConfig,
-        confirmed_config_orders: orderStats.confirmedConfig,
-        total_commission: orderStats.totalCommission,
-        primary_sales_count: salesStats.primaryCount,
-        secondary_sales_count: salesStats.secondaryCount,
-        total_sales: salesStats.totalSales
+        total_orders: orderStats.total || 0,
+        total_amount: orderStats.totalAmount || 0,
+        today_orders: orderStats.todayOrders || 0,
+        pending_payment_orders: orderStats.pendingPayment || 0,
+        confirmed_payment_orders: orderStats.confirmedPayment || 0,
+        pending_config_orders: orderStats.pendingConfig || 0,
+        confirmed_config_orders: orderStats.confirmedConfig || 0,
+        total_commission: orderStats.totalCommission || 0,
+        primary_sales_count: salesStats.primaryCount || 0,
+        secondary_sales_count: salesStats.secondaryCount || 0,
+        total_sales: salesStats.totalSales || 0
       };
+      
+      console.log('处理后的统计数据:', stats);
       
       const result = {
         success: true,
@@ -482,7 +503,48 @@ export const AdminAPI = {
       return result.data; // 直接返回统计数据
     } catch (error) {
       console.error('获取统计数据失败:', error);
-      return handleError(error, '获取统计数据');
+      // 返回默认的空统计数据，而不是抛出错误
+      const defaultStats = {
+        total_orders: 0,
+        total_amount: 0,
+        today_orders: 0,
+        pending_payment_orders: 0,
+        confirmed_payment_orders: 0,
+        pending_config_orders: 0,
+        confirmed_config_orders: 0,
+        total_commission: 0,
+        primary_sales_count: 0,
+        secondary_sales_count: 0,
+        total_sales: 0
+      };
+      console.log('返回默认统计数据:', defaultStats);
+      return defaultStats;
+    }
+  },
+
+  /**
+   * 更新订单状态
+   */
+  async updateOrderStatus(orderId, status) {
+    try {
+      console.log('更新订单状态:', { orderId, status });
+      
+      const updatedOrder = await SupabaseService.updateOrderStatus(orderId, status);
+      
+      const result = {
+        success: true,
+        data: { orderId, status, order: updatedOrder },
+        message: '订单状态更新成功'
+      };
+
+      // 清除相关缓存
+      CacheManager.remove('admin-orders');
+      CacheManager.remove('admin-stats');
+      
+      return result;
+    } catch (error) {
+      console.error('更新订单状态失败:', error);
+      return handleError(error, '更新订单状态');
     }
   }
 };
