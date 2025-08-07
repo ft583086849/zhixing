@@ -201,14 +201,14 @@ export const AdminAPI = {
             sales_wechat_name: salesWechat,
             first_order: order.created_at,
             total_orders: 1, // 修复：字段名从order_count改为total_orders
-            total_amount: parseFloat(order.amount || 0),
+            total_amount: parseFloat(order.actual_payment_amount || order.amount || 0),
             actual_payment_amount: parseFloat(order.actual_payment_amount || 0),
             commission_amount: parseFloat(order.commission_amount || 0)
           });
         } else if (customerMap.has(key)) {
           const customer = customerMap.get(key);
           customer.total_orders++; // 修复：使用正确的字段名
-          customer.total_amount += parseFloat(order.amount || 0);
+          customer.total_amount += parseFloat(order.actual_payment_amount || order.amount || 0);
           customer.actual_payment_amount += parseFloat(order.actual_payment_amount || 0);
           customer.commission_amount += parseFloat(order.commission_amount || 0);
           
@@ -419,7 +419,8 @@ export const AdminAPI = {
         
         // 计算总金额（所有订单金额）
         const totalAmount = saleOrders.reduce((sum, order) => {
-          const amount = parseFloat(order.amount || 0);
+          // 🔧 修复：优先使用actual_payment_amount，其次使用amount
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -432,7 +433,8 @@ export const AdminAPI = {
           ['confirmed_configuration', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
-          const amount = parseFloat(order.amount || 0);
+          // 🔧 修复：优先使用actual_payment_amount，其次使用amount
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
           }
@@ -487,7 +489,8 @@ export const AdminAPI = {
         
         // 计算总金额（所有订单金额）
         const totalAmount = saleOrders.reduce((sum, order) => {
-          const amount = parseFloat(order.amount || 0);
+          // 🔧 修复：优先使用actual_payment_amount，其次使用amount
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           // 人民币转美元
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
@@ -500,7 +503,8 @@ export const AdminAPI = {
           ['confirmed_configuration', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
-          const amount = parseFloat(order.amount || 0);
+          // 🔧 修复：优先使用actual_payment_amount，其次使用amount
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           if (order.payment_method === 'alipay') {
             return sum + (amount / 7.15);
           }
@@ -664,13 +668,8 @@ export const AdminAPI = {
       let total_commission = 0;
       
       orders.forEach(order => {
-        // 🔧 修复：根据数据库实际情况，优先使用amount，actual_payment_amount大部分为0
-        let amount = parseFloat(order.amount || 0);
-        
-        // 如果actual_payment_amount有值且大于0，则使用它
-        if (order.actual_payment_amount && parseFloat(order.actual_payment_amount) > 0) {
-          amount = parseFloat(order.actual_payment_amount);
-        }
+        // 🔧 修复：优先使用actual_payment_amount，其次使用amount
+        const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
         
         const commission = parseFloat(order.commission_amount || 0);
         
