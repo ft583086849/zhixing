@@ -487,6 +487,7 @@ export const OrdersAPI = {
         
         // 金额处理 - 确保数字类型
         amount: orderData.amount ? parseFloat(orderData.amount) : 0,
+        actual_payment_amount: orderData.actual_payment_amount ? parseFloat(orderData.actual_payment_amount) : 0,
         alipay_amount: orderData.alipay_amount ? parseFloat(orderData.alipay_amount) : null,
         crypto_amount: orderData.crypto_amount ? parseFloat(orderData.crypto_amount) : null,
         
