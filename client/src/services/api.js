@@ -203,7 +203,7 @@ export const AdminAPI = {
       };
 
       CacheManager.set(cacheKey, result);
-      return result;
+      return result.data; // 修复：直接返回customers数组，保持与其他API一致
     } catch (error) {
       return handleError(error, '获取客户列表');
     }

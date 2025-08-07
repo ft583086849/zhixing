@@ -204,41 +204,137 @@ export class SupabaseService {
 
     if (error) throw error;
     
-    // 手动关联销售信息（基于sales_code）
+    // 增强版销售信息关联（支持多种关联方式）
     if (orders && orders.length > 0) {
+      // 收集所有需要查询的销售ID和代码
       const salesCodes = [...new Set(orders.map(order => order.sales_code).filter(Boolean))];
+      const primarySalesIds = [...new Set(orders.map(order => order.primary_sales_id).filter(Boolean))];
+      const secondarySalesIds = [...new Set(orders.map(order => order.secondary_sales_id).filter(Boolean))];
       
-      // 并行获取一级和二级销售数据
-      const [primarySales, secondarySales] = await Promise.all([
-        supabase.from('primary_sales').select('sales_code, name, wechat_name, phone').in('sales_code', salesCodes),
-        supabase.from('secondary_sales').select('sales_code, name, wechat_name, phone').in('sales_code', salesCodes)
-      ]);
+      console.log('关联数据收集:', { salesCodes, primarySalesIds, secondarySalesIds });
       
-      // 创建销售映射
-      const primarySalesMap = new Map();
-      const secondarySalesMap = new Map();
+      // 并行获取销售数据（支持ID和code两种方式）
+      const queries = [];
       
-      if (primarySales.data) {
-        primarySales.data.forEach(sale => primarySalesMap.set(sale.sales_code, sale));
+      // 通过sales_code查询
+      if (salesCodes.length > 0) {
+        queries.push(
+          supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes),
+          supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes)
+        );
       }
       
-      if (secondarySales.data) {
-        secondarySales.data.forEach(sale => secondarySalesMap.set(sale.sales_code, sale));
+      // 通过ID查询
+      if (primarySalesIds.length > 0) {
+        queries.push(
+          supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('id', primarySalesIds)
+        );
       }
       
-      // 为每个订单添加销售信息
+      if (secondarySalesIds.length > 0) {
+        queries.push(
+          supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone').in('id', secondarySalesIds)
+        );
+      }
+      
+      const results = await Promise.all(queries);
+      
+      // 创建多种映射方式
+      const primarySalesByCode = new Map();
+      const primarySalesById = new Map();
+      const secondarySalesByCode = new Map();
+      const secondarySalesById = new Map();
+      
+      // 处理查询结果
+      results.forEach(result => {
+        if (result.data) {
+          result.data.forEach(sale => {
+            // 根据查询来源判断是一级还是二级销售
+            const tableName = result.data.length > 0 ? 
+              (sale.hasOwnProperty('primary_sales_id') ? 'secondary' : 
+               result === results[0] || result === results[2] ? 'primary' : 'secondary') : '';
+            
+            if (sale.sales_code) {
+              if (tableName === 'primary' || !tableName) {
+                primarySalesByCode.set(sale.sales_code, sale);
+                primarySalesById.set(sale.id, sale);
+              } else {
+                secondarySalesByCode.set(sale.sales_code, sale);
+                secondarySalesById.set(sale.id, sale);
+              }
+            }
+          });
+        }
+      });
+      
+      console.log('销售数据映射:', { 
+        primaryByCode: primarySalesByCode.size, 
+        primaryById: primarySalesById.size,
+        secondaryByCode: secondarySalesByCode.size,
+        secondaryById: secondarySalesById.size
+      });
+      
+      // 为每个订单添加销售信息（多重匹配逻辑）
       orders.forEach(order => {
-        if (order.sales_code) {
-          const primarySale = primarySalesMap.get(order.sales_code);
-          const secondarySale = secondarySalesMap.get(order.sales_code);
-          
-          if (primarySale) {
-            order.primary_sales = primarySale;
-            order.sales_type = 'primary';
-          } else if (secondarySale) {
-            order.secondary_sales = secondarySale;
-            order.sales_type = 'secondary';
+        let salesInfo = null;
+        let salesType = null;
+        
+        // 优先级1: 使用primary_sales_id
+        if (order.primary_sales_id && primarySalesById.has(order.primary_sales_id)) {
+          salesInfo = primarySalesById.get(order.primary_sales_id);
+          salesType = 'primary';
+        }
+        // 优先级2: 使用secondary_sales_id
+        else if (order.secondary_sales_id && secondarySalesById.has(order.secondary_sales_id)) {
+          salesInfo = secondarySalesById.get(order.secondary_sales_id);
+          salesType = 'secondary';
+        }
+        // 优先级3: 使用sales_code匹配一级销售
+        else if (order.sales_code && primarySalesByCode.has(order.sales_code)) {
+          salesInfo = primarySalesByCode.get(order.sales_code);
+          salesType = 'primary';
+        }
+        // 优先级4: 使用sales_code匹配二级销售
+        else if (order.sales_code && secondarySalesByCode.has(order.sales_code)) {
+          salesInfo = secondarySalesByCode.get(order.sales_code);
+          salesType = 'secondary';
+        }
+        
+        // 设置销售信息
+        if (salesInfo) {
+          if (salesType === 'primary') {
+            order.primary_sales = salesInfo;
+          } else {
+            order.secondary_sales = salesInfo;
           }
+          
+          // 设置统一的销售字段（前端期望的格式）
+          order.sales_type = salesType;
+          order.sales_wechat_name = salesInfo.wechat_name;
+          order.sales_name = salesInfo.name;
+          order.sales_phone = salesInfo.phone;
+          
+          console.log(`订单 ${order.order_number} 关联${salesType}销售:`, salesInfo.name);
+        } else {
+          console.warn(`订单 ${order.order_number} 无法关联销售信息`);
+        }
+        
+        // 计算生效时间和到期时间
+        if (order.status === 'confirmed_configuration' && order.created_at) {
+          const createdDate = new Date(order.created_at);
+          order.effective_time = order.created_at;
+          
+          const expiryDate = new Date(createdDate);
+          if (order.duration === '7days') {
+            expiryDate.setDate(expiryDate.getDate() + 7);
+          } else if (order.duration === '1month') {
+            expiryDate.setMonth(expiryDate.getMonth() + 1);
+          } else if (order.duration === '3months') {
+            expiryDate.setMonth(expiryDate.getMonth() + 3);
+          } else if (order.duration === '1year') {
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          }
+          order.expiry_time = expiryDate.toISOString();
         }
       });
     }

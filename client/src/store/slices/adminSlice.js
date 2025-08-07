@@ -276,9 +276,9 @@ const adminSlice = createSlice({
       })
       .addCase(getCustomers.fulfilled, (state, action) => {
         state.loading = false;
-        // 修复：后端返回的是 { success: true, data: { customers: [...], pagination: {...} } } 结构
-        const data = action.payload.data || action.payload;
-        state.customers = data.customers || data || [];
+        // 修复：AdminAPI.getCustomers() 直接返回customers数组
+        console.log('getCustomers收到数据:', action.payload);
+        state.customers = action.payload || [];
       })
       .addCase(getCustomers.rejected, (state, action) => {
         state.loading = false;
