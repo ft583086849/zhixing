@@ -115,6 +115,9 @@ const AdminPaymentConfig = () => {
     },
     showUploadList: false,
     fileList: [], // 确保文件列表为空
+    accept: 'image/*',
+    multiple: false,
+    onRemove: () => false, // 禁用移除功能
   };
 
   const cryptoUploadProps = {
@@ -124,6 +127,9 @@ const AdminPaymentConfig = () => {
     },
     showUploadList: false,
     fileList: [], // 确保文件列表为空
+    accept: 'image/*', 
+    multiple: false,
+    onRemove: () => false, // 禁用移除功能
   };
 
   return (

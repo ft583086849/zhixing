@@ -375,9 +375,13 @@ export class SupabaseService {
       new Date(order.created_at).toDateString() === today
     ).length;
     
-    // 按状态统计订单
-    const pendingPayment = orders.filter(order => order.status === 'pending_payment').length;
-    const confirmedPayment = orders.filter(order => order.status === 'confirmed_payment').length;
+    // 按状态统计订单 - 兼容多种状态格式
+    const pendingPayment = orders.filter(order => 
+      ['pending_payment', 'pending', 'pending_review'].includes(order.status)
+    ).length;
+    const confirmedPayment = orders.filter(order => 
+      ['confirmed_payment', 'confirmed'].includes(order.status)
+    ).length;
     const pendingConfig = orders.filter(order => order.status === 'pending_config').length;
     const confirmedConfig = orders.filter(order => order.status === 'confirmed_configuration').length;
     
