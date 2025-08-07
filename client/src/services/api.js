@@ -450,7 +450,7 @@ export const AdminAPI = {
           total_amount: Math.round(totalAmount * 100) / 100,
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
-          orders: saleOrders,
+          // orders: saleOrders, // 移除orders字段，避免循环引用和大数据量
           hierarchy_info: '一级销售'
         };
       });
@@ -534,7 +534,7 @@ export const AdminAPI = {
           total_amount: Math.round(totalAmount * 100) / 100,
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
-          orders: saleOrders,
+          // orders: saleOrders, // 移除orders字段，避免循环引用和大数据量
           hierarchy_info: hierarchyInfo
         };
       });
@@ -568,14 +568,14 @@ export const AdminAPI = {
   /**
    * 获取统计数据 - 重新设计：直接从订单表计算，以付款时间为准
    */
-  async getStats() {
+  async getStats(params = {}) {
     const cacheKey = 'admin-stats';
     // 🔧 修复：暂时禁用缓存确保获取最新数据
     // const cached = CacheManager.get(cacheKey);
     // if (cached) return cached;
 
     try {
-      console.log('🔍 重新设计的数据概览API - 开始获取统计数据...');
+      console.log('🔍 重新设计的数据概览API - 开始获取统计数据...', params);
       
       // 🎯 修复：使用正确的supabase客户端
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
