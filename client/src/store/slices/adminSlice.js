@@ -215,10 +215,14 @@ const adminSlice = createSlice({
       })
       .addCase(getAdminOrders.fulfilled, (state, action) => {
         state.loading = false;
-        // 修复：后端返回的是 { success: true, data: {...} } 结构
-        const data = action.payload.data || action.payload;
-        state.orders = data.orders;
-        state.pagination = data.pagination;
+        // 修复：AdminAPI.getOrders()返回的data直接是orders数组
+        console.log('getAdminOrders收到数据:', action.payload);
+        state.orders = action.payload || [];
+        // 临时设置分页信息
+        state.pagination = {
+          ...state.pagination,
+          total: action.payload ? action.payload.length : 0
+        };
       })
       .addCase(getAdminOrders.rejected, (state, action) => {
         state.loading = false;
