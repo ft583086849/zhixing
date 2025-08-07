@@ -334,6 +334,7 @@ export const AdminAPI = {
         return {
           ...sale,
           sales_type: 'primary',
+          sales_display_type: '一级销售', // 新增：用于显示的销售类型
           total_orders: totalOrders,
           valid_orders: validOrders,
           total_amount: Math.round(totalAmount * 100) / 100,
@@ -386,18 +387,30 @@ export const AdminAPI = {
           commissionRate = Math.round((commissionAmount / totalAmount) * 100);
         }
         
-        // 查找所属一级销售
-        let hierarchyInfo = '独立二级销售';
+        // 判断二级销售类型
+        let salesDisplayType = '';
+        let hierarchyInfo = '';
+        
         if (sale.primary_sales_id) {
+          // 关联二级销售
           const primarySale = primarySales.find(p => p.id === sale.primary_sales_id);
           if (primarySale) {
+            salesDisplayType = '关联二级销售';
             hierarchyInfo = `${primarySale.name || primarySale.wechat_name} 的二级销售`;
+          } else {
+            salesDisplayType = '关联二级销售';
+            hierarchyInfo = `关联销售ID: ${sale.primary_sales_id}`;
           }
+        } else {
+          // 独立二级销售
+          salesDisplayType = '独立二级销售';
+          hierarchyInfo = '独立运营';
         }
         
         return {
           ...sale,
           sales_type: 'secondary',
+          sales_display_type: salesDisplayType, // 新增：用于显示的销售类型
           total_orders: totalOrders,
           valid_orders: validOrders,
           total_amount: Math.round(totalAmount * 100) / 100,
