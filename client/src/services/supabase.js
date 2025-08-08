@@ -652,18 +652,18 @@ export class SupabaseService {
       .from('orders')
       .select('*');
     
-    // 销售微信号搜索
+    // 销售微信号搜索（精确匹配）
     if (params.sales_wechat) {
-      // 先获取销售信息
+      // 先获取销售信息 - 使用精确匹配
       const { data: primarySales } = await supabase
         .from('primary_sales')
         .select('sales_code')
-        .ilike('wechat_name', `%${params.sales_wechat}%`);
+        .eq('wechat_name', params.sales_wechat);
       
       const { data: secondarySales } = await supabase
         .from('secondary_sales')
         .select('sales_code')
-        .ilike('wechat_name', `%${params.sales_wechat}%`);
+        .eq('wechat_name', params.sales_wechat);
       
       const salesCodes = [
         ...(primarySales || []).map(s => s.sales_code),
