@@ -125,13 +125,13 @@ const SalesPage = () => {
               name="payment_method"
               label="收款方式"
               rules={[{ required: true, message: '请选择收款方式' }]}
+              initialValue="crypto"
              >
               <Select
                 placeholder="请选择收款方式"
                 size="large"
                 onChange={(value) => setPaymentMethod(value)}
                 aria-label="请选择收款方式"
-                defaultValue="crypto"
               >
                 <Option value="crypto">链上地址</Option>
               </Select>
