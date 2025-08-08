@@ -1406,6 +1406,19 @@ export const SalesAPI = {
       // 🔧 移除name字段（支付宝已移除，不再需要）
       delete salesData.name;
       
+      // 🔧 确保保留primary_sales_id（如果存在）- 用于关联到一级销售
+      // 如果有registration_code但没有primary_sales_id，尝试获取
+      if (salesData.registration_code && !salesData.primary_sales_id) {
+        const validationResult = await this.validateSecondaryRegistrationCode(salesData.registration_code);
+        if (validationResult.success && validationResult.data) {
+          salesData.primary_sales_id = validationResult.data.primary_sales_id;
+          console.log('✅ 通过注册码获取到primary_sales_id:', salesData.primary_sales_id);
+        }
+      }
+      
+      // 记录日志以便调试
+      console.log('📝 注册二级销售，primary_sales_id:', salesData.primary_sales_id || '独立销售');
+      
       const newSale = await SupabaseService.createSecondarySales(salesData);
       
       CacheManager.clear('sales'); // 清除销售相关缓存
