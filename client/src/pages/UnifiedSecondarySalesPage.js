@@ -45,11 +45,15 @@ const UnifiedSecondarySalesPage = () => {
 
   // 检查是否为关联模式并验证代码
   useEffect(() => {
-    const salesCode = searchParams.get('sales_code');
-    if (salesCode) {
+    // 修复：检查正确的参数名 registration_code
+    const regCode = searchParams.get('registration_code');
+    const salesCode = searchParams.get('sales_code'); // 兼容旧的参数名
+    const code = regCode || salesCode; // 优先使用registration_code
+    
+    if (code) {
       setIsLinkedMode(true);
-      setRegistrationCode(salesCode);
-      validateRegistrationCode(salesCode);
+      setRegistrationCode(code);
+      validateRegistrationCode(code);
     } else {
       setIsLinkedMode(false);
       setValidationStep('valid'); // 独立模式直接通过验证
