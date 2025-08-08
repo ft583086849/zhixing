@@ -705,6 +705,50 @@ export const AdminAPI = {
         SupabaseService.getSecondarySales()
       ]);
       
+      // 计算销售业绩
+      let primary_sales_amount = 0;
+      let secondary_sales_amount = 0;
+      
+      orders.forEach(order => {
+        const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+        const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
+        
+        if (order.sales_code) {
+          const isPrimarySale = primarySales?.some(ps => ps.sales_code === order.sales_code);
+          const isSecondarySale = secondarySales?.some(ss => ss.sales_code === order.sales_code);
+          
+          if (isPrimarySale) {
+            primary_sales_amount += amountUSD;
+          } else if (isSecondarySale) {
+            secondary_sales_amount += amountUSD;
+          }
+        }
+      });
+      
+      // 计算订单时长分布
+      const orderDurationStats = {
+        one_month_orders: 0,
+        three_month_orders: 0,
+        six_month_orders: 0,
+        yearly_orders: 0
+      };
+      
+      orders.forEach(order => {
+        const duration = order.duration;
+        if (duration === '1month') orderDurationStats.one_month_orders++;
+        else if (duration === '3months') orderDurationStats.three_month_orders++;
+        else if (duration === '6months') orderDurationStats.six_month_orders++;
+        else if (duration === '1year' || duration === 'yearly') orderDurationStats.yearly_orders++;
+      });
+      
+      const totalOrders = orders.length || 1;
+      const orderDurationPercentages = {
+        one_month_percentage: (orderDurationStats.one_month_orders / totalOrders * 100),
+        three_month_percentage: (orderDurationStats.three_month_orders / totalOrders * 100),
+        six_month_percentage: (orderDurationStats.six_month_orders / totalOrders * 100),
+        yearly_percentage: (orderDurationStats.yearly_orders / totalOrders * 100)
+      };
+
       const stats = {
         total_orders: orders.length,
         total_amount: Math.round(total_amount * 100) / 100,
@@ -714,9 +758,16 @@ export const AdminAPI = {
         pending_config_orders,
         confirmed_config_orders,
         total_commission: Math.round(total_commission * 100) / 100,
+        commission_amount: Math.round(total_commission * 100) / 100,  // 前端需要这个字段
         primary_sales_count: primarySales?.length || 0,
         secondary_sales_count: secondarySales?.length || 0,
         total_sales: (primarySales?.length || 0) + (secondarySales?.length || 0),
+        // 销售业绩
+        primary_sales_amount: Math.round(primary_sales_amount * 100) / 100,
+        secondary_sales_amount: Math.round(secondary_sales_amount * 100) / 100,
+        // 订单时长统计
+        ...orderDurationStats,
+        ...orderDurationPercentages,
         // 🔧 新增调试信息
         sales_with_orders: salesFromOrders.size, // 有订单的销售数量
         debug_info: {
