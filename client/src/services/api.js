@@ -490,21 +490,35 @@ export const AdminAPI = {
       }
       
       // 销售微信号搜索
-      // 🔧 修复：搜索一级销售时，也显示其下的二级销售
+      // 🔧 修复：搜索一级销售时，也显示其下的二级销售，支持部分匹配
       if (params.wechat_name) {
-        // 先筛选匹配的一级销售
-        const matchedPrimarySales = primarySales.filter(sale => 
-          sale.wechat_name && sale.wechat_name.includes(params.wechat_name)
-        );
+        const searchTerm = params.wechat_name.toLowerCase();
+        
+        // 先筛选匹配的一级销售（不区分大小写）
+        const matchedPrimarySales = primarySales.filter(sale => {
+          // 检查多个字段进行匹配
+          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase().includes(searchTerm);
+          const nameMatch = sale.name && sale.name.toLowerCase().includes(searchTerm);
+          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase().includes(searchTerm);
+          return wechatMatch || nameMatch || codeMatch;
+        });
         
         // 获取这些一级销售的ID
         const primarySalesIds = matchedPrimarySales.map(p => p.id);
         
         // 筛选二级销售：直接匹配的 + 属于匹配的一级销售的
-        secondarySales = secondarySales.filter(sale => 
-          (sale.wechat_name && sale.wechat_name.includes(params.wechat_name)) ||
-          (sale.primary_sales_id && primarySalesIds.includes(sale.primary_sales_id))
-        );
+        secondarySales = secondarySales.filter(sale => {
+          // 直接匹配
+          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase().includes(searchTerm);
+          const nameMatch = sale.name && sale.name.toLowerCase().includes(searchTerm);
+          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase().includes(searchTerm);
+          const directMatch = wechatMatch || nameMatch || codeMatch;
+          
+          // 或者属于匹配的一级销售
+          const belongsToMatchedPrimary = sale.primary_sales_id && primarySalesIds.includes(sale.primary_sales_id);
+          
+          return directMatch || belongsToMatchedPrimary;
+        });
         
         primarySales = matchedPrimarySales;
       }
@@ -608,7 +622,8 @@ export const AdminAPI = {
         // 🔧 新增：生成销售链接
         const baseUrl = window.location.origin;
         const purchaseLink = `${baseUrl}/purchase/${sale.sales_code}`;
-        const salesRegisterLink = `${baseUrl}/sales/${sale.sales_code}`;
+        // 🔧 修复：正确的二级销售注册链接路径
+        const salesRegisterLink = `${baseUrl}/secondary-registration/${sale.sales_code}`;
         
         const links = [
           {
@@ -724,7 +739,9 @@ export const AdminAPI = {
           const primarySale = primarySales.find(p => p.id === sale.primary_sales_id);
           if (primarySale) {
             salesDisplayType = '关联二级销售';
-            hierarchyInfo = `${primarySale.name || primarySale.wechat_name} 的二级销售`;
+            // 🔧 修复：确保显示正确的一级销售名称
+            const primaryName = primarySale.wechat_name || primarySale.name || `一级销售-${primarySale.sales_code}`;
+            hierarchyInfo = `隶属于: ${primaryName}`;
           } else {
             salesDisplayType = '关联二级销售';
             hierarchyInfo = `关联销售ID: ${sale.primary_sales_id}`;
