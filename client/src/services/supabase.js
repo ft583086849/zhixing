@@ -664,30 +664,75 @@ export class SupabaseService {
       .from('orders')
       .select('*');
     
+    // 销售类型过滤
+    let salesCodesToFilter = [];
+    
+    if (params.sales_type) {
+      // 根据销售类型获取对应的销售代码
+      if (params.sales_type === 'primary') {
+        const { data: primarySales } = await supabase
+          .from('primary_sales')
+          .select('sales_code');
+        salesCodesToFilter = (primarySales || []).map(s => s.sales_code);
+      } else if (params.sales_type === 'secondary') {
+        const { data: secondarySales } = await supabase
+          .from('secondary_sales')
+          .select('sales_code');
+        salesCodesToFilter = (secondarySales || []).map(s => s.sales_code);
+      }
+    }
+    
     // 销售微信号搜索（精确匹配）
     if (params.sales_wechat) {
       // 先获取销售信息 - 使用精确匹配
-      const { data: primarySales } = await supabase
-        .from('primary_sales')
-        .select('sales_code')
-        .eq('wechat_name', params.sales_wechat);
+      let primarySales = [];
+      let secondarySales = [];
       
-      const { data: secondarySales } = await supabase
-        .from('secondary_sales')
-        .select('sales_code')
-        .eq('wechat_name', params.sales_wechat);
+      // 如果已经筛选了销售类型，只查询对应类型
+      if (params.sales_type === 'primary') {
+        const { data } = await supabase
+          .from('primary_sales')
+          .select('sales_code')
+          .eq('wechat_name', params.sales_wechat);
+        primarySales = data || [];
+      } else if (params.sales_type === 'secondary') {
+        const { data } = await supabase
+          .from('secondary_sales')
+          .select('sales_code')
+          .eq('wechat_name', params.sales_wechat);
+        secondarySales = data || [];
+      } else {
+        // 没有指定类型，查询两种类型
+        const { data: primaryData } = await supabase
+          .from('primary_sales')
+          .select('sales_code')
+          .eq('wechat_name', params.sales_wechat);
+        
+        const { data: secondaryData } = await supabase
+          .from('secondary_sales')
+          .select('sales_code')
+          .eq('wechat_name', params.sales_wechat);
+        
+        primarySales = primaryData || [];
+        secondarySales = secondaryData || [];
+      }
       
       const salesCodes = [
-        ...(primarySales || []).map(s => s.sales_code),
-        ...(secondarySales || []).map(s => s.sales_code)
+        ...primarySales.map(s => s.sales_code),
+        ...secondarySales.map(s => s.sales_code)
       ];
       
       if (salesCodes.length > 0) {
-        query = query.in('sales_code', salesCodes);
+        salesCodesToFilter = salesCodes;
       } else {
         // 如果没有找到匹配的销售，返回空结果
         return [];
       }
+    }
+    
+    // 应用销售代码过滤
+    if (salesCodesToFilter.length > 0) {
+      query = query.in('sales_code', salesCodesToFilter);
     }
     
     // 用户微信号搜索

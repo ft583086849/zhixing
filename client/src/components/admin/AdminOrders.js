@@ -170,24 +170,50 @@ const AdminOrders = () => {
     {
       title: '销售微信号',
       key: 'sales_wechat_name',
-      width: 120,
+      width: 150,
       render: (_, record) => {
-        // 只使用wechat_name字段显示销售微信号
+        // 判断销售类型
+        let salesType = '';
+        let salesTypeBadge = null;
+        
+        // 根据字段判断销售类型
+        if (record.primary_sales_id) {
+          salesType = '一级';
+          salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级</Tag>;
+        } else if (record.secondary_sales_id) {
+          salesType = '二级';
+          salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级</Tag>;
+        } else {
+          // 备用判断逻辑
+          if (record.primary_sales?.wechat_name) {
+            salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级</Tag>;
+          } else if (record.secondary_sales?.wechat_name) {
+            salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级</Tag>;
+          }
+        }
+        
+        // 获取微信号
+        let wechatName = '-';
         
         // 优先从sales_wechat_name字段获取（由supabase.js设置）
         if (record.sales_wechat_name && record.sales_wechat_name !== '-') {
-          return record.sales_wechat_name;
+          wechatName = record.sales_wechat_name;
         }
-        
         // 尝试从嵌套的销售对象中获取wechat_name
-        if (record.primary_sales?.wechat_name) {
-          return record.primary_sales.wechat_name;
+        else if (record.primary_sales?.wechat_name) {
+          wechatName = record.primary_sales.wechat_name;
         }
-        if (record.secondary_sales?.wechat_name) {
-          return record.secondary_sales.wechat_name;
+        else if (record.secondary_sales?.wechat_name) {
+          wechatName = record.secondary_sales.wechat_name;
         }
         
-        return '-';
+        // 返回带类型标识的销售微信号
+        return (
+          <span>
+            {salesTypeBadge}
+            {wechatName}
+          </span>
+        );
       }
     },
     {
@@ -550,6 +576,14 @@ const AdminOrders = () => {
       <Card style={{ marginBottom: 16 }}>
         <Form form={searchForm} layout="inline">
           <Row gutter={[16, 16]} style={{ width: '100%' }}>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="sales_type" label="销售类型">
+                <Select placeholder="请选择销售类型" allowClear>
+                  <Option value="primary">一级销售</Option>
+                  <Option value="secondary">二级销售</Option>
+                </Select>
+              </Form.Item>
+            </Col>
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="sales_wechat" label="销售微信号">
                 <Input placeholder="请输入销售微信号" />
