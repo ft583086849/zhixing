@@ -172,34 +172,33 @@ const AdminOrders = () => {
       key: 'sales_wechat_name',
       width: 150,
       render: (_, record) => {
-        // 判断销售类型
+        // 判断销售类型 - 使用三层销售体系
         let salesType = '';
         let salesTypeBadge = null;
         
         // 根据字段判断销售类型
         if (record.primary_sales_id) {
-          salesType = '一级';
-          salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级</Tag>;
+          salesType = '一级销售';
+          salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级销售</Tag>;
         } else if (record.secondary_sales_id) {
-          salesType = '二级';
-          // 判断是关联二级还是独立二级
+          // 判断是二级销售还是独立销售
           if (record.secondary_sales?.primary_sales_id) {
-            // 关联二级销售
-            salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>关联二级</Tag>;
+            // 二级销售（有上级）
+            salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级销售</Tag>;
           } else {
-            // 独立二级销售
-            salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立二级</Tag>;
+            // 独立销售（无上级）
+            salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立销售</Tag>;
           }
         } else {
           // 备用判断逻辑
           if (record.primary_sales?.wechat_name) {
-            salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级</Tag>;
+            salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级销售</Tag>;
           } else if (record.secondary_sales?.wechat_name) {
             // 判断是否有primary_sales_id
             if (record.secondary_sales?.primary_sales_id) {
-              salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>关联二级</Tag>;
+              salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级销售</Tag>;
             } else {
-              salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立二级</Tag>;
+              salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立销售</Tag>;
             }
           }
         }
@@ -593,6 +592,7 @@ const AdminOrders = () => {
                 <Select placeholder="请选择销售类型" allowClear>
                   <Option value="primary">一级销售</Option>
                   <Option value="secondary">二级销售</Option>
+                  <Option value="independent">独立销售</Option>
                 </Select>
               </Form.Item>
             </Col>

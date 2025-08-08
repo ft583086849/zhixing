@@ -20,7 +20,9 @@ import {
   WalletOutlined, 
   BankOutlined,
   CalculatorOutlined,
-  PieChartOutlined
+  PieChartOutlined,
+  TeamOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import { getStats } from '../../store/slices/adminSlice';
 import dayjs from 'dayjs';
@@ -138,30 +140,102 @@ const AdminFinance = () => {
 
   const profitColumns = [
     {
-      title: '营利金额',
+      title: (
+        <div style={{ textAlign: 'center' }}>
+          <BankOutlined style={{ marginRight: 8, color: '#faad14' }} />
+          营利金额
+        </div>
+      ),
       dataIndex: 'netProfit',
       key: 'netProfit',
+      width: 180,
       render: () => (
-        <Statistic
-          value={financials.netProfit}
-          prefix="$"
-          precision={2}
-          valueStyle={{ fontSize: '16px' }}
-        />
+        <div style={{ 
+          background: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
+          padding: '12px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ color: '#fff', fontSize: '12px', marginBottom: '4px' }}>总营利</div>
+          <div style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold' }}>
+            ${financials.netProfit.toFixed(2)}
+          </div>
+        </div>
       )
     },
     {
-      title: '分类',
+      title: (
+        <div style={{ textAlign: 'center' }}>
+          <TeamOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          分配对象
+        </div>
+      ),
       dataIndex: 'category',
       key: 'category',
-      render: (text) => <strong>{text}</strong>
+      width: 150,
+      align: 'center',
+      render: (text, record) => {
+        let bgColor = '#f0f2f5';
+        let textColor = '#333';
+        let icon = null;
+        
+        if (record.key === 'public') {
+          bgColor = '#e6f7ff';
+          textColor = '#1890ff';
+          icon = '🏢';
+        } else if (record.key === 'zhixing') {
+          bgColor = '#f6ffed';
+          textColor = '#52c41a';
+          icon = '📚';
+        } else if (record.key === 'zijun') {
+          bgColor = '#fff1f0';
+          textColor = '#f5222d';
+          icon = '👤';
+        }
+        
+        return (
+          <div style={{
+            background: bgColor,
+            padding: '8px 16px',
+            borderRadius: '20px',
+            display: 'inline-block'
+          }}>
+            <span style={{ fontSize: '16px', marginRight: '6px' }}>{icon}</span>
+            <span style={{ color: textColor, fontWeight: '600' }}>{text}</span>
+          </div>
+        );
+      }
     },
     {
-      title: '收益占比',
+      title: (
+        <div style={{ textAlign: 'center' }}>
+          <PieChartOutlined style={{ marginRight: 8, color: '#722ed1' }} />
+          收益占比
+        </div>
+      ),
       dataIndex: 'ratio',
       key: 'ratio',
+      width: 200,
+      align: 'center',
       render: (value, record) => (
-        <Space>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ 
+            width: '60px', 
+            height: '6px', 
+            background: '#f0f0f0',
+            borderRadius: '3px',
+            marginRight: '12px',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: `${value}%`,
+              height: '100%',
+              background: record.key === 'public' ? '#1890ff' : 
+                         record.key === 'zhixing' ? '#52c41a' : '#f5222d',
+              borderRadius: '3px',
+              transition: 'width 0.3s'
+            }} />
+          </div>
           <InputNumber
             min={0}
             max={100}
@@ -169,20 +243,39 @@ const AdminFinance = () => {
             onChange={(val) => handleRatioChange(record.key, val)}
             formatter={value => `${value}%`}
             parser={value => value.replace('%', '')}
-            style={{ width: 100 }}
+            style={{ width: 80 }}
+            size="small"
           />
-        </Space>
+        </div>
       )
     },
     {
-      title: '收益',
+      title: (
+        <div style={{ textAlign: 'center' }}>
+          <DollarOutlined style={{ marginRight: 8, color: '#52c41a' }} />
+          分配金额
+        </div>
+      ),
       dataIndex: 'profit',
       key: 'profit',
-      render: (value) => (
-        <span style={{ color: '#52c41a', fontWeight: 'bold' }}>
-          ${value}
-        </span>
-      )
+      width: 150,
+      align: 'center',
+      render: (value, record) => {
+        let color = '#52c41a';
+        if (record.key === 'public') color = '#1890ff';
+        else if (record.key === 'zhixing') color = '#52c41a';
+        else if (record.key === 'zijun') color = '#f5222d';
+        
+        return (
+          <div style={{
+            fontSize: '18px',
+            fontWeight: 'bold',
+            color: color
+          }}>
+            ${value}
+          </div>
+        );
+      }
     }
   ];
 
@@ -304,37 +397,84 @@ const AdminFinance = () => {
           </Card>
 
           {/* 收益分配表格 */}
-          <Divider orientation="left">收益分配</Divider>
-          <Card>
+          <Divider orientation="left" style={{ marginTop: 32 }}>
+            <Space>
+              <PieChartOutlined style={{ color: '#722ed1' }} />
+              <span style={{ fontWeight: '600' }}>收益分配方案</span>
+            </Space>
+          </Divider>
+          <Card 
+            style={{ 
+              background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+              border: 'none',
+              borderRadius: '12px'
+            }}
+            bodyStyle={{ padding: '24px' }}
+          >
             <Table
               dataSource={calculateProfitDistribution()}
               columns={profitColumns}
               pagination={false}
-              bordered
+              showHeader={true}
+              style={{
+                background: '#fff',
+                borderRadius: '8px',
+                overflow: 'hidden'
+              }}
               summary={() => (
                 <Table.Summary>
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell index={0}>
-                      <strong>合计</strong>
+                  <Table.Summary.Row style={{ background: '#fafafa' }}>
+                    <Table.Summary.Cell index={0} align="center">
+                      <strong style={{ fontSize: '16px' }}>💰 合计</strong>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={1}>-</Table.Summary.Cell>
-                    <Table.Summary.Cell index={2}>
-                      <strong>{profitRatios.public + profitRatios.zhixing + profitRatios.zijun}%</strong>
+                    <Table.Summary.Cell index={1} align="center">
+                      <span style={{ color: '#999' }}>-</span>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={3}>
-                      <strong style={{ color: '#52c41a' }}>
+                    <Table.Summary.Cell index={2} align="center">
+                      <div style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        background: '#722ed1',
+                        color: '#fff',
+                        borderRadius: '12px',
+                        fontWeight: 'bold'
+                      }}>
+                        {profitRatios.public + profitRatios.zhixing + profitRatios.zijun}%
+                      </div>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={3} align="center">
+                      <div style={{ 
+                        fontSize: '20px',
+                        fontWeight: 'bold',
+                        color: '#52c41a'
+                      }}>
                         ${financials.netProfit.toFixed(2)}
-                      </strong>
+                      </div>
                     </Table.Summary.Cell>
                   </Table.Summary.Row>
                 </Table.Summary>
               )}
             />
-            <div style={{ marginTop: 16, color: '#666' }}>
-              <Space direction="vertical">
-                <span>* 营利金额 = 总实付金额 - 销售返佣金额</span>
-                <span>* 收益占比可手动调整，总和建议为100%</span>
-                <span>* 销售返佣金额基于实付金额计算</span>
+            
+            <div style={{ 
+              marginTop: 20, 
+              padding: '16px',
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '8px'
+            }}>
+              <Space direction="vertical" size="small">
+                <div>
+                  <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+                  <span style={{ color: '#666' }}>营利金额 = 总实付金额 - 销售返佣金额</span>
+                </div>
+                <div>
+                  <CalculatorOutlined style={{ color: '#722ed1', marginRight: 8 }} />
+                  <span style={{ color: '#666' }}>收益占比可手动调整，总和建议为100%</span>
+                </div>
+                <div>
+                  <WalletOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                  <span style={{ color: '#666' }}>销售返佣金额基于实付金额计算</span>
+                </div>
               </Space>
             </div>
           </Card>

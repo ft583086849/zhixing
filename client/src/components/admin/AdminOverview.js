@@ -57,6 +57,11 @@ const AdminOverview = () => {
       () => {
         return dispatch(getSales()).then(result => {
           if (result.payload && Array.isArray(result.payload)) {
+            // 计算总销售额
+            const totalSalesAmount = result.payload.reduce((sum, sale) => 
+              sum + (sale.total_amount || 0), 0
+            );
+            
             // 计算Top5销售（按销售金额排序）
             const sortedSales = [...result.payload]
               .sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0))
@@ -68,7 +73,11 @@ const AdminOverview = () => {
                            (sale.sales?.primary_sales_id ? '二级销售' : '独立销售'),
                 sales_name: sale.sales?.wechat_name || sale.sales?.name || '-',
                 total_amount: sale.total_amount || 0,
-                commission_amount: sale.commission_amount || 0
+                commission_amount: sale.commission_amount || 0,
+                // 计算占比
+                percentage: totalSalesAmount > 0 
+                  ? ((sale.total_amount || 0) / totalSalesAmount * 100).toFixed(2)
+                  : '0.00'
               }));
             setTop5Sales(sortedSales);
           }
@@ -494,6 +503,22 @@ const AdminOverview = () => {
                   render: (amount) => (
                     <span style={{ color: '#1890ff', fontWeight: 'bold' }}>
                       ${(amount || 0).toFixed(2)}
+                    </span>
+                  )
+                },
+                {
+                  title: '占比',
+                  dataIndex: 'percentage',
+                  key: 'percentage',
+                  width: 100,
+                  align: 'center',
+                  render: (percentage) => (
+                    <span style={{ 
+                      color: '#722ed1', 
+                      fontWeight: 'bold',
+                      fontSize: '14px'
+                    }}>
+                      {percentage}%
                     </span>
                   )
                 },

@@ -1,78 +1,41 @@
-const https = require('https');
+// 在 https://zhixing-seven.vercel.app 的控制台运行
+// 用于检查当前部署的版本信息
 
-async function checkDeploymentVersion() {
-  return new Promise((resolve, reject) => {
-    // 尝试访问一个可能包含版本信息的endpoint
-    const options = {
-      hostname: 'zhixing-seven.vercel.app',
-      port: 443,
-      path: '/api/primary-sales?debug=true',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
+(function() {
+    console.log('🔍 检查部署版本信息...\n');
+    
+    // 检查关键功能标志
+    const checks = {
+        '资金统计菜单': !!Array.from(document.querySelectorAll('.ant-menu-item')).find(el => el.textContent.includes('资金统计')),
+        'Top5排行榜': !!document.querySelector('h3')?.textContent?.includes('Top5'),
+        '独立销售统计': !!Array.from(document.querySelectorAll('.ant-statistic-title')).find(el => el.textContent.includes('独立销售')),
+        '时间范围选择': !!document.querySelector('.ant-radio-group'),
+        '双链配置': !!localStorage.getItem('payment-config')?.includes('crypto2')
     };
-
-    const req = https.request(options, (res) => {
-      let responseData = '';
-
-      res.on('data', (chunk) => {
-        responseData += chunk;
-      });
-
-      res.on('end', () => {
-        console.log('🔍 检查primary_sales API部署版本:');
-        console.log(`状态码: ${res.statusCode}`);
-        console.log(`响应头时间: ${res.headers.date}`);
-        
-        try {
-          const result = JSON.parse(responseData);
-          console.log('\n📊 API响应结构分析:');
-          if (result.success && result.data && result.data.length > 0) {
-            const sample = result.data[0];
-            const fields = Object.keys(sample);
-            console.log(`字段数量: ${fields.length}`);
-            console.log(`字段列表: ${fields.join(', ')}`);
-            
-            // 检查是否包含我们新添加的字段
-            const newFields = ['sales_code', 'phone', 'email'];
-            const hasNewFields = newFields.filter(field => fields.includes(field));
-            const missingFields = newFields.filter(field => !fields.includes(field));
-            
-            console.log(`\n✅ 包含新字段: ${hasNewFields.join(', ') || '无'}`);
-            console.log(`❌ 缺失新字段: ${missingFields.join(', ') || '无'}`);
-            
-            if (missingFields.length === 0) {
-              console.log('\n🎉 部署成功！新字段已生效');
-            } else {
-              console.log('\n⚠️  部署可能未完成或缓存问题');
-            }
-          }
-        } catch (error) {
-          console.log('原始响应:', responseData);
-        }
-        resolve({ statusCode: res.statusCode, data: responseData });
-      });
+    
+    console.log('功能检查结果：');
+    Object.entries(checks).forEach(([key, value]) => {
+        console.log(`${value ? '✅' : '❌'} ${key}`);
     });
-
-    req.on('error', (error) => {
-      console.error('❌ 请求失败:', error);
-      reject(error);
-    });
-
-    req.end();
-  });
-}
-
-async function main() {
-  try {
-    await checkDeploymentVersion();
-  } catch (error) {
-    console.error('❌ 检查失败:', error);
-  }
-}
-
-main();
+    
+    const passedCount = Object.values(checks).filter(v => v).length;
+    const totalCount = Object.keys(checks).length;
+    
+    console.log(`\n部署状态评估：${passedCount}/${totalCount} 功能已部署`);
+    
+    if (passedCount === totalCount) {
+        console.log('✨ 最新版本已完全部署！');
+    } else if (passedCount >= 3) {
+        console.log('⚠️ 部分新功能已部署，可能正在更新中...');
+    } else {
+        console.log('❌ 新功能尚未部署，可能使用的是旧版本');
+    }
+    
+    // 检查构建时间（如果页面有相关信息）
+    const buildTime = document.querySelector('meta[name="build-time"]')?.content;
+    if (buildTime) {
+        console.log(`\n构建时间：${buildTime}`);
+    }
+    
+    console.log('\n提示：如需查看详细部署历史，请访问 Vercel Dashboard');
+})();

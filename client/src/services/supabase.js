@@ -688,10 +688,19 @@ export class SupabaseService {
           .select('sales_code');
         salesCodesToFilter = (primarySales || []).map(s => s.sales_code);
       } else if (params.sales_type === 'secondary') {
+        // 二级销售（有上级的）
         const { data: secondarySales } = await supabase
           .from('secondary_sales')
-          .select('sales_code');
+          .select('sales_code, primary_sales_id')
+          .not('primary_sales_id', 'is', null);
         salesCodesToFilter = (secondarySales || []).map(s => s.sales_code);
+      } else if (params.sales_type === 'independent') {
+        // 独立销售（没有上级的二级销售）
+        const { data: independentSales } = await supabase
+          .from('secondary_sales')
+          .select('sales_code')
+          .is('primary_sales_id', null);
+        salesCodesToFilter = (independentSales || []).map(s => s.sales_code);
       }
     }
     

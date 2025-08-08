@@ -511,9 +511,15 @@ export const AdminAPI = {
         primarySales = (await primaryQuery).data || [];
         secondarySales = [];
       } else if (params.sales_type === 'secondary') {
-        // 只获取二级销售
+        // 只获取二级销售（有上级的）
         primarySales = [];
-        secondarySales = (await secondaryQuery).data || [];
+        const allSecondary = (await secondaryQuery).data || [];
+        secondarySales = allSecondary.filter(s => s.primary_sales_id);
+      } else if (params.sales_type === 'independent') {
+        // 只获取独立销售（没有上级的二级销售）
+        primarySales = [];
+        const allSecondary = (await secondaryQuery).data || [];
+        secondarySales = allSecondary.filter(s => !s.primary_sales_id);
       } else {
         // 获取所有销售
         [primarySales, secondarySales] = await Promise.all([
