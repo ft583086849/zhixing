@@ -580,57 +580,59 @@ const AdminOrders = () => {
   ];
 
   return (
-    <div>
-      <Title level={2}>订单管理</Title>
+    <div style={{ padding: '0 24px' }}>
+      <Title level={2} style={{ marginBottom: 24 }}>订单管理</Title>
 
       {/* 搜索表单 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={searchForm} layout="inline">
-          <Row gutter={[16, 16]} style={{ width: '100%' }}>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="sales_type" label="销售类型">
-                <Select placeholder="请选择销售类型" allowClear>
+      <Card style={{ marginBottom: 24 }}>
+        <Form form={searchForm} layout="horizontal">
+          <Row gutter={[24, 16]} style={{ width: '100%' }}>
+            {/* 第一行 - 主要筛选 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="sales_type" label="销售类型" style={{ marginBottom: 0 }}>
+                <Select placeholder="请选择销售类型" allowClear style={{ width: '100%' }}>
                   <Option value="primary">一级销售</Option>
                   <Option value="secondary">二级销售</Option>
                   <Option value="independent">独立销售</Option>
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="sales_wechat" label="销售微信号">
-                <Input placeholder="请输入销售微信号" />
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="sales_wechat" label="销售微信号" style={{ marginBottom: 0 }}>
+                <Input placeholder="请输入销售微信号" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="customer_wechat" label="用户微信号">
-                <Input placeholder="请输入用户微信号" />
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="customer_wechat" label="用户微信号" style={{ marginBottom: 0 }}>
+                <Input placeholder="请输入用户微信号" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="tradingview_username" label="TradingView用户">
-                <Input placeholder="请输入TradingView用户" />
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="tradingview_username" label="TradingView用户" style={{ marginBottom: 0 }}>
+                <Input placeholder="请输入TradingView用户" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
 
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="purchase_type" label="购买方式">
-                <Select placeholder="请选择购买方式" allowClear>
+            {/* 第二行 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="purchase_type" label="购买方式" style={{ marginBottom: 0 }}>
+                <Select placeholder="请选择购买方式" allowClear style={{ width: '100%' }}>
                   <Option value="immediate">即时购买</Option>
                   <Option value="advance">提前购买</Option>
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="payment_method" label="付款方式">
-                <Select placeholder="请选择付款方式" allowClear>
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="payment_method" label="付款方式" style={{ marginBottom: 0 }}>
+                <Select placeholder="请选择付款方式" allowClear style={{ width: '100%' }}>
                   <Option value="alipay">支付宝</Option>
                   <Option value="crypto">链上地址</Option>
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="status" label="订单状态">
-                <Select placeholder="请选择状态" allowClear>
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="status" label="订单状态" style={{ marginBottom: 0 }}>
+                <Select placeholder="请选择状态" allowClear style={{ width: '100%' }}>
                   <Option value="pending_payment">待付款确认</Option>
                   <Option value="confirmed_payment">已付款确认</Option>
                   <Option value="pending_config">待配置确认</Option>
@@ -643,28 +645,30 @@ const AdminOrders = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="date_range" label="提交时间">
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="date_range" label="提交时间" style={{ marginBottom: 0 }}>
                 <RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="payment_date_range" label="付款时间">
+            
+            {/* 第三行 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="payment_date_range" label="付款时间" style={{ marginBottom: 0 }}>
                 <RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="config_date_range" label="配置时间">
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="config_date_range" label="配置时间" style={{ marginBottom: 0 }}>
                 <RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="expiry_date_range" label="到期时间">
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="expiry_date_range" label="到期时间" style={{ marginBottom: 0 }}>
                 <RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="amount_range" label="付款金额">
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="amount_range" label="付款金额" style={{ marginBottom: 0 }}>
                 <Input.Group compact>
                   <Input
                     style={{ width: '40%', textAlign: 'center' }}
@@ -686,14 +690,38 @@ const AdminOrders = () => {
                 </Input.Group>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Space>
-                <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            
+            {/* 按钮组 */}
+            <Col 
+              xs={24} 
+              style={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                marginTop: 8
+              }}
+            >
+              <Space size="middle">
+                <Button 
+                  type="primary" 
+                  icon={<SearchOutlined />} 
+                  onClick={handleSearch}
+                  size="middle"
+                >
                   搜索
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
-                <Button icon={<ExportOutlined />} onClick={handleExport}>
-                  导出
+                <Button 
+                  onClick={handleReset}
+                  size="middle"
+                >
+                  重置
+                </Button>
+                <Button 
+                  icon={<ExportOutlined />} 
+                  onClick={handleExport}
+                  size="middle"
+                >
+                  导出数据
                 </Button>
               </Space>
             </Col>
@@ -702,12 +730,15 @@ const AdminOrders = () => {
       </Card>
 
       {/* 订单表格 */}
-      <Card>
+      <Card bodyStyle={{ padding: '0px' }}>
         <Table
           columns={columns}
           dataSource={orders}
           rowKey="id"
-          scroll={{ x: 1500 }}
+          scroll={{ 
+            x: 1800,  // 设置横向滚动
+            y: 'calc(100vh - 420px)'  // 设置纵向高度
+          }}
           pagination={{
             current: pagination?.page || 1,
             pageSize: pagination?.limit || 20,
@@ -715,6 +746,7 @@ const AdminOrders = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
           loading={loading}
           onChange={handleTableChange}

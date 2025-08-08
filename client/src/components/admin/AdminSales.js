@@ -361,19 +361,21 @@ const AdminSales = () => {
     {
       title: '销售类型',
       key: 'sales_type',
-      width: 120,
+      width: 100,
+      fixed: 'left',
       render: (_, record) => getSalesTypeTag(record.sales?.sales_type || 'secondary'),
     },
     {
       title: '销售微信号',
       dataIndex: ['sales', 'wechat_name'],
       key: 'wechat_name',
-      width: 120,
+      width: 130,
+      fixed: 'left',
     },
     {
       title: '层级关系',
       key: 'hierarchy',
-      width: 150,
+      width: 120,
       render: (_, record) => (
         <Tooltip title={getHierarchyInfo(record)}>
           <span style={{ color: '#666', fontSize: '12px' }}>
@@ -386,26 +388,26 @@ const AdminSales = () => {
       title: '总订单数',
       dataIndex: 'total_orders',
       key: 'total_orders',
-      width: 100,
+      width: 90,
     },
     {
       title: '有效订单数',
       dataIndex: 'valid_orders',
       key: 'valid_orders',
-      width: 100,
+      width: 110,
       render: (value) => value || 0  // 🔧 修复：直接使用API返回的valid_orders
     },
     {
       title: '总金额',
       dataIndex: 'total_amount',
       key: 'total_amount',
-      width: 100,
+      width: 110,
       render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：直接使用API返回的total_amount
     },
     {
       title: '佣金率',
       key: 'commission_rate',
-      width: 120,
+      width: 140,
       render: (_, record) => {
         const salesId = record.sales?.id;
         // 🔧 修复：直接使用API返回的commission_rate，支持显示0或未设置的佣金率
@@ -460,20 +462,20 @@ const AdminSales = () => {
       title: '已配置确认订单金额',
       dataIndex: 'confirmed_amount',
       key: 'confirmed_amount',
-      width: 140,
+      width: 180,
       render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：使用API返回的confirmed_amount字段
     },
     {
       title: '应返佣金额',
       dataIndex: 'commission_amount',
       key: 'commission_amount',
-      width: 120,
+      width: 130,
       render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：直接使用API返回的commission_amount
     },
     {
       title: '已返佣金额',
       key: 'paid_commission',
-      width: 150,
+      width: 180,
       render: (_, record) => {
         const salesId = record.sales?.id;
         const currentValue = paidCommissionData[salesId] || 0;
@@ -508,7 +510,7 @@ const AdminSales = () => {
     {
       title: '待返佣状态',
       key: 'pending_commission_status',
-      width: 100,
+      width: 110,
       render: (_, record) => {
         const salesId = record.sales?.id;
         const commissionAmount = record.commission_amount || 0;  // 🔧 修复：使用API返回的commission_amount
@@ -528,13 +530,13 @@ const AdminSales = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 150,
+      width: 160,
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
       title: '用户购买链接',
       key: 'purchase_link',
-      width: 200,
+      width: 240,
       render: (_, record) => {
         const purchaseLink = record.links?.find(link => link.type === 'purchase');
         if (purchaseLink) {
@@ -572,7 +574,7 @@ const AdminSales = () => {
     {
       title: '分销注册链接',
       key: 'sales_register_link',
-      width: 200,
+      width: 240,
       render: (_, record) => {
         const salesLink = record.links?.find(link => link.type === 'sales_register');
         if (salesLink) {
@@ -612,21 +614,26 @@ const AdminSales = () => {
   ];
 
   return (
-    <div>
-      <Title level={2}>销售管理</Title>
+    <div style={{ padding: '0 24px' }}>
+      <Title level={2} style={{ marginBottom: 24 }}>销售管理</Title>
 
       {/* 搜索和筛选区域 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Form form={form} layout="inline">
-          <Row gutter={[16, 16]} style={{ width: '100%' }}>
-            {/* 第一行 */}
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="sales_type" label="销售类型">
+      <Card style={{ marginBottom: 24 }}>
+        <Form form={form} layout="horizontal">
+          <Row gutter={[24, 16]} style={{ width: '100%' }}>
+            {/* 第一行 - 主要筛选条件 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item 
+                name="sales_type" 
+                label="销售类型"
+                style={{ marginBottom: 0 }}
+              >
                 <Select 
                   placeholder="选择销售类型" 
                   allowClear
                   value={salesTypeFilter}
                   onChange={handleSalesTypeFilter}
+                  style={{ width: '100%' }}
                 >
                   <Option value="all">全部销售</Option>
                   <Option value="primary">一级销售</Option>
@@ -635,30 +642,59 @@ const AdminSales = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="wechat_name" label="销售微信号">
-                <Input placeholder="请输入销售微信号" />
+            
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item 
+                name="wechat_name" 
+                label="销售微信号"
+                style={{ marginBottom: 0 }}
+              >
+                <Input 
+                  placeholder="请输入销售微信号" 
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
             </Col>
             
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="payment_method" label="收款方式">
-                <Select placeholder="请选择收款方式" allowClear>
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item 
+                name="payment_method" 
+                label="收款方式"
+                style={{ marginBottom: 0 }}
+              >
+                <Select 
+                  placeholder="请选择收款方式" 
+                  allowClear
+                  style={{ width: '100%' }}
+                >
                   <Option value="alipay">支付宝</Option>
                   <Option value="crypto">链上地址</Option>
                 </Select>
               </Form.Item>
             </Col>
             
-            {/* 第二行 */}
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="create_date_range" label="创建时间">
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item 
+                name="create_date_range" 
+                label="创建时间"
+                style={{ marginBottom: 0 }}
+              >
                 <RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="commission_rate" label="佣金比率">
-                <Select placeholder="请选择佣金比率" allowClear>
+            
+            {/* 第二行 - 次要筛选条件 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item 
+                name="commission_rate" 
+                label="佣金比率"
+                style={{ marginBottom: 0 }}
+              >
+                <Select 
+                  placeholder="请选择佣金比率" 
+                  allowClear
+                  style={{ width: '100%' }}
+                >
                   {commissionRateOptions.map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
@@ -667,50 +703,82 @@ const AdminSales = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="config_confirmed_filter" label="配置确认状态">
-                <Select placeholder="选择配置确认状态" allowClear>
+            
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item 
+                name="config_confirmed_filter" 
+                label="配置确认状态"
+                style={{ marginBottom: 0 }}
+              >
+                <Select 
+                  placeholder="选择配置确认状态" 
+                  allowClear
+                  style={{ width: '100%' }}
+                >
                   <Option value="all">全部订单</Option>
                   <Option value="confirmed">已配置确认</Option>
                   <Option value="pending">待配置确认</Option>
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Space>
-                <Button type="primary" onClick={handleSearch} icon={<SearchOutlined />}>
+            
+            {/* 按钮组 - 独立一行或右对齐 */}
+            <Col 
+              xs={24} 
+              style={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                marginTop: 8
+              }}
+            >
+              <Space size="middle">
+                <Button 
+                  type="primary" 
+                  onClick={handleSearch} 
+                  icon={<SearchOutlined />}
+                  size="middle"
+                >
                   搜索
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button 
+                  onClick={handleReset}
+                  size="middle"
+                >
+                  重置
+                </Button>
+                <Button 
+                  type="default" 
+                  onClick={handleExport} 
+                  icon={<ExportOutlined />}
+                  size="middle"
+                >
+                  导出数据
+                </Button>
               </Space>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Button 
-                type="primary" 
-                onClick={handleExport} 
-                icon={<ExportOutlined />}
-                style={{ float: 'right' }}
-              >
-                导出数据
-              </Button>
             </Col>
           </Row>
         </Form>
       </Card>
 
       {/* 销售列表 */}
-      <Card>
+      <Card bodyStyle={{ padding: '0px' }}>
         <Table
           columns={columns}
           dataSource={sales}
           rowKey={record => record.sales?.id || record.id}
+          scroll={{ 
+            x: 2100,  // 设置横向滚动
+            y: 'calc(100vh - 400px)'  // 设置纵向高度
+          }}
           pagination={{
+            pageSize: 20,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
           loading={loading}
-          scroll={{ x: 1500 }}
         />
       </Card>
     </div>
