@@ -15,7 +15,8 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
-  CrownOutlined
+  CrownOutlined,
+  WalletOutlined
 } from '@ant-design/icons';
 import { logout } from '../store/slices/authSlice';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -24,6 +25,7 @@ import AdminOrders from '../components/admin/AdminOrders';
 import AdminSales from '../components/admin/AdminSales';
 import AdminCustomers from '../components/admin/AdminCustomers';
 import AdminPaymentConfig from '../components/admin/AdminPaymentConfig';
+import AdminFinance from '../components/admin/AdminFinance';
 
 
 const { Header, Sider, Content } = Layout;
@@ -68,6 +70,11 @@ const AdminDashboardPage = () => {
       key: '/admin/dashboard',
       icon: <DashboardOutlined />,
       label: '数据概览',
+    },
+    {
+      key: '/admin/finance',
+      icon: <WalletOutlined />,
+      label: '资金统计',
     },
     {
       key: '/admin/orders',
@@ -178,6 +185,7 @@ const AdminDashboardPage = () => {
               <Routes>
                 <Route path="dashboard" element={<AdminOverview />} />
                 <Route path="" element={<AdminOverview />} />
+                <Route path="finance" element={<AdminFinance />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="sales" element={<AdminSales />} />
                 <Route path="customers" element={<AdminCustomers />} />

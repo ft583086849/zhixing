@@ -856,37 +856,55 @@ export const AdminAPI = {
       const now = new Date();
       const today = new Date().toDateString();
       
+      // 判断使用付款时间还是创建时间
+      const usePaymentTime = params.usePaymentTime || false;
+      
       if (params.timeRange) {
         switch (params.timeRange) {
           case 'today':
             filteredOrders = orders.filter(order => {
-              const orderDate = new Date(order.created_at);
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              const orderDate = new Date(timeField);
               return orderDate.toDateString() === today;
             });
             break;
           case 'week':
             const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            filteredOrders = orders.filter(order => 
-              new Date(order.created_at) >= weekAgo
-            );
+            filteredOrders = orders.filter(order => {
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              return new Date(timeField) >= weekAgo;
+            });
             break;
           case 'month':
             const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-            filteredOrders = orders.filter(order => 
-              new Date(order.created_at) >= monthAgo
-            );
+            filteredOrders = orders.filter(order => {
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              return new Date(timeField) >= monthAgo;
+            });
             break;
           case 'year':
             const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-            filteredOrders = orders.filter(order => 
-              new Date(order.created_at) >= yearAgo
-            );
+            filteredOrders = orders.filter(order => {
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              return new Date(timeField) >= yearAgo;
+            });
             break;
           case 'custom':
             if (params.customRange && params.customRange.length === 2) {
               const [start, end] = params.customRange;
               filteredOrders = orders.filter(order => {
-                const orderDate = new Date(order.created_at);
+                const timeField = usePaymentTime ? 
+                  (order.payment_time || order.updated_at || order.created_at) : 
+                  order.created_at;
+                const orderDate = new Date(timeField);
                 return orderDate >= new Date(start) && orderDate <= new Date(end);
               });
             }
@@ -1040,9 +1058,20 @@ export const AdminAPI = {
       });
       const max_secondary_per_primary = Math.max(0, ...Object.values(secondaryCountByPrimary));
       
+      // 🔧 新增：计算已确认订单的实付金额
+      let confirmed_amount = 0;
+      orders.forEach(order => {
+        if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
+          confirmed_amount += amountUSD;
+        }
+      });
+      
       const stats = {
         total_orders: orders.length,
         total_amount: Math.round(total_amount * 100) / 100,
+        confirmed_amount: Math.round(confirmed_amount * 100) / 100,  // 🔧 新增：已确认订单实付金额
         today_orders: todayOrders,
         pending_payment_orders,
         // confirmed_payment_orders已删除
