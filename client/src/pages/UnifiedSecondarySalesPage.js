@@ -30,7 +30,7 @@ const UnifiedSecondarySalesPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [createdLinks, setCreatedLinks] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认使用链上地址
+  // 移除paymentMethod状态，直接使用链上地址
 
   // 关联注册相关状态
   const [registrationCode, setRegistrationCode] = useState('');
@@ -95,6 +95,7 @@ const UnifiedSecondarySalesPage = () => {
         // 关联模式 - 注册到一级销售下
         response = await salesAPI.registerSecondary({
           ...values,
+          payment_method: 'crypto',  // 自动添加payment_method
           registration_code: registrationCode,
           primary_sales_id: registrationData?.primary_sales_id,
           sales_type: 'secondary'  // 恢复sales_type字段
@@ -103,6 +104,7 @@ const UnifiedSecondarySalesPage = () => {
         // 独立模式 - 独立注册
         response = await salesAPI.registerSecondary({
           ...values,
+          payment_method: 'crypto',  // 自动添加payment_method
           sales_type: 'secondary'  // 恢复sales_type字段
         });
       }
@@ -235,53 +237,32 @@ const UnifiedSecondarySalesPage = () => {
               />
             </Form.Item>
 
-            {/* 收款方式 - 完全相同 */}
+            {/* 收款方式 - 已隐藏，默认使用链上地址 */}
+
+            {/* 链上地址收款信息 */}
             <Form.Item
-              name="payment_method"
-              label="收款方式"
-              rules={[{ required: true, message: '请选择收款方式' }]}
-              initialValue="crypto"
+              name="chain_name"
+              label="链名"
+              rules={[{ required: true, message: '请输入链名' }]}
              >
-              <Select
-                placeholder="请选择收款方式"
+              <Input 
+                placeholder="例如：TRC10/TRC20"
                 size="large"
-                onChange={(value) => setPaymentMethod(value)}
-                aria-label="请选择收款方式"
-              >
-                <Option value="crypto">链上地址</Option>
-              </Select>
+                aria-label="例如：TRC10/TRC20"
+              />
             </Form.Item>
-
-            {/* 支付宝收款信息已移除 */}
-
-            {/* 链上地址收款信息 - 完全相同 */}
-            {(paymentMethod === 'crypto' || !paymentMethod) && (
-              <>
-                <Form.Item
-                  name="chain_name"
-                  label="链名"
-                  rules={[{ required: true, message: '请输入链名' }]}
-                 >
-                  <Input 
-                    placeholder="例如：TRC10/TRC20"
-                    size="large"
-                    aria-label="例如：TRC10/TRC20"
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="payment_address"
-                  label="收款地址"
-                  rules={[{ required: true, message: '请输入收款地址' }]}
-                 >
-                  <Input.TextArea 
-                    placeholder="请输入收款地址"
-                    rows={3}
-                    size="large"
-                    aria-label="请输入收款地址"
-                  />
-                </Form.Item>
-              </>
-            )}
+            <Form.Item
+              name="payment_address"
+              label="收款地址"
+              rules={[{ required: true, message: '请输入收款地址' }]}
+             >
+              <Input.TextArea 
+                placeholder="请输入收款地址"
+                rows={3}
+                size="large"
+                aria-label="请输入收款地址"
+              />
+            </Form.Item>
 
             {/* 提交按钮 - 完全相同 */}
             <Form.Item >
