@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag, Button, Tooltip } from 'antd';
+import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag } from 'antd';
 import { 
   ShoppingCartOutlined, 
   DollarOutlined, 
@@ -10,10 +10,10 @@ import {
   ExclamationCircleOutlined,
   CrownOutlined,
   TeamOutlined,
-  TrophyOutlined,
-  ReloadOutlined
+  TrophyOutlined
 } from '@ant-design/icons';
 import { getStats, getSales } from '../../store/slices/adminSlice';
+import { parallelLoad } from '../../utils/performance';
 
 
 const { Title } = Typography;
@@ -26,94 +26,65 @@ const AdminOverview = () => {
   const [timeRange, setTimeRange] = useState('all'); // 默认显示所有数据
   const [customRange, setCustomRange] = useState([]);
   const [top5Sales, setTop5Sales] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
 
-  // 手动刷新数据并清除缓存
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    console.log('🔄 手动刷新数据...');
-    
-    // 清除缓存
-    const cacheKeys = Object.keys(localStorage).filter(key => 
-      key.includes('cache-') || key.includes('stats-') || key.includes('admin-')
-    );
-    cacheKeys.forEach(key => localStorage.removeItem(key));
-    
-    const sessionKeys = Object.keys(sessionStorage).filter(key => 
-      key.includes('cache-') || key.includes('stats-') || key.includes('admin-')
-    );
-    sessionKeys.forEach(key => sessionStorage.removeItem(key));
-    
-    // 重新加载数据
-    await loadData();
-    setRefreshing(false);
-    console.log('✅ 数据刷新完成');
-  };
-
-  // 加载数据的函数
+  // 加载数据的函数 - 使用并行加载优化
   const loadData = async () => {
     // 只有在已登录的情况下才获取数据
-    if (admin) {
-      console.log('📊 AdminOverview: 开始获取统计数据...');
-      if (timeRange === 'custom' && customRange.length > 0) {
-        return dispatch(getStats({ timeRange: 'custom', customRange, usePaymentTime: true }))
-          .then((result) => {
-            console.log('✅ 统计数据获取结果:', result);
-            if (!result.payload) {
-              console.error('❌ 统计数据为空，尝试重新获取...');
-              // 如果没有数据，尝试不带参数调用
-              return dispatch(getStats({ usePaymentTime: true }));
-            }
-          })
-          .catch((error) => {
-            console.error('❌ 获取统计数据失败:', error);
-          });
-      } else {
-        return dispatch(getStats({ timeRange, usePaymentTime: true }))
-          .then((result) => {
-            console.log('✅ 统计数据获取结果:', result);
-            if (!result.payload) {
-              console.error('❌ 统计数据为空，尝试重新获取...');
-              // 如果没有数据，尝试不带参数调用
-              return dispatch(getStats({ usePaymentTime: true }));
-            }
-          })
-          .catch((error) => {
-            console.error('❌ 获取统计数据失败:', error);
-          });
-      }
-    } else {
+    if (!admin) {
       console.log('⚠️ AdminOverview: 用户未登录，跳过数据加载');
+      return;
     }
+
+    console.log('📊 AdminOverview: 开始并行获取数据...');
+    
+    // 并行加载统计数据和销售数据
+    const loaders = [
+      // 统计数据加载
+      () => {
+        const params = timeRange === 'custom' && customRange.length > 0
+          ? { timeRange: 'custom', customRange, usePaymentTime: true }
+          : { timeRange, usePaymentTime: true };
+        
+        return dispatch(getStats(params)).then(result => {
+          if (!result.payload) {
+            console.error('❌ 统计数据为空');
+            return dispatch(getStats({ usePaymentTime: true }));
+          }
+          return result;
+        });
+      },
+      // 销售数据加载
+      () => {
+        return dispatch(getSales()).then(result => {
+          if (result.payload && Array.isArray(result.payload)) {
+            // 计算Top5销售（按销售金额排序）
+            const sortedSales = [...result.payload]
+              .sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0))
+              .slice(0, 5)
+              .map((sale, index) => ({
+                key: sale.id || index,
+                rank: index + 1,
+                sales_type: sale.sales_type === 'primary' ? '一级销售' : 
+                           (sale.sales?.primary_sales_id ? '二级销售' : '独立销售'),
+                sales_name: sale.sales?.wechat_name || sale.sales?.name || '-',
+                total_amount: sale.total_amount || 0,
+                commission_amount: sale.commission_amount || 0
+              }));
+            setTop5Sales(sortedSales);
+          }
+          return result;
+        });
+      }
+    ];
+    
+    // 使用并行加载
+    const results = await parallelLoad(loaders);
+    console.log('✅ 数据并行加载完成:', results.filter(r => r).length, '个成功');
   };
 
   useEffect(() => {
     loadData();
   }, [dispatch, timeRange, customRange, admin]);
-  
-  // 获取销售数据并计算Top5
-  useEffect(() => {
-    if (admin) {
-      dispatch(getSales()).then((result) => {
-        if (result.payload && Array.isArray(result.payload)) {
-          // 计算Top5销售（按销售金额排序）
-          const sortedSales = [...result.payload]
-            .sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0))
-            .slice(0, 5)
-            .map((sale, index) => ({
-              key: sale.id || index,
-              rank: index + 1,
-              sales_type: sale.sales_type === 'primary' ? '一级销售' : 
-                         (sale.sales?.primary_sales_id ? '二级销售' : '独立销售'),
-              sales_name: sale.sales?.wechat_name || sale.sales?.name || '-',
-              total_amount: sale.total_amount || 0,
-              commission_amount: sale.commission_amount || 0
-            }));
-          setTop5Sales(sortedSales);
-        }
-      });
-    }
-  }, [dispatch, admin, timeRange]);
 
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
@@ -144,32 +115,20 @@ const AdminOverview = () => {
         <>
           {/* 时间范围选择 */}
           <Card style={{ marginBottom: 24 }} role="region">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Space>
-                <span>时间范围：</span>
-                <Radio.Group value={timeRange} onChange={(e) => handleTimeRangeChange(e.target.value)}>
-                  <Radio.Button value="all">全部数据</Radio.Button>
-                  <Radio.Button value="today">今天</Radio.Button>
-                  <Radio.Button value="week">本周</Radio.Button>
-                  <Radio.Button value="month">本月</Radio.Button>
-                  <Radio.Button value="year">本年</Radio.Button>
-                </Radio.Group>
-                <RangePicker 
-                  onChange={handleCustomRangeChange}
-                  placeholder={['开始日期', '结束日期']}
-                />
-              </Space>
-              <Tooltip title="刷新数据并清除缓存">
-                <Button 
-                  type="primary" 
-                  icon={<ReloadOutlined />} 
-                  onClick={handleRefresh}
-                  loading={refreshing}
-                >
-                  刷新数据
-                </Button>
-              </Tooltip>
-            </div>
+            <Space>
+              <span>时间范围：</span>
+              <Radio.Group value={timeRange} onChange={(e) => handleTimeRangeChange(e.target.value)}>
+                <Radio.Button value="all">全部数据</Radio.Button>
+                <Radio.Button value="today">今天</Radio.Button>
+                <Radio.Button value="week">本周</Radio.Button>
+                <Radio.Button value="month">本月</Radio.Button>
+                <Radio.Button value="year">本年</Radio.Button>
+              </Radio.Group>
+              <RangePicker 
+                onChange={handleCustomRangeChange}
+                placeholder={['开始日期', '结束日期']}
+              />
+            </Space>
           </Card>
 
           {/* 统计卡片 - 核心指标 */}

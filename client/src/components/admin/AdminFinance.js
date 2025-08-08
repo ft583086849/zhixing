@@ -42,19 +42,12 @@ const AdminFinance = () => {
   });
 
   useEffect(() => {
-    // 获取统计数据
-    if (timeRange === 'custom' && customRange.length > 0) {
-      dispatch(getStats({ 
-        timeRange: 'custom', 
-        customRange,
-        usePaymentTime: true // 使用付款时间
-      }));
-    } else {
-      dispatch(getStats({ 
-        timeRange,
-        usePaymentTime: true // 使用付款时间
-      }));
-    }
+    // 获取统计数据 - 实时获取最新数据
+    const params = timeRange === 'custom' && customRange.length > 0
+      ? { timeRange: 'custom', customRange, usePaymentTime: true }
+      : { timeRange, usePaymentTime: true };
+    
+    dispatch(getStats(params));
   }, [dispatch, timeRange, customRange]);
 
   const handleTimeRangeChange = (value) => {

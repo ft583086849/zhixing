@@ -36,44 +36,52 @@ const handleError = (error, operation = 'API操作') => {
 };
 
 /**
- * 缓存管理 - 使用智能缓存策略
+ * 缓存管理 - 仅缓存配置数据，业务数据实时获取
  */
 class CacheManager {
   static cache = new Map();
-  static CACHE_DURATION = 10 * 60 * 1000; // 默认10分钟
+  static CACHE_DURATION = 30 * 1000; // 默认30秒，仅用于防止短时间内重复请求
   
-  // 不同数据类型的缓存时间
+  // 只缓存配置类数据，业务数据不缓存或极短缓存
   static CACHE_TIMES = {
-    stats: 10 * 60 * 1000,    // 统计数据：10分钟
-    sales: 5 * 60 * 1000,      // 销售数据：5分钟
-    orders: 2 * 60 * 1000,     // 订单数据：2分钟
-    customers: 15 * 60 * 1000, // 客户数据：15分钟
-    config: 30 * 60 * 1000     // 配置数据：30分钟
+    stats: 0,                   // 统计数据：不缓存，实时获取
+    sales: 0,                   // 销售数据：不缓存，实时获取
+    orders: 0,                  // 订单数据：不缓存，实时获取
+    customers: 30 * 1000,       // 客户数据：30秒（防抖）
+    config: 5 * 60 * 1000       // 配置数据：5分钟（很少变化）
   };
   
   static get(key, customDuration = null) {
     const cached = this.cache.get(key);
     const duration = customDuration || this.getCacheDuration(key);
     
+    // 如果缓存时间为0，直接返回null（不使用缓存）
+    if (duration === 0) {
+      return null;
+    }
+    
     if (cached && Date.now() - cached.timestamp < duration) {
       console.log(`📦 缓存命中: ${key}`);
       return cached.data;
     }
-    console.log(`❌ 缓存未命中: ${key}`);
     return null;
   }
 
   static set(key, data) {
+    // 如果数据类型不需要缓存，直接返回
+    const duration = this.getCacheDuration(key);
+    if (duration === 0) {
+      return;
+    }
+    
     this.cache.set(key, {
       data,
       timestamp: Date.now()
     });
-    console.log(`💾 数据已缓存: ${key}`);
   }
   
   static remove(key) {
     this.cache.delete(key);
-    console.log(`🗑️ 缓存已删除: ${key}`);
   }
   
   static getCacheDuration(key) {
@@ -83,7 +91,7 @@ class CacheManager {
     if (key.includes('orders')) return this.CACHE_TIMES.orders;
     if (key.includes('customers')) return this.CACHE_TIMES.customers;
     if (key.includes('config')) return this.CACHE_TIMES.config;
-    return this.CACHE_DURATION;
+    return 0; // 默认不缓存
   }
   
   static clear(pattern = null) {

@@ -99,7 +99,7 @@ export const throttle = (func, limit = 1000) => {
  * @param {number} concurrency - 并发数
  * @returns {Promise<Array>} - 结果数组
  */
-export const batchRequest = async (requests, concurrency = 3) => {
+export const batchRequest = async (requests, concurrency = 5) => {
   const results = [];
   const executing = [];
   
@@ -118,6 +118,79 @@ export const batchRequest = async (requests, concurrency = 3) => {
   }
   
   return Promise.all(results);
+};
+
+/**
+ * 并行加载多个数据源
+ * @param {Array} loaders - 数据加载函数数组
+ * @returns {Promise<Array>} - 结果数组
+ */
+export const parallelLoad = async (loaders) => {
+  console.time('⚡ 并行加载耗时');
+  try {
+    const results = await Promise.all(
+      loaders.map(loader => 
+        loader().catch(err => {
+          console.error('加载失败:', err);
+          return null;
+        })
+      )
+    );
+    console.timeEnd('⚡ 并行加载耗时');
+    return results;
+  } catch (error) {
+    console.error('并行加载错误:', error);
+    console.timeEnd('⚡ 并行加载耗时');
+    return [];
+  }
+};
+
+/**
+ * 预加载图片资源
+ * @param {Array<string>} urls - 图片URL数组
+ */
+export const preloadImages = (urls) => {
+  urls.forEach(url => {
+    const img = new Image();
+    img.src = url;
+  });
+};
+
+/**
+ * 优化的数据获取策略
+ * - 优先返回缓存数据（如果有）
+ * - 同时发起新请求更新数据
+ * @param {Function} fetcher - 数据获取函数
+ * @param {string} cacheKey - 缓存键
+ * @param {Function} onUpdate - 数据更新回调
+ */
+export const optimizedFetch = async (fetcher, cacheKey, onUpdate) => {
+  // 先检查是否有缓存数据
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const data = JSON.parse(cached);
+      // 立即返回缓存数据
+      onUpdate(data);
+    } catch (e) {
+      console.error('缓存解析失败:', e);
+    }
+  }
+  
+  // 同时发起新请求
+  try {
+    const freshData = await fetcher();
+    // 更新缓存
+    localStorage.setItem(cacheKey, JSON.stringify(freshData));
+    // 更新UI
+    onUpdate(freshData);
+  } catch (error) {
+    console.error('数据获取失败:', error);
+    // 如果没有缓存数据，则抛出错误
+    if (!cached) {
+      throw error;
+    }
+  }
 };
 
 /**
