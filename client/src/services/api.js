@@ -462,8 +462,8 @@ export const AdminAPI = {
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
       // 获取一级销售查询
-      let primaryQuery = supabaseClient.from('primary_sales').select('*');
-      let secondaryQuery = supabaseClient.from('secondary_sales').select('*');
+      const primaryQuery = supabaseClient.from('primary_sales').select('*');
+      const secondaryQuery = supabaseClient.from('secondary_sales').select('*');
       
       // 销售类型过滤
       let primarySales = [];
@@ -1373,25 +1373,16 @@ export const OrdersAPI = {
           processedOrderData.commission_amount = salesInfo.commission;
           processedOrderData.sales_type = salesInfo.type;
           processedOrderData.commission_rate = salesInfo.commission / processedOrderData.amount;
-          
-          // 🎯 核心修复：添加销售ID关联，解决无法区分独立二级和一级下属二级的问题
-          processedOrderData.primary_sales_id = salesInfo.primarySalesId;
-          processedOrderData.secondary_sales_id = salesInfo.secondarySalesId;
-          
         } catch (error) {
           console.warn('计算佣金失败:', error.message);
           // 免费订单或计算失败时的默认值
           processedOrderData.commission_amount = 0;
           processedOrderData.commission_rate = 0;
-          processedOrderData.primary_sales_id = null;
-          processedOrderData.secondary_sales_id = null;
         }
       } else {
         // 免费订单
         processedOrderData.commission_amount = 0;
         processedOrderData.commission_rate = 0;
-        processedOrderData.primary_sales_id = null;
-        processedOrderData.secondary_sales_id = null;
       }
       
       const newOrder = await SupabaseService.createOrder(processedOrderData);
@@ -1473,19 +1464,10 @@ export const OrdersAPI = {
     
     const commission = parseFloat(amount) * commissionRate;
     
-    // 🔧 核心修复：返回完整的销售ID信息
     return {
       commission,
       type: sale.type,
-      rate: commissionRate,  // 返回小数格式
-      // 🎯 新增：返回销售ID和层级关系
-      salesId: sale.id,
-      primarySalesId: sale.type === 'primary' 
-        ? sale.id 
-        : (sale.primary_sales_id || null),  // 二级销售的上级ID（如果有）
-      secondarySalesId: sale.type === 'secondary' 
-        ? sale.id 
-        : null
+      rate: commissionRate  // 返回小数格式
     };
   }
 };
