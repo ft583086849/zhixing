@@ -13,7 +13,10 @@ import {
   Divider,
   InputNumber,
   message,
-  Spin
+  Spin,
+  Button,
+  Modal,
+  Tag
 } from 'antd';
 import { 
   DollarOutlined, 
@@ -22,7 +25,9 @@ import {
   CalculatorOutlined,
   PieChartOutlined,
   TeamOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  SaveOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { getStats } from '../../store/slices/adminSlice';
 import dayjs from 'dayjs';
@@ -42,6 +47,8 @@ const AdminFinance = () => {
     zhixing: 35, // 知行占比 35%
     zijun: 25    // 子俊占比 25%
   });
+  const [savedRatios, setSavedRatios] = useState(null); // 保存的比例
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     // 获取统计数据 - 实时获取最新数据
@@ -51,6 +58,20 @@ const AdminFinance = () => {
     
     dispatch(getStats(params));
   }, [dispatch, timeRange, customRange]);
+
+  // 加载保存的收益分配比例
+  useEffect(() => {
+    const saved = localStorage.getItem('profitRatios');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setProfitRatios(parsed);
+        setSavedRatios(parsed);
+      } catch (e) {
+        console.error('加载收益分配失败:', e);
+      }
+    }
+  }, []);
 
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
@@ -71,6 +92,47 @@ const AdminFinance = () => {
         [type]: value
       }));
     }
+  };
+
+  // 保存收益分配比例
+  const handleSaveRatios = async () => {
+    const total = profitRatios.public + profitRatios.zhixing + profitRatios.zijun;
+    
+    if (total !== 100) {
+      Modal.confirm({
+        title: '提示',
+        content: `当前比例总和为 ${total}%，建议调整为 100%。是否继续保存？`,
+        onOk: () => saveRatios(),
+        okText: '继续保存',
+        cancelText: '取消'
+      });
+    } else {
+      saveRatios();
+    }
+  };
+
+  const saveRatios = async () => {
+    setIsSaving(true);
+    try {
+      // 保存到localStorage（实际应该保存到数据库）
+      localStorage.setItem('profitRatios', JSON.stringify(profitRatios));
+      setSavedRatios(profitRatios);
+      
+      // TODO: 这里可以调用API保存到数据库
+      // await AdminAPI.saveProfitRatios(profitRatios);
+      
+      message.success('收益分配比例已保存');
+    } catch (error) {
+      message.error('保存失败：' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 检查是否有未保存的更改
+  const hasUnsavedChanges = () => {
+    if (!savedRatios) return true;
+    return JSON.stringify(profitRatios) !== JSON.stringify(savedRatios);
   };
 
   // 计算各项金额
@@ -462,20 +524,44 @@ const AdminFinance = () => {
               background: 'rgba(255, 255, 255, 0.9)',
               borderRadius: '8px'
             }}>
-              <Space direction="vertical" size="small">
-                <div>
-                  <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />
-                  <span style={{ color: '#666' }}>营利金额 = 总实付金额 - 销售返佣金额</span>
-                </div>
-                <div>
-                  <CalculatorOutlined style={{ color: '#722ed1', marginRight: 8 }} />
-                  <span style={{ color: '#666' }}>收益占比可手动调整，总和建议为100%</span>
-                </div>
-                <div>
-                  <WalletOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                  <span style={{ color: '#666' }}>销售返佣金额基于实付金额计算</span>
-                </div>
-              </Space>
+              <Row gutter={[16, 16]}>
+                <Col span={18}>
+                  <Space direction="vertical" size="small">
+                    <div>
+                      <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+                      <span style={{ color: '#666' }}>营利金额 = 总实付金额 - 销售返佣金额</span>
+                    </div>
+                    <div>
+                      <CalculatorOutlined style={{ color: '#722ed1', marginRight: 8 }} />
+                      <span style={{ color: '#666' }}>收益占比可手动调整，总和建议为100%</span>
+                    </div>
+                    <div>
+                      <WalletOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                      <span style={{ color: '#666' }}>销售返佣金额基于实付金额计算</span>
+                    </div>
+                  </Space>
+                </Col>
+                <Col span={6} style={{ textAlign: 'right' }}>
+                  <Space>
+                    {hasUnsavedChanges() && (
+                      <Tag color="warning">有未保存的更改</Tag>
+                    )}
+                    <Button 
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      loading={isSaving}
+                      onClick={handleSaveRatios}
+                      size="large"
+                      style={{
+                        background: hasUnsavedChanges() ? '#52c41a' : '#1890ff',
+                        borderColor: hasUnsavedChanges() ? '#52c41a' : '#1890ff'
+                      }}
+                    >
+                      {hasUnsavedChanges() ? '保存分配方案' : '已保存'}
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
             </div>
           </Card>
         </>

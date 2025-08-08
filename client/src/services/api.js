@@ -999,8 +999,10 @@ export const AdminAPI = {
         ['pending_config', 'confirmed_payment'].includes(order.status)  // confirmed_payment也是待配置状态
       ).length;
       
+      // 已确认订单 - 只统计这些状态
+      const confirmedStatuses = ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'];
       const confirmed_config_orders = ordersToProcess.filter(order => 
-        ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
+        confirmedStatuses.includes(order.status)
       ).length;
       
       // 🔧 金额统计 - 优先使用实付金额
@@ -1019,7 +1021,7 @@ export const AdminAPI = {
         // 根据订单状态计算佣金
         const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
         
-        if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
+        if (confirmedStatuses.includes(order.status)) {
           // 已确认订单 - 已返佣金
           total_commission += commission;
         } else if (['pending_payment', 'confirmed_payment', 'pending_config'].includes(order.status)) {
@@ -1122,7 +1124,7 @@ export const AdminAPI = {
       // 🔧 新增：计算已确认订单的实付金额
       let confirmed_amount = 0;
       ordersToProcess.forEach(order => {
-        if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
+        if (confirmedStatuses.includes(order.status)) {
           const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
           confirmed_amount += amountUSD;
