@@ -896,7 +896,7 @@ export const AdminAPI = {
       // 🔧 修复：应用时间范围过滤
       let filteredOrders = orders;
       const now = new Date();
-      const today = new Date().toDateString();
+      const today = new Date().toDateString();  // 保留用于日志，实际比较使用toLocaleDateString()
       
       // 判断使用付款时间还是创建时间
       const usePaymentTime = params.usePaymentTime || false;
@@ -914,7 +914,10 @@ export const AdminAPI = {
                 (order.payment_time || order.updated_at || order.created_at) : 
                 order.created_at;
               const orderDate = new Date(timeField);
-              return orderDate.toDateString() === today;
+              // 修复：使用本地日期字符串比较，避免时区问题
+              const orderLocalDate = orderDate.toLocaleDateString();
+              const todayLocalDate = now.toLocaleDateString();
+              return orderLocalDate === todayLocalDate;
             });
             break;
           }
@@ -980,7 +983,8 @@ export const AdminAPI = {
       // 今日订单 - 以付款时间为准（如果有付款时间字段），否则以创建时间
       const todayOrders = ordersToProcess.filter(order => {
         const paymentTime = order.payment_time || order.updated_at || order.created_at;
-        return paymentTime && new Date(paymentTime).toDateString() === today;
+        // 修复：使用本地日期比较避免时区问题
+        return paymentTime && new Date(paymentTime).toLocaleDateString() === now.toLocaleDateString();
       }).length;
       
       // 🔧 状态统计 - 根据核心业务逻辑
