@@ -894,7 +894,7 @@ export const AdminAPI = {
       
       if (params.timeRange) {
         switch (params.timeRange) {
-          case 'today':
+          case 'today': {
             filteredOrders = orders.filter(order => {
               const timeField = usePaymentTime ? 
                 (order.payment_time || order.updated_at || order.created_at) : 
@@ -903,7 +903,8 @@ export const AdminAPI = {
               return orderDate.toDateString() === today;
             });
             break;
-          case 'week':
+          }
+          case 'week': {
             const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             filteredOrders = orders.filter(order => {
               const timeField = usePaymentTime ? 
@@ -912,7 +913,8 @@ export const AdminAPI = {
               return new Date(timeField) >= weekAgo;
             });
             break;
-          case 'month':
+          }
+          case 'month': {
             const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
             filteredOrders = orders.filter(order => {
               const timeField = usePaymentTime ? 
@@ -921,7 +923,8 @@ export const AdminAPI = {
               return new Date(timeField) >= monthAgo;
             });
             break;
-          case 'year':
+          }
+          case 'year': {
             const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
             filteredOrders = orders.filter(order => {
               const timeField = usePaymentTime ? 
@@ -930,7 +933,8 @@ export const AdminAPI = {
               return new Date(timeField) >= yearAgo;
             });
             break;
-          case 'custom':
+          }
+          case 'custom': {
             if (params.customRange && params.customRange.length === 2) {
               const [start, end] = params.customRange;
               filteredOrders = orders.filter(order => {
@@ -942,6 +946,7 @@ export const AdminAPI = {
               });
             }
             break;
+          }
           default:
             // 'all' or no filter
             break;
@@ -951,27 +956,27 @@ export const AdminAPI = {
       console.log(`📊 时间过滤后订单数: ${filteredOrders.length} 个`);
       
       // 使用过滤后的订单进行统计
-      orders = filteredOrders;
+      const ordersToProcess = filteredOrders;
       
       // 今日订单 - 以付款时间为准（如果有付款时间字段），否则以创建时间
-      const todayOrders = orders.filter(order => {
+      const todayOrders = ordersToProcess.filter(order => {
         const paymentTime = order.payment_time || order.updated_at || order.created_at;
         return paymentTime && new Date(paymentTime).toDateString() === today;
       }).length;
       
       // 🔧 状态统计 - 根据核心业务逻辑
-      const pending_payment_orders = orders.filter(order => 
+      const pending_payment_orders = ordersToProcess.filter(order => 
         ['pending_payment', 'pending', 'pending_review'].includes(order.status)
       ).length;
       
       // 删除已付款确认订单统计（用户要求）
       // const confirmed_payment_orders = ...
       
-      const pending_config_orders = orders.filter(order => 
+      const pending_config_orders = ordersToProcess.filter(order => 
         ['pending_config', 'confirmed_payment'].includes(order.status)  // confirmed_payment也是待配置状态
       ).length;
       
-      const confirmed_config_orders = orders.filter(order => 
+      const confirmed_config_orders = ordersToProcess.filter(order => 
         ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
       ).length;
       
@@ -980,7 +985,7 @@ export const AdminAPI = {
       let total_commission = 0;  // 已返佣金额（已确认订单）
       let pending_commission = 0;  // 待返佣金额（未确认订单）
       
-      orders.forEach(order => {
+      ordersToProcess.forEach(order => {
         // 🔧 修复：优先使用actual_payment_amount，其次使用amount
         const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
         
@@ -1002,7 +1007,7 @@ export const AdminAPI = {
       
       // 🔧 销售统计 - 从订单表关联获取
       const salesFromOrders = new Set();
-      orders.forEach(order => {
+      ordersToProcess.forEach(order => {
         if (order.sales_code) {
           salesFromOrders.add(order.sales_code);
         }
@@ -1023,7 +1028,7 @@ export const AdminAPI = {
       let linked_secondary_sales_amount = 0;  // 二级销售（有上级）
       let independent_sales_amount = 0;  // 独立销售
       
-      orders.forEach(order => {
+      ordersToProcess.forEach(order => {
         // 只计算确认状态的订单
         if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
           const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
@@ -1054,7 +1059,7 @@ export const AdminAPI = {
         yearly_orders: 0          // 年费订单
       };
       
-      orders.forEach(order => {
+      ordersToProcess.forEach(order => {
         const duration = order.duration;
         if (duration === 'free' || duration === '7days' || duration === 'trial') {
           orderDurationStats.free_trial_orders++;
@@ -1069,7 +1074,7 @@ export const AdminAPI = {
         }
       });
       
-      const totalOrders = orders.length || 1;
+      const totalOrders = ordersToProcess.length || 1;
       const orderDurationPercentages = {
         free_trial_percentage: (orderDurationStats.free_trial_orders / totalOrders * 100),
         one_month_percentage: (orderDurationStats.one_month_orders / totalOrders * 100),
@@ -1093,7 +1098,7 @@ export const AdminAPI = {
       
       // 🔧 新增：计算已确认订单的实付金额
       let confirmed_amount = 0;
-      orders.forEach(order => {
+      ordersToProcess.forEach(order => {
         if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
           const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
@@ -1102,7 +1107,7 @@ export const AdminAPI = {
       });
       
       const stats = {
-        total_orders: orders.length,
+        total_orders: ordersToProcess.length,
         total_amount: Math.round(total_amount * 100) / 100,
         confirmed_amount: Math.round(confirmed_amount * 100) / 100,  // 🔧 新增：已确认订单实付金额
         today_orders: todayOrders,
@@ -1133,7 +1138,7 @@ export const AdminAPI = {
         // 🔧 新增调试信息
         sales_with_orders: salesFromOrders.size, // 有订单的销售数量
         debug_info: {
-          orders_count: orders.length,
+          orders_count: ordersToProcess.length,
           status_distribution: {
             pending_payment: pending_payment_orders,
             pending_config: pending_config_orders,
