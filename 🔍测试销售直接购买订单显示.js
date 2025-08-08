@@ -120,3 +120,4 @@ console.log('\n修复说明：');
 console.log('1. 已修改 client/src/services/api.js 的 getCustomers 函数');
 console.log('2. 现在包含"直接购买"字样的订单会显示在客户管理页面');
 console.log('3. 这类订单通常是销售自己的购买记录或测试订单');
+

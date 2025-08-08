@@ -1419,7 +1419,12 @@ export const SalesAPI = {
       // 记录日志以便调试
       console.log('📝 注册二级销售，primary_sales_id:', salesData.primary_sales_id || '独立销售');
       
-      const newSale = await SupabaseService.createSecondarySales(salesData);
+      // 🔧 安全处理：创建副本并删除 registration_code 字段，避免数据库报错
+      // 保留原始 salesData 中的验证逻辑，仅在数据库操作时移除该字段
+      const dataForDB = {...salesData};
+      delete dataForDB.registration_code;  // 不传给数据库，避免字段不存在错误
+      
+      const newSale = await SupabaseService.createSecondarySales(dataForDB);
       
       CacheManager.clear('sales'); // 清除销售相关缓存
       
