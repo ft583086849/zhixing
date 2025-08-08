@@ -870,7 +870,10 @@ export const AdminAPI = {
     // if (cached) return cached;
 
     try {
-      console.log('🔍 重新设计的数据概览API - 开始获取统计数据...', params);
+      console.log('🔍 重新设计的数据概览API - 开始获取统计数据...');
+      console.log('📋 接收到的参数:', params);
+      console.log('  - timeRange:', params.timeRange);
+      console.log('  - usePaymentTime:', params.usePaymentTime);
       
       // 🎯 修复：使用正确的supabase客户端
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
@@ -898,7 +901,12 @@ export const AdminAPI = {
       // 判断使用付款时间还是创建时间
       const usePaymentTime = params.usePaymentTime || false;
       
-      if (params.timeRange) {
+      console.log(`⏰ 时间筛选配置: timeRange=${params.timeRange}, usePaymentTime=${usePaymentTime}`);
+      
+      if (params.timeRange && params.timeRange !== 'all') {
+        console.log(`🔍 开始筛选: ${params.timeRange}`);
+        const originalCount = orders.length;
+        
         switch (params.timeRange) {
           case 'today': {
             filteredOrders = orders.filter(order => {
@@ -955,11 +963,16 @@ export const AdminAPI = {
           }
           default:
             // 'all' or no filter
+            console.log('📌 进入default分支，不进行筛选');
             break;
         }
+        
+        console.log(`✅ 筛选完成: ${originalCount} → ${filteredOrders.length} 个订单`);
+      } else {
+        console.log('📌 timeRange为all或未设置，使用全部订单');
       }
       
-      console.log(`📊 时间过滤后订单数: ${filteredOrders.length} 个`);
+      console.log(`📊 最终使用订单数: ${filteredOrders.length} 个`);
       
       // 使用过滤后的订单进行统计
       const ordersToProcess = filteredOrders;
