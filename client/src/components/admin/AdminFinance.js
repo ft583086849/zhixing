@@ -221,72 +221,94 @@ const AdminFinance = () => {
         </div>
       ) : (
         <>
-          {/* 核心财务指标 */}
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} lg={8}>
-              <Card>
-                <Statistic
-                  title="总收入"
-                  value={financials.totalRevenue}
-                  precision={2}
-                  prefix={<DollarOutlined />}
-                  valueStyle={{ color: '#1890ff' }}
-                  suffix="美元"
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} lg={8}>
-              <Card>
-                <Statistic
-                  title="总实付金额"
-                  value={financials.totalPaid}
-                  precision={2}
-                  prefix={<WalletOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
-                  suffix="美元"
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} lg={8}>
-              <Card>
-                <Statistic
-                  title="营利金额"
-                  value={financials.netProfit}
-                  precision={2}
-                  prefix={<BankOutlined />}
-                  valueStyle={{ color: '#faad14' }}
-                  suffix="美元"
-                />
-              </Card>
-            </Col>
-          </Row>
-
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col xs={24} sm={12}>
-              <Card>
-                <Statistic
-                  title="销售返佣金额"
-                  value={financials.salesCommission}
-                  precision={2}
-                  prefix={<CalculatorOutlined />}
-                  valueStyle={{ color: '#13c2c2' }}
-                  suffix="美元"
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Card>
-                <Statistic
-                  title="待返佣金额"
-                  value={financials.pendingCommission}
-                  precision={2}
-                  prefix={<PieChartOutlined />}
-                  valueStyle={{ color: '#eb2f96' }}
-                  suffix="美元"
-                />
-              </Card>
-            </Col>
-          </Row>
+          {/* 核心财务指标表格 */}
+          <Card title="核心财务指标" style={{ marginBottom: 24 }}>
+            <Table
+              dataSource={[
+                {
+                  key: 'totalRevenue',
+                  indicator: '总收入',
+                  amount: financials.totalRevenue,
+                  description: '所有订单金额总和',
+                  icon: <DollarOutlined style={{ color: '#1890ff' }} />,
+                  color: '#1890ff'
+                },
+                {
+                  key: 'totalPaid',
+                  indicator: '总实付金额',
+                  amount: financials.totalPaid,
+                  description: '已确认订单的实付金额',
+                  icon: <WalletOutlined style={{ color: '#52c41a' }} />,
+                  color: '#52c41a'
+                },
+                {
+                  key: 'salesCommission',
+                  indicator: '销售返佣金额',
+                  amount: financials.salesCommission,
+                  description: '基于实付金额计算的返佣',
+                  icon: <CalculatorOutlined style={{ color: '#13c2c2' }} />,
+                  color: '#13c2c2'
+                },
+                {
+                  key: 'pendingCommission',
+                  indicator: '待返佣金额',
+                  amount: financials.pendingCommission,
+                  description: '未确认订单的佣金',
+                  icon: <PieChartOutlined style={{ color: '#eb2f96' }} />,
+                  color: '#eb2f96'
+                },
+                {
+                  key: 'netProfit',
+                  indicator: '营利金额',
+                  amount: financials.netProfit,
+                  description: '总实付金额 - 销售返佣金额',
+                  icon: <BankOutlined style={{ color: '#faad14' }} />,
+                  color: '#faad14',
+                  style: { fontWeight: 'bold', fontSize: '16px' }
+                }
+              ]}
+              columns={[
+                {
+                  title: '指标',
+                  dataIndex: 'indicator',
+                  key: 'indicator',
+                  width: 180,
+                  render: (text, record) => (
+                    <Space>
+                      {record.icon}
+                      <span style={{ fontWeight: 500 }}>{text}</span>
+                    </Space>
+                  )
+                },
+                {
+                  title: '金额（美元）',
+                  dataIndex: 'amount',
+                  key: 'amount',
+                  width: 150,
+                  align: 'right',
+                  render: (value, record) => (
+                    <span style={{ 
+                      color: record.color, 
+                      ...record.style 
+                    }}>
+                      ${value?.toFixed(2) || '0.00'}
+                    </span>
+                  )
+                },
+                {
+                  title: '说明',
+                  dataIndex: 'description',
+                  key: 'description',
+                  render: (text) => (
+                    <span style={{ color: '#666', fontSize: '13px' }}>{text}</span>
+                  )
+                }
+              ]}
+              pagination={false}
+              bordered
+              size="middle"
+            />
+          </Card>
 
           {/* 收益分配表格 */}
           <Divider orientation="left">收益分配</Divider>
