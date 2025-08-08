@@ -247,11 +247,11 @@ const AdminCustomers = () => {
   ];
 
   return (
-    <div>
-      <Title level={2}>客户管理</Title>
+    <div style={{ padding: '0 24px' }}>
+      <Title level={2} style={{ marginBottom: 24 }}>客户管理</Title>
 
       {/* 搜索表单 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: 24 }}>
         <Form form={form} layout="inline">
           <Row gutter={[16, 16]} style={{ width: '100%' }}>
             <Col xs={24} sm={12} md={6}>
@@ -357,18 +357,23 @@ const AdminCustomers = () => {
       </Card>
 
       {/* 客户列表 */}
-      <Card>
+      <Card bodyStyle={{ padding: '0px' }}>
         <Table
           columns={columns}
           dataSource={Array.isArray(customers) ? customers : []}
           rowKey={(record, index) => `${record.customer_wechat}-${record.tradingview_username}-${index}`}
+          scroll={{ 
+            x: 1600,  // 设置横向滚动（增加了催单建议和层级信息）
+            y: 'calc(100vh - 420px)'  // 设置纵向高度
+          }}
           pagination={{
+            pageSize: 20,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
           loading={loading}
-          scroll={{ x: 1400 }}
           locale={{
             emptyText: loading ? '加载中...' : '暂无客户数据（可能是权限问题或没有订单）'
           }}
