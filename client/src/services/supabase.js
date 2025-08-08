@@ -903,6 +903,23 @@ export class SupabaseService {
           order.sales_wechat_name = salesInfo.wechat_name || '-';
           order.sales_name = salesInfo.name || '-';
           order.sales_phone = salesInfo.phone || '-';
+          
+          // 如果是二级销售，尝试获取其一级销售信息
+          if (salesType === 'secondary' && salesInfo.primary_sales_id) {
+            const primarySales = primarySalesById.get(salesInfo.primary_sales_id);
+            if (primarySales) {
+              order.secondary_sales = {
+                ...salesInfo,
+                primary_sales: primarySales
+              };
+            } else {
+              order.secondary_sales = salesInfo;
+            }
+          } else if (salesType === 'primary') {
+            order.primary_sales = salesInfo;
+          } else if (salesType === 'secondary') {
+            order.secondary_sales = salesInfo;
+          }
         }
         
         // 计算生效时间和到期时间
@@ -923,6 +940,31 @@ export class SupabaseService {
           order.expiry_time = expiryDate.toISOString();
         }
       });
+    }
+    
+    // 处理催单建议筛选
+    if (params.reminder_suggestion) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const filteredOrders = orders.filter(order => {
+        if (!order.expiry_time) {
+          return params.reminder_suggestion === 'no_reminder';
+        }
+        
+        const expiryDate = new Date(order.expiry_time);
+        expiryDate.setHours(0, 0, 0, 0);
+        const daysDiff = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
+        
+        const needReminder = daysDiff <= 7 && daysDiff >= 0 && 
+                            order.status !== 'confirmed_config' && 
+                            order.status !== 'active' && 
+                            order.status !== 'expired';
+        
+        return params.reminder_suggestion === 'need_reminder' ? needReminder : !needReminder;
+      });
+      
+      return filteredOrders;
     }
     
     return orders;

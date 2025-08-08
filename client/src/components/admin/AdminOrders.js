@@ -25,7 +25,8 @@ import {
   EyeOutlined,
   CheckOutlined,
   CloseOutlined,
-  StopOutlined
+  StopOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getAdminOrders, updateAdminOrderStatus, exportOrders } from '../../store/slices/adminSlice';
@@ -76,6 +77,11 @@ const AdminOrders = () => {
       queryParams.expiry_start_date = searchValues.expiry_date_range[0].format('YYYY-MM-DD');
       queryParams.expiry_end_date = searchValues.expiry_date_range[1].format('YYYY-MM-DD');
       delete queryParams.expiry_date_range;
+    }
+
+    // 处理催单建议筛选
+    if (searchValues.reminder_suggestion) {
+      queryParams.reminder_suggestion = searchValues.reminder_suggestion;
     }
 
     dispatch(getAdminOrders(queryParams));
@@ -161,44 +167,50 @@ const AdminOrders = () => {
   // 表格列定义
   const columns = [
     {
-      title: '订单ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
+      title: '用户微信号',
+      dataIndex: 'customer_wechat',
+      key: 'customer_wechat',
+      width: 130,
       fixed: 'left',
+      render: (text) => text || '-',
     },
     {
       title: '销售微信号',
       key: 'sales_wechat_name',
-      width: 150,
+      width: 260,
+      fixed: 'left',
       render: (_, record) => {
         // 判断销售类型 - 使用三层销售体系
         let salesType = '';
         let salesTypeBadge = null;
+        let primarySalesName = null;
         
         // 根据字段判断销售类型
         if (record.primary_sales_id) {
           salesType = '一级销售';
-          salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级销售</Tag>;
+          salesTypeBadge = <Tag color="blue">一级</Tag>;
         } else if (record.secondary_sales_id) {
           // 判断是二级销售还是独立销售
           if (record.secondary_sales?.primary_sales_id) {
             // 二级销售（有上级）
-            salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级销售</Tag>;
+            salesTypeBadge = <Tag color="orange">二级</Tag>;
+            // 获取一级销售信息
+            primarySalesName = record.secondary_sales?.primary_sales?.wechat_name;
           } else {
             // 独立销售（无上级）
-            salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立销售</Tag>;
+            salesTypeBadge = <Tag color="green">独立</Tag>;
           }
         } else {
           // 备用判断逻辑
           if (record.primary_sales?.wechat_name) {
-            salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级销售</Tag>;
+            salesTypeBadge = <Tag color="blue">一级</Tag>;
           } else if (record.secondary_sales?.wechat_name) {
             // 判断是否有primary_sales_id
             if (record.secondary_sales?.primary_sales_id) {
-              salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级销售</Tag>;
+              salesTypeBadge = <Tag color="orange">二级</Tag>;
+              primarySalesName = record.secondary_sales?.primary_sales?.wechat_name;
             } else {
-              salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立销售</Tag>;
+              salesTypeBadge = <Tag color="green">独立</Tag>;
             }
           }
         }
@@ -220,19 +232,63 @@ const AdminOrders = () => {
         
         // 返回带类型标识的销售微信号
         return (
-          <span>
-            {salesTypeBadge}
+          <Space size="small">
             {wechatName}
-          </span>
+            {salesTypeBadge}
+            {primarySalesName && (
+              <Tooltip title={`一级销售: ${primarySalesName}`}>
+                <span style={{ color: '#999', fontSize: '12px' }}>
+                  ({primarySalesName})
+                </span>
+              </Tooltip>
+            )}
+          </Space>
         );
       }
     },
     {
-      title: '用户微信号',
-      dataIndex: 'customer_wechat',
-      key: 'customer_wechat',
-      width: 120,
-      render: (text) => text || '-',
+      title: '催单建议',
+      key: 'reminder_suggestion',
+      width: 100,
+      render: (_, record) => {
+        // 检查是否需要催单（到期时间在一周内）
+        if (record.expiry_time) {
+          const expiryDate = dayjs(record.expiry_time);
+          const today = dayjs();
+          const daysUntilExpiry = expiryDate.diff(today, 'day');
+          
+          // 如果在7天内到期且状态不是已完成
+          if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
+              record.status !== 'confirmed_config' && 
+              record.status !== 'active' && 
+              record.status !== 'expired') {
+            return (
+              <Tag color="red" icon={<ExclamationCircleOutlined />}>
+                建议催单
+              </Tag>
+            );
+          }
+        }
+        return <Tag color="default">无需催单</Tag>;
+      },
+      filters: [
+        { text: '建议催单', value: 'need_reminder' },
+        { text: '无需催单', value: 'no_reminder' }
+      ],
+      onFilter: (value, record) => {
+        if (!record.expiry_time) return value === 'no_reminder';
+        
+        const expiryDate = dayjs(record.expiry_time);
+        const today = dayjs();
+        const daysUntilExpiry = expiryDate.diff(today, 'day');
+        
+        const needReminder = daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
+                            record.status !== 'confirmed_config' && 
+                            record.status !== 'active' && 
+                            record.status !== 'expired';
+        
+        return value === 'need_reminder' ? needReminder : !needReminder;
+      }
     },
     {
       title: 'TradingView用户',
@@ -405,6 +461,7 @@ const AdminOrders = () => {
       title: '操作',
       key: 'action',
       width: 200,
+      fixed: 'right',
       render: (_, record) => {
         const renderOperations = () => {
           // 处理状态兼容性：多种状态映射
@@ -576,6 +633,13 @@ const AdminOrders = () => {
           </Space>
         );
       }
+    },
+    {
+      title: '订单ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+      fixed: 'right',
     }
   ];
 
@@ -691,6 +755,16 @@ const AdminOrders = () => {
               </Form.Item>
             </Col>
             
+            {/* 第四行 - 催单建议 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item name="reminder_suggestion" label="催单建议" style={{ marginBottom: 0 }}>
+                <Select placeholder="请选择催单状态" allowClear style={{ width: '100%' }}>
+                  <Option value="need_reminder">建议催单</Option>
+                  <Option value="no_reminder">无需催单</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            
             {/* 按钮组 */}
             <Col 
               xs={24} 
@@ -736,7 +810,7 @@ const AdminOrders = () => {
           dataSource={orders}
           rowKey="id"
           scroll={{ 
-            x: 1800,  // 设置横向滚动
+            x: 2000,  // 设置横向滚动（增加了催单建议列）
             y: 'calc(100vh - 420px)'  // 设置纵向高度
           }}
           pagination={{
