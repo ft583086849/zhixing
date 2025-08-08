@@ -173,6 +173,7 @@ export class SupabaseService {
       };
       
       // 2. 获取该一级销售的所有二级销售（直接从表查询）
+      // 🔧 修复：显示所有二级销售，不管有没有订单
       const { data: secondarySales, error: secondaryError } = await supabase
         .from('secondary_sales')
         .select('*')
@@ -187,22 +188,33 @@ export class SupabaseService {
       const secondaryStats = [];
       if (secondarySales && secondarySales.length > 0) {
         for (const sale of secondarySales) {
-          // 获取该二级销售的订单统计
-          const { data: orders, error: ordersErr } = await supabase
+          // 获取该二级销售的所有订单（包括未确认的）
+          const { data: allOrders, error: allOrdersErr } = await supabase
             .from('orders')
             .select('amount, actual_payment_amount, status')
-            .eq('sales_code', sale.sales_code)
-            .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
+            .eq('sales_code', sale.sales_code);
           
-          const totalAmount = orders?.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
-          const commissionAmount = totalAmount * (sale.commission_rate || 0.3);
+          // 分别计算已确认和全部订单
+          const confirmedOrders = allOrders?.filter(o => 
+            ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(o.status)
+          ) || [];
+          
+          const totalAmount = confirmedOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+          const allOrdersAmount = allOrders?.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
+          
+          // 使用佣金率计算佣金，如果没有设置则为0
+          const commissionRate = sale.commission_rate || 0;
+          const commissionAmount = totalAmount * commissionRate;
           
           secondaryStats.push({
             ...sale,
-            total_orders: orders?.length || 0,
-            total_amount: totalAmount,
+            total_orders: allOrders?.length || 0,  // 所有订单数
+            confirmed_orders: confirmedOrders.length,  // 已确认订单数
+            total_amount: totalAmount,  // 已确认订单金额
+            all_orders_amount: allOrdersAmount,  // 所有订单金额
             total_commission: commissionAmount,
-            order_count: orders?.length || 0
+            order_count: allOrders?.length || 0,
+            commission_rate: commissionRate  // 确保返回佣金率，即使是0
           });
         }
       }

@@ -490,13 +490,23 @@ export const AdminAPI = {
       }
       
       // 销售微信号搜索
+      // 🔧 修复：搜索一级销售时，也显示其下的二级销售
       if (params.wechat_name) {
-        primarySales = primarySales.filter(sale => 
+        // 先筛选匹配的一级销售
+        const matchedPrimarySales = primarySales.filter(sale => 
           sale.wechat_name && sale.wechat_name.includes(params.wechat_name)
         );
+        
+        // 获取这些一级销售的ID
+        const primarySalesIds = matchedPrimarySales.map(p => p.id);
+        
+        // 筛选二级销售：直接匹配的 + 属于匹配的一级销售的
         secondarySales = secondarySales.filter(sale => 
-          sale.wechat_name && sale.wechat_name.includes(params.wechat_name)
+          (sale.wechat_name && sale.wechat_name.includes(params.wechat_name)) ||
+          (sale.primary_sales_id && primarySalesIds.includes(sale.primary_sales_id))
         );
+        
+        primarySales = matchedPrimarySales;
       }
       
       // 手机号搜索
@@ -548,8 +558,9 @@ export const AdminAPI = {
         
         // 计算订单统计
         const totalOrders = saleOrders.length;
+        // 🔧 修复：有效订单应该是已确认的订单
         const validOrders = saleOrders.filter(order => 
-          ['confirmed', 'confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
         ).length;
         
         // 计算总金额（所有订单金额）
@@ -591,6 +602,31 @@ export const AdminAPI = {
         // 🔧 修复：确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
         const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
         
+        // 🔧 新增：计算管理的二级销售数量
+        const managedSecondaryCount = secondarySales.filter(s => s.primary_sales_id === sale.id).length;
+        
+        // 🔧 新增：生成销售链接
+        const baseUrl = window.location.origin;
+        const purchaseLink = `${baseUrl}/purchase/${sale.sales_code}`;
+        const salesRegisterLink = `${baseUrl}/sales/${sale.sales_code}`;
+        
+        const links = [
+          {
+            type: 'purchase',
+            title: '用户购买链接',
+            code: sale.sales_code,
+            fullUrl: purchaseLink,
+            description: '分享给用户进行购买'
+          },
+          {
+            type: 'sales_register',
+            title: '分销注册链接',
+            code: sale.sales_code,
+            fullUrl: salesRegisterLink,
+            description: '招募二级销售注册'
+          }
+        ];
+        
         return {
           // 保留原始销售数据作为sales对象（前端组件需要）
           sales: {
@@ -608,7 +644,9 @@ export const AdminAPI = {
           confirmed_amount: Math.round(confirmedAmount * 100) / 100,  // 🔧 新增：已配置确认订单金额
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
-          hierarchy_info: '一级销售'
+          hierarchy_info: '一级销售',
+          secondary_sales_count: managedSecondaryCount,  // 🔧 新增：管理的二级销售数量
+          links: links  // 🔧 新增：销售链接
         };
       });
       
@@ -622,8 +660,9 @@ export const AdminAPI = {
         
         // 计算订单统计
         const totalOrders = saleOrders.length;
+        // 🔧 修复：有效订单应该是已确认的订单（移除pending_payment等待付款状态）
         const validOrders = saleOrders.filter(order => 
-          ['confirmed', 'confirmed_payment', 'pending_config', 'confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
         ).length;
         
         // 计算总金额（所有订单金额）
@@ -699,6 +738,20 @@ export const AdminAPI = {
         // 🔧 修复：确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
         const wechatName = sale.wechat_name || sale.name || sale.phone || `二级销售-${sale.sales_code}`;
         
+        // 🔧 新增：生成销售链接（二级销售只有购买链接）
+        const baseUrl = window.location.origin;
+        const purchaseLink = `${baseUrl}/purchase/${sale.sales_code}`;
+        
+        const links = [
+          {
+            type: 'purchase',
+            title: '用户购买链接',
+            code: sale.sales_code,
+            fullUrl: purchaseLink,
+            description: '分享给用户进行购买'
+          }
+        ];
+        
         return {
           // 保留原始销售数据作为sales对象（前端组件需要）
           sales: {
@@ -716,7 +769,8 @@ export const AdminAPI = {
           confirmed_amount: Math.round(confirmedAmount * 100) / 100,  // 🔧 新增：已配置确认订单金额
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
-          hierarchy_info: hierarchyInfo
+          hierarchy_info: hierarchyInfo,
+          links: links  // 🔧 新增：销售链接
         };
       });
       

@@ -342,10 +342,15 @@ const AdminSales = () => {
 
   // 获取层级关系信息
   const getHierarchyInfo = (record) => {
-    if (record.sales_type === 'primary') {
-      return `管理 ${record.secondary_sales_count || 0} 个二级销售`;
-    } else if (record.sales_type === 'secondary') {
-      return `隶属于: ${record.primary_sales_name || '未知'}`;
+    // 🔧 修复：使用正确的字段和销售类型判断
+    const salesType = record.sales_type || record.sales?.sales_type;
+    if (salesType === 'primary') {
+      // 使用API返回的secondary_sales_count字段
+      const count = record.secondary_sales_count || 0;
+      return `管理 ${count} 个二级销售`;
+    } else if (salesType === 'secondary') {
+      // 使用hierarchy_info字段或默认值
+      return record.hierarchy_info || `二级销售`;
     }
     return '';
   };
@@ -402,8 +407,10 @@ const AdminSales = () => {
       width: 120,
       render: (_, record) => {
         const salesId = record.sales?.id;
-        // 🔧 修复：直接使用API返回的commission_rate
-        const currentRate = editingCommissionRates[salesId] || record.commission_rate || record.sales?.commission_rate || 0;
+        // 🔧 修复：直接使用API返回的commission_rate，支持显示0或未设置的佣金率
+        const currentRate = editingCommissionRates[salesId] !== undefined 
+          ? editingCommissionRates[salesId]
+          : (record.commission_rate !== undefined ? record.commission_rate : (record.sales?.commission_rate || 0));
         
         // 🔧 修复：一级销售和二级销售都可以编辑佣金率
         if (editingCommissionRates[salesId] !== undefined) {

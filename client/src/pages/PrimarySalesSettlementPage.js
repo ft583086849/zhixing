@@ -365,7 +365,13 @@ const PrimarySalesSettlementPage = () => {
       dataIndex: 'commission_rate',
       key: 'commission_rate',
       width: 100,
-      render: (rate) => `${(rate * 100).toFixed(1)}%`
+      render: (rate) => {
+        // 🔧 修复：如果佣金率为0或未设置，显示"未设置"
+        if (!rate || rate === 0) {
+          return <Tag color="orange">未设置</Tag>;
+        }
+        return `${(rate * 100).toFixed(1)}%`;
+      }
     },
     {
       title: '累计佣金',
@@ -425,8 +431,10 @@ const PrimarySalesSettlementPage = () => {
   // 处理更新佣金率
   const handleUpdateCommission = (secondarySales) => {
     setSelectedSecondarySales(secondarySales);
+    // 🔧 修复：处理未设置佣金的情况，默认显示30%
+    const currentRate = secondarySales.commission_rate || 0;
     commissionForm.setFieldsValue({
-      commission_rate: secondarySales.commission_rate * 100
+      commission_rate: currentRate > 0 ? currentRate * 100 : 30  // 如果未设置，默认30%
     });
     setCommissionModalVisible(true);
   };
@@ -437,7 +445,13 @@ const PrimarySalesSettlementPage = () => {
       const values = await commissionForm.validateFields();
       const commissionRate = values.commission_rate / 100;
       
-      // 模拟更新本地数据
+      // 🔧 修复：调用API更新数据库中的佣金率
+      await dispatch(updateSecondarySalesCommission({
+        secondarySalesId: selectedSecondarySales.id,
+        commissionRate: commissionRate
+      })).unwrap();
+      
+      // 更新本地数据
       if (primarySalesStats && primarySalesStats.secondarySales) {
         const updatedSecondarySales = primarySalesStats.secondarySales.map(sales => {
           if (sales.id === selectedSecondarySales.id) {
@@ -458,6 +472,12 @@ const PrimarySalesSettlementPage = () => {
       message.success('佣金率更新成功');
       setCommissionModalVisible(false);
       commissionForm.resetFields();
+      
+      // 🔧 修复：重新获取数据以确保同步
+      if (salesData) {
+        const searchValues = searchForm.getFieldsValue();
+        handleSearch(searchValues);
+      }
     } catch (error) {
       message.error('佣金率更新失败: ' + (error.message || error));
     }
