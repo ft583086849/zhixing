@@ -28,7 +28,8 @@ import {
   CloseOutlined,
   CrownOutlined,
   TeamOutlined,
-  FilterOutlined
+  FilterOutlined,
+  ShoppingCartOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getSales, updateCommissionRate, downloadCommissionData } from '../../store/slices/adminSlice';
@@ -531,59 +532,82 @@ const AdminSales = () => {
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
-      title: '销售链接',
-      key: 'links',
-      width: 300,
-      render: (_, record) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {record.links && record.links.map((link, index) => (
-            <div key={index} style={{ 
+      title: '用户购买链接',
+      key: 'purchase_link',
+      width: 200,
+      render: (_, record) => {
+        const purchaseLink = record.links?.find(link => link.type === 'purchase');
+        if (purchaseLink) {
+          return (
+            <div style={{ 
               padding: 8, 
               border: '1px solid #e8e8e8', 
               borderRadius: 4, 
-              backgroundColor: '#fafafa' 
+              backgroundColor: '#f0f5ff' 
             }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                marginBottom: 4 
-              }}>
-                <Tag color={link.type === 'sales_register' ? 'orange' : 'blue'}>
-                  {link.title}
-                </Tag>
-                <Space size="small">
-                  <Tooltip title="复制链接">
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      onClick={() => handleCopyLink(link.fullUrl)}
-                    />
-                  </Tooltip>
-                  <Tooltip title="复制代码">
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      onClick={() => handleCopyCode(link.code)}
-                    />
-                  </Tooltip>
-                </Space>
+              <div style={{ marginBottom: 4 }}>
+                <Tag color="blue" icon={<ShoppingCartOutlined />}>购买链接</Tag>
               </div>
-              <div style={{ fontSize: 12, color: '#666' }}>
-                代码: {link.code}
+              <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>
+                代码: {purchaseLink.code}
               </div>
-              <div style={{ fontSize: 11, color: '#999' }}>
-                {link.description}
-              </div>
+              <Space size="small">
+                <Tooltip title="复制链接">
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<CopyOutlined />}
+                    onClick={() => handleCopyLink(purchaseLink.fullUrl)}
+                  >
+                    复制链接
+                  </Button>
+                </Tooltip>
+              </Space>
             </div>
-          ))}
-          {(!record.links || record.links.length === 0) && (
-            <span style={{ color: '#ccc' }}>暂无链接</span>
-          )}
-        </div>
-      )
+          );
+        }
+        return <span style={{ color: '#ccc' }}>暂无链接</span>;
+      }
+    },
+    {
+      title: '分销注册链接',
+      key: 'sales_register_link',
+      width: 200,
+      render: (_, record) => {
+        const salesLink = record.links?.find(link => link.type === 'sales_register');
+        if (salesLink) {
+          return (
+            <div style={{ 
+              padding: 8, 
+              border: '1px solid #e8e8e8', 
+              borderRadius: 4, 
+              backgroundColor: '#fff7e6' 
+            }}>
+              <div style={{ marginBottom: 4 }}>
+                <Tag color="orange" icon={<TeamOutlined />}>分销链接</Tag>
+              </div>
+              <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>
+                代码: {salesLink.code}
+              </div>
+              <Space size="small">
+                <Tooltip title="复制链接">
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<CopyOutlined />}
+                    onClick={() => handleCopyLink(salesLink.fullUrl)}
+                  >
+                    复制链接
+                  </Button>
+                </Tooltip>
+              </Space>
+            </div>
+          );
+        }
+        return record.sales_type === 'primary' ? 
+          <span style={{ color: '#ccc' }}>暂无链接</span> : 
+          <span style={{ color: '#999', fontSize: '12px' }}>二级销售无分销链接</span>;
+      }
     }
   ];
 

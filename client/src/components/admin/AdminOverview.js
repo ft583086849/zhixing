@@ -25,6 +25,22 @@ const AdminOverview = () => {
   const [customRange, setCustomRange] = useState([]);
 
   useEffect(() => {
+    // 🔧 修复：组件挂载时自动清除缓存
+    console.log('🧹 数据概览页面：自动清除缓存...');
+    // 清除localStorage中的缓存
+    const cacheKeys = Object.keys(localStorage).filter(key => 
+      key.includes('cache-') || key.includes('stats-') || key.includes('admin-')
+    );
+    cacheKeys.forEach(key => localStorage.removeItem(key));
+    
+    // 清除sessionStorage中的缓存
+    const sessionKeys = Object.keys(sessionStorage).filter(key => 
+      key.includes('cache-') || key.includes('stats-') || key.includes('admin-')
+    );
+    sessionKeys.forEach(key => sessionStorage.removeItem(key));
+    
+    console.log('✅ 缓存已清除，开始加载新数据...');
+    
     // 只有在已登录的情况下才获取数据
     if (admin) {
       console.log('📊 AdminOverview: 开始获取统计数据...');
@@ -137,19 +153,19 @@ const AdminOverview = () => {
                 />
               </Card>
             </Col>
-          </Row>
-
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
                   title="已配置确认订单"
                   value={stats?.confirmed_config_orders || 0}
                   prefix={<CheckCircleOutlined />}
-                  valueStyle={{ color: '#1890ff' }}
+                  valueStyle={{ color: '#52c41a' }}
                 />
               </Card>
             </Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
@@ -259,63 +275,137 @@ const AdminOverview = () => {
 
           </Row>
 
-          {/* 订单分类统计 */}
-          <Card title="订单分类统计" style={{ marginTop: 24 }} role="region">
-            <Row gutter={[16, 16]}>
+          {/* 订单分类统计 - 美化版 */}
+          <Card 
+            title={<span style={{ fontSize: '16px', fontWeight: 'bold' }}>📊 订单分类统计</span>} 
+            style={{ marginTop: 24, background: '#fafafa' }} 
+            role="region"
+          >
+            <Row gutter={[24, 24]}>
               <Col xs={24} sm={12} lg={4}>
-                <div>
-                  <p>7天免费</p>
+                <Card bordered={false} style={{ textAlign: 'center', background: '#fff' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#52c41a' }}>
+                      🎁 7天免费
+                    </span>
+                  </div>
                   <Progress 
-                    percent={stats?.free_trial_percentage || 0} 
+                    type="circle"
+                    percent={Number((stats?.free_trial_percentage || 0).toFixed(2))} 
                     status="active"
                     strokeColor="#52c41a"
+                    format={percent => `${percent}%`}
+                    width={80}
                   />
-                  <p>{stats?.free_trial_orders || 0}笔，占比{(Number(stats?.free_trial_percentage) || 0).toFixed(1)}%</p>
-                </div>
+                  <div style={{ marginTop: 12, fontSize: '12px', color: '#666' }}>
+                    <div>{stats?.free_trial_orders || 0} 笔</div>
+                    <div style={{ marginTop: 4 }}>
+                      占比 <span style={{ fontWeight: 'bold', color: '#52c41a' }}>
+                        {(Number(stats?.free_trial_percentage) || 0).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </Card>
               </Col>
               <Col xs={24} sm={12} lg={5}>
-                <div>
-                  <p>1个月订单</p>
+                <Card bordered={false} style={{ textAlign: 'center', background: '#fff' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#108ee9' }}>
+                      📅 1个月订单
+                    </span>
+                  </div>
                   <Progress 
-                    percent={stats?.one_month_percentage || 0} 
+                    type="circle"
+                    percent={Number((stats?.one_month_percentage || 0).toFixed(2))} 
                     status="active"
                     strokeColor="#108ee9"
+                    format={percent => `${percent}%`}
+                    width={80}
                   />
-                  <p>{stats?.one_month_orders || 0}笔，占比{(Number(stats?.one_month_percentage) || 0).toFixed(1)}%</p>
-                </div>
+                  <div style={{ marginTop: 12, fontSize: '12px', color: '#666' }}>
+                    <div>{stats?.one_month_orders || 0} 笔</div>
+                    <div style={{ marginTop: 4 }}>
+                      占比 <span style={{ fontWeight: 'bold', color: '#108ee9' }}>
+                        {(Number(stats?.one_month_percentage) || 0).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </Card>
               </Col>
               <Col xs={24} sm={12} lg={5}>
-                <div>
-                  <p>3个月订单</p>
+                <Card bordered={false} style={{ textAlign: 'center', background: '#fff' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#87d068' }}>
+                      📆 3个月订单
+                    </span>
+                  </div>
                   <Progress 
-                    percent={stats?.three_month_percentage || 0} 
+                    type="circle"
+                    percent={Number((stats?.three_month_percentage || 0).toFixed(2))} 
                     status="active"
                     strokeColor="#87d068"
+                    format={percent => `${percent}%`}
+                    width={80}
                   />
-                  <p>{stats?.three_month_orders || 0}笔，占比{(Number(stats?.three_month_percentage) || 0).toFixed(1)}%</p>
-                </div>
+                  <div style={{ marginTop: 12, fontSize: '12px', color: '#666' }}>
+                    <div>{stats?.three_month_orders || 0} 笔</div>
+                    <div style={{ marginTop: 4 }}>
+                      占比 <span style={{ fontWeight: 'bold', color: '#87d068' }}>
+                        {(Number(stats?.three_month_percentage) || 0).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </Card>
               </Col>
               <Col xs={24} sm={12} lg={5}>
-                <div>
-                  <p>6个月订单</p>
+                <Card bordered={false} style={{ textAlign: 'center', background: '#fff' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#fa8c16' }}>
+                      🗓️ 6个月订单
+                    </span>
+                  </div>
                   <Progress 
-                    percent={stats?.six_month_percentage || 0} 
+                    type="circle"
+                    percent={Number((stats?.six_month_percentage || 0).toFixed(2))} 
                     status="active"
                     strokeColor="#fa8c16"
+                    format={percent => `${percent}%`}
+                    width={80}
                   />
-                  <p>{stats?.six_month_orders || 0}笔，占比{(Number(stats?.six_month_percentage) || 0).toFixed(1)}%</p>
-                </div>
+                  <div style={{ marginTop: 12, fontSize: '12px', color: '#666' }}>
+                    <div>{stats?.six_month_orders || 0} 笔</div>
+                    <div style={{ marginTop: 4 }}>
+                      占比 <span style={{ fontWeight: 'bold', color: '#fa8c16' }}>
+                        {(Number(stats?.six_month_percentage) || 0).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </Card>
               </Col>
               <Col xs={24} sm={12} lg={5}>
-                <div>
-                  <p>年费订单</p>
+                <Card bordered={false} style={{ textAlign: 'center', background: '#fff' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#722ed1' }}>
+                      📍 年费订单
+                    </span>
+                  </div>
                   <Progress 
-                    percent={stats?.yearly_percentage || 0} 
+                    type="circle"
+                    percent={Number((stats?.yearly_percentage || 0).toFixed(2))} 
                     status="active"
                     strokeColor="#722ed1"
+                    format={percent => `${percent}%`}
+                    width={80}
                   />
-                  <p>{stats?.yearly_orders || 0}笔，占比{(Number(stats?.yearly_percentage) || 0).toFixed(1)}%</p>
-                </div>
+                  <div style={{ marginTop: 12, fontSize: '12px', color: '#666' }}>
+                    <div>{stats?.yearly_orders || 0} 笔</div>
+                    <div style={{ marginTop: 4 }}>
+                      占比 <span style={{ fontWeight: 'bold', color: '#722ed1' }}>
+                        {(Number(stats?.yearly_percentage) || 0).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </Card>
               </Col>
             </Row>
           </Card>
