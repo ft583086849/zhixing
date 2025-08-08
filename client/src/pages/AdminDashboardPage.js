@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { 
@@ -7,7 +7,8 @@ import {
   Button, 
   Space,
   Avatar,
-  Dropdown
+  Dropdown,
+  Spin
 } from 'antd';
 import { 
   DashboardOutlined,
@@ -20,12 +21,14 @@ import {
 } from '@ant-design/icons';
 import { logout } from '../store/slices/authSlice';
 import ErrorBoundary from '../components/ErrorBoundary';
-import AdminOverview from '../components/admin/AdminOverview';
-import AdminOrders from '../components/admin/AdminOrders';
-import AdminSales from '../components/admin/AdminSales';
-import AdminCustomers from '../components/admin/AdminCustomers';
-import AdminPaymentConfig from '../components/admin/AdminPaymentConfig';
-import AdminFinance from '../components/admin/AdminFinance';
+
+// 使用懒加载优化性能
+const AdminOverview = React.lazy(() => import('../components/admin/AdminOverview'));
+const AdminOrders = React.lazy(() => import('../components/admin/AdminOrders'));
+const AdminSales = React.lazy(() => import('../components/admin/AdminSales'));
+const AdminCustomers = React.lazy(() => import('../components/admin/AdminCustomers'));
+const AdminPaymentConfig = React.lazy(() => import('../components/admin/AdminPaymentConfig'));
+const AdminFinance = React.lazy(() => import('../components/admin/AdminFinance'));
 
 
 const { Header, Sider, Content } = Layout;
@@ -182,15 +185,21 @@ const AdminDashboardPage = () => {
             border: '1px solid #f0f0f0'
           }}>
             <ErrorBoundary>
-              <Routes>
-                <Route path="dashboard" element={<AdminOverview />} />
-                <Route path="" element={<AdminOverview />} />
-                <Route path="finance" element={<AdminFinance />} />
-                <Route path="orders" element={<AdminOrders />} />
-                <Route path="sales" element={<AdminSales />} />
-                <Route path="customers" element={<AdminCustomers />} />
-                <Route path="payment-config" element={<AdminPaymentConfig />} />
-              </Routes>
+              <Suspense fallback={
+                <div style={{ textAlign: 'center', padding: '100px 0' }}>
+                  <Spin size="large" tip="加载中..." />
+                </div>
+              }>
+                <Routes>
+                  <Route path="dashboard" element={<AdminOverview />} />
+                  <Route path="" element={<AdminOverview />} />
+                  <Route path="finance" element={<AdminFinance />} />
+                  <Route path="orders" element={<AdminOrders />} />
+                  <Route path="sales" element={<AdminSales />} />
+                  <Route path="customers" element={<AdminCustomers />} />
+                  <Route path="payment-config" element={<AdminPaymentConfig />} />
+                </Routes>
+              </Suspense>
             </ErrorBoundary>
           </Content>
         </Layout>

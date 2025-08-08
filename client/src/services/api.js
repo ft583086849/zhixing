@@ -36,29 +36,54 @@ const handleError = (error, operation = 'API操作') => {
 };
 
 /**
- * 缓存管理
+ * 缓存管理 - 使用智能缓存策略
  */
 class CacheManager {
   static cache = new Map();
-  static CACHE_DURATION = 5 * 60 * 1000; // 5分钟
+  static CACHE_DURATION = 10 * 60 * 1000; // 默认10分钟
   
-  static get(key) {
+  // 不同数据类型的缓存时间
+  static CACHE_TIMES = {
+    stats: 10 * 60 * 1000,    // 统计数据：10分钟
+    sales: 5 * 60 * 1000,      // 销售数据：5分钟
+    orders: 2 * 60 * 1000,     // 订单数据：2分钟
+    customers: 15 * 60 * 1000, // 客户数据：15分钟
+    config: 30 * 60 * 1000     // 配置数据：30分钟
+  };
+  
+  static get(key, customDuration = null) {
     const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-    return cached.data;
-  }
-  return null;
+    const duration = customDuration || this.getCacheDuration(key);
+    
+    if (cached && Date.now() - cached.timestamp < duration) {
+      console.log(`📦 缓存命中: ${key}`);
+      return cached.data;
+    }
+    console.log(`❌ 缓存未命中: ${key}`);
+    return null;
   }
 
   static set(key, data) {
     this.cache.set(key, {
-    data,
-    timestamp: Date.now()
-  });
+      data,
+      timestamp: Date.now()
+    });
+    console.log(`💾 数据已缓存: ${key}`);
   }
   
   static remove(key) {
     this.cache.delete(key);
+    console.log(`🗑️ 缓存已删除: ${key}`);
+  }
+  
+  static getCacheDuration(key) {
+    // 根据key类型返回不同的缓存时间
+    if (key.includes('stats')) return this.CACHE_TIMES.stats;
+    if (key.includes('sales')) return this.CACHE_TIMES.sales;
+    if (key.includes('orders')) return this.CACHE_TIMES.orders;
+    if (key.includes('customers')) return this.CACHE_TIMES.customers;
+    if (key.includes('config')) return this.CACHE_TIMES.config;
+    return this.CACHE_DURATION;
   }
   
   static clear(pattern = null) {

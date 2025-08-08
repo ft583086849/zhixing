@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag } from 'antd';
+import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag, Button, Tooltip } from 'antd';
 import { 
   ShoppingCartOutlined, 
   DollarOutlined, 
@@ -10,7 +10,8 @@ import {
   ExclamationCircleOutlined,
   CrownOutlined,
   TeamOutlined,
-  TrophyOutlined
+  TrophyOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { getStats, getSales } from '../../store/slices/adminSlice';
 
@@ -25,48 +26,56 @@ const AdminOverview = () => {
   const [timeRange, setTimeRange] = useState('all'); // 默认显示所有数据
   const [customRange, setCustomRange] = useState([]);
   const [top5Sales, setTop5Sales] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    // 🔧 修复：组件挂载时自动清除缓存
-    console.log('🧹 数据概览页面：自动清除缓存...');
-    // 清除localStorage中的缓存
+  // 手动刷新数据并清除缓存
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    console.log('🔄 手动刷新数据...');
+    
+    // 清除缓存
     const cacheKeys = Object.keys(localStorage).filter(key => 
       key.includes('cache-') || key.includes('stats-') || key.includes('admin-')
     );
     cacheKeys.forEach(key => localStorage.removeItem(key));
     
-    // 清除sessionStorage中的缓存
     const sessionKeys = Object.keys(sessionStorage).filter(key => 
       key.includes('cache-') || key.includes('stats-') || key.includes('admin-')
     );
     sessionKeys.forEach(key => sessionStorage.removeItem(key));
     
-    console.log('✅ 缓存已清除，开始加载新数据...');
-    
+    // 重新加载数据
+    await loadData();
+    setRefreshing(false);
+    console.log('✅ 数据刷新完成');
+  };
+
+  // 加载数据的函数
+  const loadData = async () => {
     // 只有在已登录的情况下才获取数据
     if (admin) {
       console.log('📊 AdminOverview: 开始获取统计数据...');
       if (timeRange === 'custom' && customRange.length > 0) {
-        dispatch(getStats({ timeRange: 'custom', customRange, usePaymentTime: true }))
+        return dispatch(getStats({ timeRange: 'custom', customRange, usePaymentTime: true }))
           .then((result) => {
             console.log('✅ 统计数据获取结果:', result);
             if (!result.payload) {
               console.error('❌ 统计数据为空，尝试重新获取...');
               // 如果没有数据，尝试不带参数调用
-              dispatch(getStats({ usePaymentTime: true }));
+              return dispatch(getStats({ usePaymentTime: true }));
             }
           })
           .catch((error) => {
             console.error('❌ 获取统计数据失败:', error);
           });
       } else {
-        dispatch(getStats({ timeRange, usePaymentTime: true }))
+        return dispatch(getStats({ timeRange, usePaymentTime: true }))
           .then((result) => {
             console.log('✅ 统计数据获取结果:', result);
             if (!result.payload) {
               console.error('❌ 统计数据为空，尝试重新获取...');
               // 如果没有数据，尝试不带参数调用
-              dispatch(getStats({ usePaymentTime: true }));
+              return dispatch(getStats({ usePaymentTime: true }));
             }
           })
           .catch((error) => {
@@ -76,6 +85,10 @@ const AdminOverview = () => {
     } else {
       console.log('⚠️ AdminOverview: 用户未登录，跳过数据加载');
     }
+  };
+
+  useEffect(() => {
+    loadData();
   }, [dispatch, timeRange, customRange, admin]);
   
   // 获取销售数据并计算Top5
@@ -131,20 +144,32 @@ const AdminOverview = () => {
         <>
           {/* 时间范围选择 */}
           <Card style={{ marginBottom: 24 }} role="region">
-            <Space>
-              <span>时间范围：</span>
-              <Radio.Group value={timeRange} onChange={(e) => handleTimeRangeChange(e.target.value)}>
-                <Radio.Button value="all">全部数据</Radio.Button>
-                <Radio.Button value="today">今天</Radio.Button>
-                <Radio.Button value="week">本周</Radio.Button>
-                <Radio.Button value="month">本月</Radio.Button>
-                <Radio.Button value="year">本年</Radio.Button>
-              </Radio.Group>
-              <RangePicker 
-                onChange={handleCustomRangeChange}
-                placeholder={['开始日期', '结束日期']}
-              />
-            </Space>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Space>
+                <span>时间范围：</span>
+                <Radio.Group value={timeRange} onChange={(e) => handleTimeRangeChange(e.target.value)}>
+                  <Radio.Button value="all">全部数据</Radio.Button>
+                  <Radio.Button value="today">今天</Radio.Button>
+                  <Radio.Button value="week">本周</Radio.Button>
+                  <Radio.Button value="month">本月</Radio.Button>
+                  <Radio.Button value="year">本年</Radio.Button>
+                </Radio.Group>
+                <RangePicker 
+                  onChange={handleCustomRangeChange}
+                  placeholder={['开始日期', '结束日期']}
+                />
+              </Space>
+              <Tooltip title="刷新数据并清除缓存">
+                <Button 
+                  type="primary" 
+                  icon={<ReloadOutlined />} 
+                  onClick={handleRefresh}
+                  loading={refreshing}
+                >
+                  刷新数据
+                </Button>
+              </Tooltip>
+            </div>
           </Card>
 
           {/* 统计卡片 - 核心指标 */}
