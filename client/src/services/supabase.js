@@ -259,12 +259,25 @@ export class SupabaseService {
         primaryStats.total_commission = primaryStats.total_amount * (primaryStats.commission_rate || 0.4);
       }
       
+      // 🔧 修复：计算所有二级销售的订单总数和金额
+      let secondaryTotalOrders = 0;
+      let secondaryTotalAmount = 0;
+      let secondaryTotalCommission = 0;
+      
+      if (secondaryStats && secondaryStats.length > 0) {
+        secondaryStats.forEach(ss => {
+          secondaryTotalOrders += ss.total_orders || 0;
+          secondaryTotalAmount += ss.total_amount || 0;
+          secondaryTotalCommission += ss.total_commission || 0;
+        });
+      }
+      
       // 6. 计算综合统计（一级 + 所有二级）
       const totalStats = {
-        // 总计
-        totalOrders: primaryStats.total_orders,
-        totalAmount: primaryStats.total_amount,
-        totalCommission: primaryStats.total_commission,
+        // 🔧 修复：总计应包含一级自己的订单 + 所有二级的订单
+        totalOrders: (primaryStats.total_orders || 0) + secondaryTotalOrders,
+        totalAmount: (primaryStats.total_amount || 0) + secondaryTotalAmount,
+        totalCommission: (primaryStats.total_commission || 0) + secondaryTotalCommission,
         // 本月
         monthOrders: primaryStats.month_orders,
         monthAmount: primaryStats.month_amount,

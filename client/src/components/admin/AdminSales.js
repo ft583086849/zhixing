@@ -631,6 +631,7 @@ const AdminSales = () => {
                   <Option value="all">全部销售</Option>
                   <Option value="primary">一级销售</Option>
                   <Option value="secondary">二级销售</Option>
+                  <Option value="independent">独立销售</Option>
                 </Select>
               </Form.Item>
             </Col>

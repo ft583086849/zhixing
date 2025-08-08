@@ -19,7 +19,8 @@ import {
   Col,
   Statistic,
   Image,
-  Modal
+  Modal,
+  Tabs
 } from 'antd';
 import { 
   UserOutlined, 
@@ -280,77 +281,184 @@ const PurchasePage = () => {
 
     // 只支持链上地址支付
     if (paymentMethod === 'crypto') {
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <Card title="链上收款信息" size="small" role="region">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div>
-                <Text strong>链名：</Text>
-                <Text>{paymentConfig.crypto_chain_name}</Text>
-              </div>
-              <div>
-                <Text strong>收款地址：</Text>
-                <Text copyable>{paymentConfig.crypto_address}</Text>
-              </div>
-              
-              {/* 链上收款码图片 */}
-              {paymentConfig.crypto_qr_code ? (
-                <div style={{ textAlign: 'center', marginTop: 16 }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>收款码图片</Text>
-                  <Image
-                    width={200}
-                    height={200}
-                    src={paymentConfig.crypto_qr_code}
-                    style={{ objectFit: 'cover', borderRadius: 8 }}
-                    preview={{
-                      src: paymentConfig.crypto_qr_code,
-                    }}
-                  />
+      // 判断是否有第二个链上地址配置
+      const hasCrypto2 = paymentConfig.crypto2_chain_name && paymentConfig.crypto2_address;
+      
+      if (hasCrypto2) {
+        // 如果有两个链上地址，显示标签页让用户选择
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <Card title="请选择链上收款方式" size="small" role="region">
+              <Tabs defaultActiveKey="1">
+                <Tabs.TabPane tab="链上收款信息（一）" key="1">
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <Text strong>链名：</Text>
+                      <Text>{paymentConfig.crypto_chain_name}</Text>
+                    </div>
+                    <div>
+                      <Text strong>收款地址：</Text>
+                      <Text copyable>{paymentConfig.crypto_address}</Text>
+                    </div>
+                    
+                    {/* 链上收款码图片 */}
+                    {paymentConfig.crypto_qr_code ? (
+                      <div style={{ textAlign: 'center', marginTop: 16 }}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>收款码图片</Text>
+                        <Image
+                          width={200}
+                          height={200}
+                          src={paymentConfig.crypto_qr_code}
+                          style={{ objectFit: 'cover', borderRadius: 8 }}
+                          preview={{
+                            src: paymentConfig.crypto_qr_code,
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', marginTop: 16 }}>
+                        <Text type="secondary">收款码图片</Text>
+                        <div style={{ 
+                          width: 200, 
+                          height: 200, 
+                          border: '1px dashed #d9d9d9', 
+                          borderRadius: 8,
+                          margin: '8px auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#fafafa'
+                        }}>
+                          <Text type="secondary">暂无收款码</Text>
+                        </div>
+                      </div>
+                    )}
+                  </Space>
+                </Tabs.TabPane>
+                
+                <Tabs.TabPane tab="链上收款信息（二）" key="2">
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <Text strong>链名：</Text>
+                      <Text>{paymentConfig.crypto2_chain_name}</Text>
+                    </div>
+                    <div>
+                      <Text strong>收款地址：</Text>
+                      <Text copyable>{paymentConfig.crypto2_address}</Text>
+                    </div>
+                    
+                    {/* 链上收款码图片 */}
+                    {paymentConfig.crypto2_qr_code ? (
+                      <div style={{ textAlign: 'center', marginTop: 16 }}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>收款码图片</Text>
+                        <Image
+                          width={200}
+                          height={200}
+                          src={paymentConfig.crypto2_qr_code}
+                          style={{ objectFit: 'cover', borderRadius: 8 }}
+                          preview={{
+                            src: paymentConfig.crypto2_qr_code,
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', marginTop: 16 }}>
+                        <Text type="secondary">收款码图片</Text>
+                        <div style={{ 
+                          width: 200, 
+                          height: 200, 
+                          border: '1px dashed #d9d9d9', 
+                          borderRadius: 8,
+                          margin: '8px auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#fafafa'
+                        }}>
+                          <Text type="secondary">暂无收款码</Text>
+                        </div>
+                      </div>
+                    )}
+                  </Space>
+                </Tabs.TabPane>
+              </Tabs>
+            </Card>
+          </div>
+        );
+      } else {
+        // 只有一个链上地址，显示原来的单个界面
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <Card title="链上收款信息" size="small" role="region">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <div>
+                  <Text strong>链名：</Text>
+                  <Text>{paymentConfig.crypto_chain_name}</Text>
                 </div>
-              ) : (
-                <div style={{ textAlign: 'center', marginTop: 16 }}>
-                  <Text type="secondary">收款码图片</Text>
-                  <div style={{ 
-                    width: 200, 
-                    height: 200, 
-                    border: '1px dashed #d9d9d9', 
-                    borderRadius: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '16px auto',
-                    backgroundColor: '#fafafa'
-                  }}>
-                    <Text type="secondary">收款码图片</Text>
+                <div>
+                  <Text strong>收款地址：</Text>
+                  <Text copyable>{paymentConfig.crypto_address}</Text>
+                </div>
+                
+                {/* 链上收款码图片 */}
+                {paymentConfig.crypto_qr_code ? (
+                  <div style={{ textAlign: 'center', marginTop: 16 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>收款码图片</Text>
+                    <Image
+                      width={200}
+                      height={200}
+                      src={paymentConfig.crypto_qr_code}
+                      style={{ objectFit: 'cover', borderRadius: 8 }}
+                      preview={{
+                        src: paymentConfig.crypto_qr_code,
+                      }}
+                    />
                   </div>
-                </div>
-              )}
-            </Space>
-          </Card>
-          
-          {/* 链上地址付款金额输入 */}
-          <Form.Item
-            label="付款金额（美元）"
-            required>
-            <Input
-              type="number"
-              placeholder="请输入付款金额"
-              value={cryptoAmount}
-              onChange={(e) => setCryptoAmount(e.target.value)}
-              aria-label="请输入付款金额"
-              addonAfter="美元"
-              size="large"
+                ) : (
+                  <div style={{ textAlign: 'center', marginTop: 16 }}>
+                    <Text type="secondary">收款码图片</Text>
+                    <div style={{ 
+                      width: 200, 
+                      height: 200, 
+                      border: '1px dashed #d9d9d9', 
+                      borderRadius: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '16px auto',
+                      backgroundColor: '#fafafa'
+                    }}>
+                      <Text type="secondary">暂无收款码</Text>
+                    </div>
+                  </div>
+                )}
+              </Space>
+            </Card>
+            
+            {/* 链上地址付款金额输入 */}
+            <Form.Item
+              label="付款金额（美元）"
+              required>
+              <Input
+                type="number"
+                placeholder="请输入付款金额"
+                value={cryptoAmount}
+                onChange={(e) => setCryptoAmount(e.target.value)}
+                aria-label="请输入付款金额"
+                addonAfter="美元"
+                size="large"
+              />
+            </Form.Item>
+            
+            <Alert
+              message="请考虑手续费，保障到账金额"
+              type="warning"
+              showIcon
+              style={{ marginTop: 16 }}
             />
-          </Form.Item>
-          
-          <Alert
-            message="请考虑手续费，保障到账金额"
-            type="warning"
-            showIcon
-            style={{ marginTop: 16 }}
-          />
-        </div>
-      );
+          </div>
+        );
+      }
     }
 
     return null;

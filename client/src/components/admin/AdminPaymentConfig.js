@@ -28,6 +28,7 @@ const AdminPaymentConfig = () => {
   const [form] = Form.useForm();
   // const [alipayQRCode, setAlipayQRCode] = useState(''); // 已移除支付宝
   const [cryptoQRCode, setCryptoQRCode] = useState('');
+  const [crypto2QRCode, setCrypto2QRCode] = useState(''); // 第二个链上地址
 
   useEffect(() => {
     dispatch(getPaymentConfig());
@@ -37,10 +38,14 @@ const AdminPaymentConfig = () => {
     if (config) {
       form.setFieldsValue({
         crypto_chain_name: config.crypto_chain_name,
-        crypto_address: config.crypto_address
+        crypto_address: config.crypto_address,
+        // 第二个链上地址配置，默认值为BSC链
+        crypto2_chain_name: config.crypto2_chain_name || 'BSC',
+        crypto2_address: config.crypto2_address || '0xAE25E29d3baCD91B0fFd0807859531419a85375a'
       });
       // setAlipayQRCode(config.alipay_qr_code); // 已移除支付宝
       setCryptoQRCode(config.crypto_qr_code);
+      setCrypto2QRCode(config.crypto2_qr_code);
     }
   }, [config, form]);
 
@@ -49,7 +54,11 @@ const AdminPaymentConfig = () => {
       const configData = {
         crypto_chain_name: values.crypto_chain_name,
         crypto_address: values.crypto_address,
-        crypto_qr_code: cryptoQRCode // 包含二维码图片数据
+        crypto_qr_code: cryptoQRCode, // 包含二维码图片数据
+        // 第二个链上地址配置
+        crypto2_chain_name: values.crypto2_chain_name || 'BSC',
+        crypto2_address: values.crypto2_address || '0xAE25E29d3baCD91B0fFd0807859531419a85375a',
+        crypto2_qr_code: crypto2QRCode
       };
 
       await dispatch(updatePaymentConfig(configData)).unwrap();
@@ -79,9 +88,11 @@ const AdminPaymentConfig = () => {
     // 模拟上传
     const reader = new FileReader();
     reader.onload = (e) => {
-      // 只处理crypto类型
+      // 处理crypto类型
       if (type === 'crypto') {
         setCryptoQRCode(e.target.result);
+      } else if (type === 'crypto2') {
+        setCrypto2QRCode(e.target.result);
       }
     };
     reader.readAsDataURL(file);
@@ -95,9 +106,11 @@ const AdminPaymentConfig = () => {
   };
 
   const handleRemove = (type) => {
-    // 只处理crypto类型
+    // 处理crypto类型
     if (type === 'crypto') {
       setCryptoQRCode('');
+    } else if (type === 'crypto2') {
+      setCrypto2QRCode('');
     }
   };
 
@@ -106,6 +119,18 @@ const AdminPaymentConfig = () => {
   const cryptoUploadProps = {
     beforeUpload: (file) => {
       handleUpload(file, 'crypto');
+      return false; // 阻止自动上传
+    },
+    showUploadList: false,
+    fileList: [], // 确保文件列表为空
+    accept: 'image/*', 
+    multiple: false,
+    onRemove: () => false, // 禁用移除功能
+  };
+  
+  const crypto2UploadProps = {
+    beforeUpload: (file) => {
+      handleUpload(file, 'crypto2');
       return false; // 阻止自动上传
     },
     showUploadList: false,
@@ -126,8 +151,8 @@ const AdminPaymentConfig = () => {
       >
         {/* 支付宝收款配置已移除 */}
 
-        {/* 链上地址收款配置 */}
-        <Card title="链上地址收款配置" style={{ marginBottom: 24 }}>
+        {/* 链上地址收款配置（一） */}
+        <Card title="链上地址收款配置（一）" style={{ marginBottom: 24 }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Form.Item
               label="链名"
@@ -178,6 +203,69 @@ const AdminPaymentConfig = () => {
                   </div>
                 ) : (
                   <Upload {...cryptoUploadProps}>
+                    <Button icon={<UploadOutlined />}>上传收款码</Button>
+                  </Upload>
+                )}
+                <Text type="secondary">支持 JPG、PNG、GIF、WebP 格式，最大 10MB</Text>
+              </Space>
+            </Form.Item>
+          </Space>
+        </Card>
+
+        {/* 链上地址收款配置（二） */}
+        <Card title="链上地址收款配置（二）" style={{ marginBottom: 24 }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Form.Item
+              label="链名"
+              name="crypto2_chain_name"
+              rules={[{ required: true, message: '请输入链名' }]}
+              initialValue="BSC"
+            >
+              <Input placeholder="如：BSC/ETH/TRON" />
+            </Form.Item>
+            
+            <Form.Item
+              label="收款地址"
+              name="crypto2_address"
+              rules={[{ required: true, message: '请输入收款地址' }]}
+              initialValue="0xAE25E29d3baCD91B0fFd0807859531419a85375a"
+            >
+              <Input.TextArea 
+                placeholder="请输入收款地址" 
+                rows={3}
+              />
+            </Form.Item>
+            
+            <Form.Item label="线上收款码">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {crypto2QRCode ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <Image
+                      width={100}
+                      height={100}
+                      src={crypto2QRCode}
+                      style={{ objectFit: 'cover', borderRadius: 8 }}
+                    />
+                    <Space>
+                      <Button 
+                        type="link" 
+                        icon={<EyeOutlined />}
+                        onClick={() => handlePreview(crypto2QRCode)}
+                      >
+                        预览
+                      </Button>
+                      <Button 
+                        type="link" 
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemove('crypto2')}
+                      >
+                        删除
+                      </Button>
+                    </Space>
+                  </div>
+                ) : (
+                  <Upload {...crypto2UploadProps}>
                     <Button icon={<UploadOutlined />}>上传收款码</Button>
                   </Upload>
                 )}

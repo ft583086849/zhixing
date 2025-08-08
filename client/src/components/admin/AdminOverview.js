@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider } from 'antd';
+import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag } from 'antd';
 import { 
   ShoppingCartOutlined, 
   DollarOutlined, 
@@ -9,9 +9,10 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   CrownOutlined,
-  TeamOutlined
+  TeamOutlined,
+  TrophyOutlined
 } from '@ant-design/icons';
-import { getStats } from '../../store/slices/adminSlice';
+import { getStats, getSales } from '../../store/slices/adminSlice';
 
 
 const { Title } = Typography;
@@ -19,10 +20,11 @@ const { RangePicker } = DatePicker;
 
 const AdminOverview = () => {
   const dispatch = useDispatch();
-  const { stats, loading } = useSelector((state) => state.admin);
+  const { stats, loading, sales } = useSelector((state) => state.admin);
   const { admin } = useSelector((state) => state.auth);
   const [timeRange, setTimeRange] = useState('all'); // 默认显示所有数据
   const [customRange, setCustomRange] = useState([]);
+  const [top5Sales, setTop5Sales] = useState([]);
 
   useEffect(() => {
     // 🔧 修复：组件挂载时自动清除缓存
@@ -75,6 +77,30 @@ const AdminOverview = () => {
       console.log('⚠️ AdminOverview: 用户未登录，跳过数据加载');
     }
   }, [dispatch, timeRange, customRange, admin]);
+  
+  // 获取销售数据并计算Top5
+  useEffect(() => {
+    if (admin) {
+      dispatch(getSales()).then((result) => {
+        if (result.payload && Array.isArray(result.payload)) {
+          // 计算Top5销售（按销售金额排序）
+          const sortedSales = [...result.payload]
+            .sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0))
+            .slice(0, 5)
+            .map((sale, index) => ({
+              key: sale.id || index,
+              rank: index + 1,
+              sales_type: sale.sales_type === 'primary' ? '一级销售' : 
+                         (sale.sales?.primary_sales_id ? '二级销售' : '独立销售'),
+              sales_name: sale.sales?.wechat_name || sale.sales?.name || '-',
+              total_amount: sale.total_amount || 0,
+              commission_amount: sale.commission_amount || 0
+            }));
+          setTop5Sales(sortedSales);
+        }
+      });
+    }
+  }, [dispatch, admin, timeRange]);
 
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
@@ -201,79 +227,89 @@ const AdminOverview = () => {
             </Col>
           </Row>
 
-          {/* 销售层级统计 */}
+          {/* 销售层级统计 - 优化版 */}
           <Divider orientation="left">销售层级统计</Divider>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
-                <Statistic
-                  title="一级销售总数"
-                  value={stats?.primary_sales_count || 0}
-                  prefix={<CrownOutlined />}
-                  valueStyle={{ color: '#f5222d' }}
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
-                <Statistic
-                  title="二级销售总数"
-                  value={stats?.secondary_sales_count || 0}
-                  prefix={<TeamOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
-                <Statistic
-                  title="一级销售业绩"
-                  value={stats?.primary_sales_amount || 0}
-                  prefix={<DollarOutlined />}
-                  valueStyle={{ color: '#fa8c16' }}
-                  suffix="美元"
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
-                <Statistic
-                  title="二级销售业绩"
-                  value={stats?.secondary_sales_amount || 0}
-                  prefix={<DollarOutlined />}
-                  valueStyle={{ color: '#13c2c2' }}
-                  suffix="美元"
-                />
-              </Card>
-            </Col>
-          </Row>
-
-          {/* 层级关系统计 */}
-          <Divider orientation="left">层级关系统计</Divider>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} lg={8}>
-              <Card role="region">
-                <Statistic
-                  title="平均二级销售数"
-                  value={stats?.avg_secondary_per_primary || 0}
-                  prefix={<TeamOutlined />}
-                  valueStyle={{ color: '#eb2f96' }}
-                  precision={1}
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} lg={8}>
-              <Card role="region">
-                <Statistic
-                  title="最高二级销售数"
-                  value={stats?.max_secondary_per_primary || 0}
-                  prefix={<TeamOutlined />}
-                  valueStyle={{ color: '#722ed1' }}
-                />
-              </Card>
-            </Col>
-
-          </Row>
+          <Card style={{ marginBottom: 24 }}>
+            <Row gutter={[16, 16]}>
+              {/* 一级销售 */}
+              <Col xs={24} sm={8}>
+                <Card style={{ background: '#e6f4ff', borderColor: '#1890ff' }}>
+                  <Row align="middle">
+                    <Col span={12}>
+                      <Statistic
+                        title="一级销售"
+                        value={stats?.primary_sales_count || 0}
+                        prefix={<CrownOutlined />}
+                        valueStyle={{ color: '#1890ff' }}
+                        suffix="个"
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="销售业绩"
+                        value={stats?.primary_sales_amount || 0}
+                        prefix={<DollarOutlined />}
+                        valueStyle={{ color: '#1890ff', fontSize: '18px' }}
+                        precision={2}
+                      />
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+              
+              {/* 二级销售 */}
+              <Col xs={24} sm={8}>
+                <Card style={{ background: '#fff7e6', borderColor: '#fa8c16' }}>
+                  <Row align="middle">
+                    <Col span={12}>
+                      <Statistic
+                        title="二级销售"
+                        value={stats?.linked_secondary_sales_count || 0}
+                        prefix={<TeamOutlined />}
+                        valueStyle={{ color: '#fa8c16' }}
+                        suffix="个"
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="销售业绩"
+                        value={stats?.linked_secondary_sales_amount || 0}
+                        prefix={<DollarOutlined />}
+                        valueStyle={{ color: '#fa8c16', fontSize: '18px' }}
+                        precision={2}
+                      />
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+              
+              {/* 独立销售 */}
+              <Col xs={24} sm={8}>
+                <Card style={{ background: '#f6ffed', borderColor: '#52c41a' }}>
+                  <Row align="middle">
+                    <Col span={12}>
+                      <Statistic
+                        title="独立销售"
+                        value={stats?.independent_sales_count || 0}
+                        prefix={<UserOutlined />}
+                        valueStyle={{ color: '#52c41a' }}
+                        suffix="个"
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="销售业绩"
+                        value={stats?.independent_sales_amount || 0}
+                        prefix={<DollarOutlined />}
+                        valueStyle={{ color: '#52c41a', fontSize: '18px' }}
+                        precision={2}
+                      />
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+            </Row>
+          </Card>
 
           {/* 订单分类统计 - 美化版 */}
           <Card 
@@ -408,6 +444,88 @@ const AdminOverview = () => {
                 </Card>
               </Col>
             </Row>
+          </Card>
+          
+          {/* Top5销售排行榜 */}
+          <Divider orientation="left">
+            <Space>
+              <TrophyOutlined style={{ color: '#faad14' }} />
+              Top5销售排行榜
+            </Space>
+          </Divider>
+          <Card>
+            <Table
+              dataSource={top5Sales}
+              pagination={false}
+              size="middle"
+              columns={[
+                {
+                  title: '排名',
+                  dataIndex: 'rank',
+                  key: 'rank',
+                  width: 80,
+                  render: (rank) => {
+                    let color = '#666';
+                    let icon = null;
+                    if (rank === 1) {
+                      color = '#faad14';
+                      icon = '🥇';
+                    } else if (rank === 2) {
+                      color = '#c0c0c0';
+                      icon = '🥈';
+                    } else if (rank === 3) {
+                      color = '#cd7f32';
+                      icon = '🥉';
+                    }
+                    return (
+                      <span style={{ color, fontWeight: 'bold', fontSize: '16px' }}>
+                        {icon} {rank}
+                      </span>
+                    );
+                  }
+                },
+                {
+                  title: '销售类型',
+                  dataIndex: 'sales_type',
+                  key: 'sales_type',
+                  width: 120,
+                  render: (type) => {
+                    let color = 'blue';
+                    if (type === '二级销售') color = 'orange';
+                    if (type === '独立销售') color = 'green';
+                    return <Tag color={color}>{type}</Tag>;
+                  }
+                },
+                {
+                  title: '销售名称',
+                  dataIndex: 'sales_name',
+                  key: 'sales_name',
+                  render: (name) => <span style={{ fontWeight: '500' }}>{name}</span>
+                },
+                {
+                  title: '销售金额',
+                  dataIndex: 'total_amount',
+                  key: 'total_amount',
+                  align: 'right',
+                  render: (amount) => (
+                    <span style={{ color: '#1890ff', fontWeight: 'bold' }}>
+                      ${(amount || 0).toFixed(2)}
+                    </span>
+                  )
+                },
+                {
+                  title: '返佣金额',
+                  dataIndex: 'commission_amount',
+                  key: 'commission_amount',
+                  align: 'right',
+                  render: (amount) => (
+                    <span style={{ color: '#52c41a', fontWeight: 'bold' }}>
+                      ${(amount || 0).toFixed(2)}
+                    </span>
+                  )
+                }
+              ]}
+            />
           </Card>
         </>
       )}

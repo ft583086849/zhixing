@@ -851,8 +851,56 @@ export const AdminAPI = {
         return this.getEmptyStats();
       }
       
-      // 🔧 按用户要求：以付款时间为准进行统计
+      // 🔧 修复：应用时间范围过滤
+      let filteredOrders = orders;
+      const now = new Date();
       const today = new Date().toDateString();
+      
+      if (params.timeRange) {
+        switch (params.timeRange) {
+          case 'today':
+            filteredOrders = orders.filter(order => {
+              const orderDate = new Date(order.created_at);
+              return orderDate.toDateString() === today;
+            });
+            break;
+          case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            filteredOrders = orders.filter(order => 
+              new Date(order.created_at) >= weekAgo
+            );
+            break;
+          case 'month':
+            const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            filteredOrders = orders.filter(order => 
+              new Date(order.created_at) >= monthAgo
+            );
+            break;
+          case 'year':
+            const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            filteredOrders = orders.filter(order => 
+              new Date(order.created_at) >= yearAgo
+            );
+            break;
+          case 'custom':
+            if (params.customRange && params.customRange.length === 2) {
+              const [start, end] = params.customRange;
+              filteredOrders = orders.filter(order => {
+                const orderDate = new Date(order.created_at);
+                return orderDate >= new Date(start) && orderDate <= new Date(end);
+              });
+            }
+            break;
+          default:
+            // 'all' or no filter
+            break;
+        }
+      }
+      
+      console.log(`📊 时间过滤后订单数: ${filteredOrders.length} 个`);
+      
+      // 使用过滤后的订单进行统计
+      orders = filteredOrders;
       
       // 今日订单 - 以付款时间为准（如果有付款时间字段），否则以创建时间
       const todayOrders = orders.filter(order => {
@@ -915,9 +963,14 @@ export const AdminAPI = {
         SupabaseService.getSecondarySales()
       ]);
       
+      // 🔧 修复：区分二级销售和独立销售
+      const linkedSecondarySales = secondarySales?.filter(s => s.primary_sales_id) || [];
+      const independentSales = secondarySales?.filter(s => !s.primary_sales_id) || [];
+      
       // 计算销售业绩 - 只计算确认的订单
       let primary_sales_amount = 0;
-      let secondary_sales_amount = 0;
+      let linked_secondary_sales_amount = 0;  // 二级销售（有上级）
+      let independent_sales_amount = 0;  // 独立销售
       
       orders.forEach(order => {
         // 只计算确认状态的订单
@@ -927,12 +980,15 @@ export const AdminAPI = {
           
           if (order.sales_code) {
             const isPrimarySale = primarySales?.some(ps => ps.sales_code === order.sales_code);
-            const isSecondarySale = secondarySales?.some(ss => ss.sales_code === order.sales_code);
+            const linkedSecondary = linkedSecondarySales?.find(ss => ss.sales_code === order.sales_code);
+            const independentSale = independentSales?.find(ss => ss.sales_code === order.sales_code);
             
             if (isPrimarySale) {
               primary_sales_amount += amountUSD;
-            } else if (isSecondarySale) {
-              secondary_sales_amount += amountUSD;
+            } else if (linkedSecondary) {
+              linked_secondary_sales_amount += amountUSD;
+            } else if (independentSale) {
+              independent_sales_amount += amountUSD;
             }
           }
         }
@@ -995,15 +1051,20 @@ export const AdminAPI = {
         total_commission: Math.round(total_commission * 100) / 100,
         commission_amount: Math.round(total_commission * 100) / 100,  // 销售返佣金额
         pending_commission_amount: Math.round(pending_commission * 100) / 100,  // 待返佣金额
+        // 🔧 优化：细分销售类型统计
         primary_sales_count: primarySales?.length || 0,
-        secondary_sales_count: secondarySales?.length || 0,
+        linked_secondary_sales_count: linkedSecondarySales?.length || 0,  // 二级销售（有上级）
+        independent_sales_count: independentSales?.length || 0,  // 独立销售
+        secondary_sales_count: secondarySales?.length || 0,  // 保留原字段兼容性
         total_sales: (primarySales?.length || 0) + (secondarySales?.length || 0),
-        // 销售业绩
+        // 销售业绩（按类型细分）
         primary_sales_amount: Math.round(primary_sales_amount * 100) / 100,
-        secondary_sales_amount: Math.round(secondary_sales_amount * 100) / 100,
-        // 层级关系统计
-        avg_secondary_per_primary: Math.round(avg_secondary_per_primary * 10) / 10,
-        max_secondary_per_primary,
+        linked_secondary_sales_amount: Math.round(linked_secondary_sales_amount * 100) / 100,
+        independent_sales_amount: Math.round(independent_sales_amount * 100) / 100,
+        secondary_sales_amount: Math.round((linked_secondary_sales_amount + independent_sales_amount) * 100) / 100,  // 兼容旧字段
+        // 层级关系统计（用户要求删除）
+        // avg_secondary_per_primary: Math.round(avg_secondary_per_primary * 10) / 10,
+        // max_secondary_per_primary,
         // 订单时长统计
         ...orderDurationStats,
         ...orderDurationPercentages,
