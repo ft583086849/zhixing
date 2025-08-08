@@ -1132,8 +1132,8 @@ export const SalesAPI = {
       salesData.created_at = new Date().toISOString();
       salesData.updated_at = new Date().toISOString();
       
-      // 🔧 修复：添加必填的name字段（使用wechat_name作为name）
-      salesData.name = salesData.name || salesData.wechat_name || '';
+      // 🔧 移除name字段（支付宝已移除，不再需要）
+      delete salesData.name;
       
       const newSale = await SupabaseService.createPrimarySales(salesData);
       
@@ -1192,8 +1192,8 @@ export const SalesAPI = {
       salesData.sales_type = 'secondary';  // 添加sales_type字段
       salesData.created_at = new Date().toISOString();
       
-      // 🔧 修复：添加必填的name字段（使用wechat_name作为name）
-      salesData.name = salesData.name || salesData.wechat_name || '';
+      // 🔧 移除name字段（支付宝已移除，不再需要）
+      delete salesData.name;
       
       const newSale = await SupabaseService.createSecondarySales(salesData);
       
