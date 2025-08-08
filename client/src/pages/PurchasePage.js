@@ -203,7 +203,7 @@ const PurchasePage = () => {
             <div>
               <p>您的订单已提交，请等待管理员确认配置。</p>
               <p style={{ marginTop: 12 }}>
-                欢迎您加入一起销售。每笔获取30%用户付款收益，
+                欢迎您加入一起销售。每笔获取25%用户付款收益，
                 <a 
                   href="https://zhixing-seven.vercel.app/secondary-sales" 
                   target="_blank" 

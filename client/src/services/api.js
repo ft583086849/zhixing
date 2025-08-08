@@ -547,9 +547,13 @@ export const AdminAPI = {
       // 获取所有订单
       const orders = await SupabaseService.getOrders();
       
+      // 🔧 修复：在过滤之前先获取所有二级销售用于计算管理数量
+      const allSecondarySales = await SupabaseService.getSecondarySales();
+      
       console.log('📊 销售数据获取:', {
         一级销售: primarySales.length,
         二级销售: secondarySales.length,
+        所有二级销售: allSecondarySales.length,
         订单总数: orders.length
       });
       
@@ -616,8 +620,8 @@ export const AdminAPI = {
         // 🔧 修复：确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
         const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
         
-        // 🔧 新增：计算管理的二级销售数量
-        const managedSecondaryCount = secondarySales.filter(s => s.primary_sales_id === sale.id).length;
+        // 🔧 修复：使用所有二级销售来计算管理数量，而不是过滤后的
+        const managedSecondaryCount = allSecondarySales.filter(s => s.primary_sales_id === sale.id).length;
         
         // 🔧 新增：生成销售链接
         const baseUrl = window.location.origin;
@@ -705,7 +709,7 @@ export const AdminAPI = {
         }, 0);
         
         // 🔧 修复：二级销售佣金率 - 统一使用百分比格式
-        let commissionRate = sale.commission_rate || 30; // 默认30%
+        let commissionRate = sale.commission_rate || 25; // 默认25%
         
         // 如果是小数格式（0.3），转换为百分比（30）
         if (commissionRate > 0 && commissionRate < 1) {
@@ -1578,9 +1582,9 @@ export const OrdersAPI = {
       commissionRate = commissionRate / 100;
     }
     
-    // 默认值：一级40%，二级30%
+    // 默认值：一级40%，二级25%
     if (!commissionRate) {
-      commissionRate = sale.type === 'primary' ? 0.4 : 0.3;
+      commissionRate = sale.type === 'primary' ? 0.4 : 0.25;
     }
     
     const commission = parseFloat(amount) * commissionRate;

@@ -431,10 +431,10 @@ const PrimarySalesSettlementPage = () => {
   // 处理更新佣金率
   const handleUpdateCommission = (secondarySales) => {
     setSelectedSecondarySales(secondarySales);
-    // 🔧 修复：处理未设置佣金的情况，默认显示30%
+    // 🔧 修复：处理未设置佣金的情况，默认显示25%
     const currentRate = secondarySales.commission_rate || 0;
     commissionForm.setFieldsValue({
-      commission_rate: currentRate > 0 ? currentRate * 100 : 30  // 如果未设置，默认30%
+      commission_rate: currentRate > 0 ? currentRate * 100 : 25  // 如果未设置，默认25%
     });
     setCommissionModalVisible(true);
   };

@@ -182,13 +182,25 @@ const AdminOrders = () => {
           salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级</Tag>;
         } else if (record.secondary_sales_id) {
           salesType = '二级';
-          salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级</Tag>;
+          // 判断是关联二级还是独立二级
+          if (record.secondary_sales?.primary_sales_id) {
+            // 关联二级销售
+            salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>关联二级</Tag>;
+          } else {
+            // 独立二级销售
+            salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立二级</Tag>;
+          }
         } else {
           // 备用判断逻辑
           if (record.primary_sales?.wechat_name) {
             salesTypeBadge = <Tag color="blue" style={{ marginRight: 4 }}>一级</Tag>;
           } else if (record.secondary_sales?.wechat_name) {
-            salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>二级</Tag>;
+            // 判断是否有primary_sales_id
+            if (record.secondary_sales?.primary_sales_id) {
+              salesTypeBadge = <Tag color="orange" style={{ marginRight: 4 }}>关联二级</Tag>;
+            } else {
+              salesTypeBadge = <Tag color="green" style={{ marginRight: 4 }}>独立二级</Tag>;
+            }
           }
         }
         
