@@ -548,7 +548,7 @@ const AdminFinance = () => {
               borderRadius: '8px'
             }}>
               <Row gutter={[16, 16]}>
-                <Col span={18}>
+                <Col xs={24} sm={24} md={16} lg={18}>
                   <Space direction="vertical" size="small">
                     <div>
                       <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />
@@ -564,7 +564,7 @@ const AdminFinance = () => {
                     </div>
                   </Space>
                 </Col>
-                <Col span={6} style={{ textAlign: 'right' }}>
+                <Col xs={24} sm={24} md={8} lg={6} style={{ textAlign: 'right' }}>
                   <Space>
                     {hasUnsavedChanges() && (
                       <Tag color="warning">有未保存的更改</Tag>
