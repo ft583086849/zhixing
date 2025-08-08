@@ -3,7 +3,7 @@
  * 统一管理用户登录、登出、权限验证
  */
 
-import { SupabaseService } from './supabase';
+import { SupabaseService } from './supabase.js';
 
 export class AuthService {
   

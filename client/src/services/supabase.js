@@ -646,6 +646,209 @@ export class SupabaseService {
     return orders || [];
   }
 
+  // 带过滤条件的订单查询
+  static async getOrdersWithFilters(params = {}) {
+    let query = supabase
+      .from('orders')
+      .select('*');
+    
+    // 销售微信号搜索
+    if (params.sales_wechat) {
+      // 先获取销售信息
+      const { data: primarySales } = await supabase
+        .from('primary_sales')
+        .select('sales_code')
+        .ilike('wechat_name', `%${params.sales_wechat}%`);
+      
+      const { data: secondarySales } = await supabase
+        .from('secondary_sales')
+        .select('sales_code')
+        .ilike('wechat_name', `%${params.sales_wechat}%`);
+      
+      const salesCodes = [
+        ...(primarySales || []).map(s => s.sales_code),
+        ...(secondarySales || []).map(s => s.sales_code)
+      ];
+      
+      if (salesCodes.length > 0) {
+        query = query.in('sales_code', salesCodes);
+      } else {
+        // 如果没有找到匹配的销售，返回空结果
+        return [];
+      }
+    }
+    
+    // 用户微信号搜索
+    if (params.customer_wechat) {
+      query = query.ilike('customer_wechat', `%${params.customer_wechat}%`);
+    }
+    
+    // TradingView用户名搜索
+    if (params.tradingview_username) {
+      query = query.ilike('tradingview_username', `%${params.tradingview_username}%`);
+    }
+    
+    // 订单状态过滤
+    if (params.status) {
+      query = query.eq('status', params.status);
+    }
+    
+    // 支付方式过滤
+    if (params.payment_method) {
+      query = query.eq('payment_method', params.payment_method);
+    }
+    
+    // 购买方式过滤
+    if (params.purchase_type) {
+      query = query.eq('purchase_type', params.purchase_type);
+    }
+    
+    // 日期范围过滤
+    if (params.start_date && params.end_date) {
+      query = query
+        .gte('created_at', params.start_date)
+        .lte('created_at', params.end_date + ' 23:59:59');
+    }
+    
+    // 付款日期范围过滤
+    if (params.payment_start_date && params.payment_end_date) {
+      query = query
+        .gte('payment_time', params.payment_start_date)
+        .lte('payment_time', params.payment_end_date + ' 23:59:59');
+    }
+    
+    // 配置日期范围过滤
+    if (params.config_start_date && params.config_end_date) {
+      query = query
+        .gte('effective_time', params.config_start_date)
+        .lte('effective_time', params.config_end_date + ' 23:59:59');
+    }
+    
+    // 到期日期范围过滤
+    if (params.expiry_start_date && params.expiry_end_date) {
+      query = query
+        .gte('expiry_time', params.expiry_start_date)
+        .lte('expiry_time', params.expiry_end_date + ' 23:59:59');
+    }
+    
+    // 排序
+    query = query.order('created_at', { ascending: false });
+    
+    const { data: orders, error } = await query;
+    
+    if (error) throw error;
+    
+    // 如果没有订单，直接返回空数组
+    if (!orders || orders.length === 0) {
+      return [];
+    }
+    
+    // 复用getOrders的销售信息关联逻辑
+    // 收集所有需要查询的销售ID和代码
+    const salesCodes = [...new Set(orders.map(order => order.sales_code).filter(Boolean))];
+    const primarySalesIds = [...new Set(orders.map(order => order.primary_sales_id).filter(Boolean))];
+    const secondarySalesIds = [...new Set(orders.map(order => order.secondary_sales_id).filter(Boolean))];
+    
+    // 并行获取销售数据
+    const queries = [];
+    
+    if (salesCodes.length > 0) {
+      queries.push(
+        supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes),
+        supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('sales_code', salesCodes)
+      );
+    }
+    
+    if (primarySalesIds.length > 0) {
+      queries.push(
+        supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('id', primarySalesIds)
+      );
+    }
+    
+    if (secondarySalesIds.length > 0) {
+      queries.push(
+        supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('id', secondarySalesIds)
+      );
+    }
+    
+    if (queries.length > 0) {
+      const results = await Promise.all(queries);
+      
+      // 创建映射
+      const primarySalesByCode = new Map();
+      const primarySalesById = new Map();
+      const secondarySalesByCode = new Map();
+      const secondarySalesById = new Map();
+      
+      results.forEach(result => {
+        if (result.data) {
+          result.data.forEach(sale => {
+            // 判断是一级还是二级销售
+            if (sale.primary_sales_id !== undefined) {
+              // 是二级销售
+              if (sale.sales_code) secondarySalesByCode.set(sale.sales_code, sale);
+              if (sale.id) secondarySalesById.set(sale.id, sale);
+            } else {
+              // 是一级销售
+              if (sale.sales_code) primarySalesByCode.set(sale.sales_code, sale);
+              if (sale.id) primarySalesById.set(sale.id, sale);
+            }
+          });
+        }
+      });
+      
+      // 为每个订单添加销售信息
+      orders.forEach(order => {
+        let salesInfo = null;
+        let salesType = null;
+        
+        // 多重匹配逻辑
+        if (order.primary_sales_id && primarySalesById.has(order.primary_sales_id)) {
+          salesInfo = primarySalesById.get(order.primary_sales_id);
+          salesType = 'primary';
+        } else if (order.secondary_sales_id && secondarySalesById.has(order.secondary_sales_id)) {
+          salesInfo = secondarySalesById.get(order.secondary_sales_id);
+          salesType = 'secondary';
+        } else if (order.sales_code) {
+          if (primarySalesByCode.has(order.sales_code)) {
+            salesInfo = primarySalesByCode.get(order.sales_code);
+            salesType = 'primary';
+          } else if (secondarySalesByCode.has(order.sales_code)) {
+            salesInfo = secondarySalesByCode.get(order.sales_code);
+            salesType = 'secondary';
+          }
+        }
+        
+        if (salesInfo) {
+          order.sales_type = salesType;
+          order.sales_wechat_name = salesInfo.wechat_name || '-';
+          order.sales_name = salesInfo.name || '-';
+          order.sales_phone = salesInfo.phone || '-';
+        }
+        
+        // 计算生效时间和到期时间
+        if (order.created_at && order.duration) {
+          const createdDate = new Date(order.created_at);
+          order.effective_time = order.created_at;
+          
+          const expiryDate = new Date(createdDate);
+          if (order.duration === '7days') {
+            expiryDate.setDate(expiryDate.getDate() + 7);
+          } else if (order.duration === '1month') {
+            expiryDate.setMonth(expiryDate.getMonth() + 1);
+          } else if (order.duration === '3months') {
+            expiryDate.setMonth(expiryDate.getMonth() + 3);
+          } else if (order.duration === '1year') {
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          }
+          order.expiry_time = expiryDate.toISOString();
+        }
+      });
+    }
+    
+    return orders;
+  }
+
   // 统计查询
   static async getOrderStats() {
     const { data: orders, error } = await supabase

@@ -4,8 +4,8 @@
  */
 
 import { message } from 'antd';
-import { SupabaseService } from './supabase';
-import { AuthService } from './auth';
+import { SupabaseService } from './supabase.js';
+import { AuthService } from './auth.js';
 
 /**
  * 统一错误处理
@@ -133,7 +133,25 @@ export const AdminAPI = {
   /**
    * 获取所有订单
    */
-  async getOrders() {
+  async getOrders(params = {}) {
+    // 如果有参数，不使用缓存（用于搜索）
+    if (Object.keys(params).length > 0) {
+      try {
+        const orders = await SupabaseService.getOrdersWithFilters(params);
+        
+        const result = {
+          success: true,
+          data: orders,
+          message: '获取订单列表成功'
+        };
+        
+        return result;
+      } catch (error) {
+        return handleError(error, '获取订单列表');
+      }
+    }
+    
+    // 无参数时使用缓存
     const cacheKey = 'admin-orders';
     const cached = CacheManager.get(cacheKey);
     if (cached) return cached;
@@ -157,11 +175,15 @@ export const AdminAPI = {
   /**
    * 获取客户列表（从订单中提取）
    */
-  async getCustomers() {
-    const cacheKey = 'admin-customers';
-    // 🔧 禁用缓存，确保数据稳定性
-    // const cached = CacheManager.get(cacheKey);
-    // if (cached) return cached;
+  async getCustomers(params = {}) {
+    // 如果有搜索参数，不使用缓存
+    const hasParams = Object.keys(params).length > 0;
+    
+    if (!hasParams) {
+      const cacheKey = 'admin-customers';
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
 
     try {
       // 0. 首先尝试同步销售微信号（如果需要）
@@ -169,8 +191,51 @@ export const AdminAPI = {
       
       // 🔧 修复：获取订单数据和销售数据用于正确关联
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
+      
+      // 构建订单查询
+      let ordersQuery = supabaseClient.from('orders').select('*');
+      
+      // 销售微信号搜索
+      if (params.sales_wechat) {
+        // 先获取匹配的销售
+        const [primarySalesResult, secondarySalesResult] = await Promise.all([
+          supabaseClient.from('primary_sales').select('sales_code').ilike('wechat_name', `%${params.sales_wechat}%`),
+          supabaseClient.from('secondary_sales').select('sales_code').ilike('wechat_name', `%${params.sales_wechat}%`)
+        ]);
+        
+        const salesCodes = [
+          ...(primarySalesResult.data || []).map(s => s.sales_code),
+          ...(secondarySalesResult.data || []).map(s => s.sales_code)
+        ];
+        
+        if (salesCodes.length > 0) {
+          ordersQuery = ordersQuery.in('sales_code', salesCodes);
+        } else if (params.sales_wechat) {
+          // 没有找到匹配的销售，返回空结果
+          return [];
+        }
+      }
+      
+      // 客户微信号搜索
+      if (params.customer_wechat) {
+        ordersQuery = ordersQuery.ilike('customer_wechat', `%${params.customer_wechat}%`);
+      }
+      
+      // 提醒状态过滤
+      if (params.is_reminded !== undefined && params.is_reminded !== '') {
+        ordersQuery = ordersQuery.eq('is_reminded', params.is_reminded === 'true' || params.is_reminded === true);
+      }
+      
+      // 日期范围过滤
+      if (params.start_date && params.end_date) {
+        ordersQuery = ordersQuery
+          .gte('created_at', params.start_date)
+          .lte('created_at', params.end_date + ' 23:59:59');
+      }
+      
+      // 执行查询
       const [ordersResult, primarySalesResult, secondarySalesResult] = await Promise.all([
-        supabaseClient.from('orders').select('*'),
+        ordersQuery,
         supabaseClient.from('primary_sales').select('sales_code, name, wechat_name'),
         supabaseClient.from('secondary_sales').select('sales_code, name, wechat_name')
       ]);
@@ -207,7 +272,8 @@ export const AdminAPI = {
             total_orders: 1, // 修复：字段名从order_count改为total_orders
             total_amount: parseFloat(order.actual_payment_amount || order.amount || 0),
             actual_payment_amount: parseFloat(order.actual_payment_amount || 0),
-            commission_amount: parseFloat(order.commission_amount || 0)
+            commission_amount: parseFloat(order.commission_amount || 0),
+            is_reminded: order.is_reminded || false
           });
         } else if (customerMap.has(key)) {
           const customer = customerMap.get(key);
@@ -226,19 +292,22 @@ export const AdminAPI = {
               }
             }
           }
+          
+          // 更新提醒状态（如果有任何订单被提醒过，则标记为已提醒）
+          if (order.is_reminded) {
+            customer.is_reminded = true;
+          }
         }
       });
 
       const customers = Array.from(customerMap.values());
       
-      const result = {
-        success: true,
-        data: customers,
-        message: '获取客户列表成功'
-      };
-
-      // 🔧 禁用缓存，确保数据稳定性
-      // CacheManager.set(cacheKey, result);
+      // 如果没有参数，缓存结果
+      if (!hasParams) {
+        const cacheKey = 'admin-customers';
+        CacheManager.set(cacheKey, customers);
+      }
+      
       return customers; // 修复：直接返回customers数组
     } catch (error) {
       console.error('获取客户列表失败:', error);
@@ -375,22 +444,80 @@ export const AdminAPI = {
   /**
    * 获取销售列表 - 包含订单关联和佣金计算
    */
-  async getSales() {
-    const cacheKey = 'admin-sales';
-    // 🔧 修复：暂时禁用缓存确保数据实时性
-    // const cached = CacheManager.get(cacheKey);
-    // if (cached) return cached;
+  async getSales(params = {}) {
+    // 如果有搜索参数，不使用缓存
+    const hasParams = Object.keys(params).length > 0;
+    
+    if (!hasParams) {
+      const cacheKey = 'admin-sales';
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
 
     try {
       // 🔧 修复：移除自动同步，避免性能问题
       // await this.syncSalesWechatNames();
       
-      // 1. 获取基础销售数据和订单数据
-      const [primarySales, secondarySales, orders] = await Promise.all([
-        SupabaseService.getPrimarySales(),
-        SupabaseService.getSecondarySales(),
-        SupabaseService.getOrders()
-      ]);
+      // 构建查询条件
+      const supabaseClient = SupabaseService.supabase || window.supabaseClient;
+      
+      // 获取一级销售查询
+      let primaryQuery = supabaseClient.from('primary_sales').select('*');
+      let secondaryQuery = supabaseClient.from('secondary_sales').select('*');
+      
+      // 销售类型过滤
+      let primarySales = [];
+      let secondarySales = [];
+      
+      if (params.sales_type === 'primary') {
+        // 只获取一级销售
+        primarySales = (await primaryQuery).data || [];
+        secondarySales = [];
+      } else if (params.sales_type === 'secondary') {
+        // 只获取二级销售
+        primarySales = [];
+        secondarySales = (await secondaryQuery).data || [];
+      } else {
+        // 获取所有销售
+        [primarySales, secondarySales] = await Promise.all([
+          SupabaseService.getPrimarySales(),
+          SupabaseService.getSecondarySales()
+        ]);
+      }
+      
+      // 销售微信号搜索
+      if (params.wechat_name) {
+        primarySales = primarySales.filter(sale => 
+          sale.wechat_name && sale.wechat_name.includes(params.wechat_name)
+        );
+        secondarySales = secondarySales.filter(sale => 
+          sale.wechat_name && sale.wechat_name.includes(params.wechat_name)
+        );
+      }
+      
+      // 手机号搜索
+      if (params.phone) {
+        primarySales = primarySales.filter(sale => 
+          sale.phone && sale.phone.includes(params.phone)
+        );
+        secondarySales = secondarySales.filter(sale => 
+          sale.phone && sale.phone.includes(params.phone)
+        );
+      }
+      
+      // 佣金比率过滤
+      if (params.commission_rate) {
+        const rate = parseFloat(params.commission_rate);
+        primarySales = primarySales.filter(sale => 
+          sale.commission_rate === rate
+        );
+        secondarySales = secondarySales.filter(sale => 
+          sale.commission_rate === rate
+        );
+      }
+      
+      // 获取所有订单
+      const orders = await SupabaseService.getOrders();
       
       console.log('📊 销售数据获取:', {
         一级销售: primarySales.length,

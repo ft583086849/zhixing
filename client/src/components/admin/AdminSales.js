@@ -144,14 +144,37 @@ const AdminSales = () => {
   // 处理搜索
   const handleSearch = () => {
     const searchValues = form.getFieldsValue();
-    // 实现搜索逻辑
-    // TODO: 添加实际的搜索API调用
+    
+    // 构建搜索参数
+    const searchParams = {};
+    
+    if (searchValues.sales_type) {
+      searchParams.sales_type = searchValues.sales_type;
+    }
+    
+    if (searchValues.wechat_name) {
+      searchParams.wechat_name = searchValues.wechat_name;
+    }
+    
+    if (searchValues.phone) {
+      searchParams.phone = searchValues.phone;
+    }
+    
+    if (searchValues.commission_rate) {
+      searchParams.commission_rate = searchValues.commission_rate;
+    }
+    
+    // 调用API搜索
+    dispatch(getSales(searchParams));
+    message.success('搜索完成');
   };
 
   // 重置搜索
   const handleReset = () => {
     form.resetFields();
+    setSalesTypeFilter('all');
     dispatch(getSales());
+    message.info('已重置搜索条件');
   };
 
   // 导出数据
