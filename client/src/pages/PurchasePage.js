@@ -290,7 +290,7 @@ const PurchasePage = () => {
           <div style={{ marginBottom: 16 }}>
             <Card title="请选择链上收款方式" size="small" role="region">
               <Tabs defaultActiveKey="1">
-                <Tabs.TabPane tab="链上收款信息（一）" key="1">
+                <Tabs.TabPane tab="TRC10/TRC20" key="1">
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <div>
                       <Text strong>链名：</Text>
@@ -336,7 +336,7 @@ const PurchasePage = () => {
                   </Space>
                 </Tabs.TabPane>
                 
-                <Tabs.TabPane tab="链上收款信息（二）" key="2">
+                <Tabs.TabPane tab="BSC" key="2">
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <div>
                       <Text strong>链名：</Text>
