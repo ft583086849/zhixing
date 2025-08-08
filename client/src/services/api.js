@@ -432,9 +432,9 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 🔧 修复：计算已配置确认订单金额（只计算confirmed_configuration和active状态）
+        // 🔧 修复：计算已配置确认订单金额（计算confirmed、confirmed_configuration、confirmed_config和active状态）
         const confirmedOrders = saleOrders.filter(order => 
-          ['confirmed', 'confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
           // 🔧 修复：优先使用actual_payment_amount，其次使用amount
@@ -506,9 +506,9 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 🔧 修复：计算已配置确认订单金额（只计算confirmed_configuration和active状态）
+        // 🔧 修复：计算已配置确认订单金额（计算confirmed、confirmed_configuration、confirmed_config和active状态）
         const confirmedOrders = saleOrders.filter(order => 
-          ['confirmed', 'confirmed_configuration', 'active'].includes(order.status)
+          ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
           // 🔧 修复：优先使用actual_payment_amount，其次使用amount
@@ -668,7 +668,7 @@ export const AdminAPI = {
       ).length;
       
       const confirmed_config_orders = orders.filter(order => 
-        ['confirmed_configuration', 'active'].includes(order.status)
+        ['confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
       ).length;
       
       // 🔧 金额统计 - 优先使用实付金额
@@ -679,14 +679,14 @@ export const AdminAPI = {
         // 🔧 修复：优先使用actual_payment_amount，其次使用amount
         const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
         
-        const commission = parseFloat(order.commission_amount || 0);
-        
         // 人民币转美元 (汇率7.15)
-        if (order.payment_method === 'alipay') {
-          total_amount += (amount / 7.15);
-          total_commission += (commission / 7.15);
-        } else {
-          total_amount += amount;
+        const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
+        total_amount += amountUSD;
+        
+        // 只计算确认订单的佣金
+        if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
+          // 计算佣金：如果没有commission_amount字段，默认按40%计算
+          const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
           total_commission += commission;
         }
       });
@@ -705,22 +705,25 @@ export const AdminAPI = {
         SupabaseService.getSecondarySales()
       ]);
       
-      // 计算销售业绩
+      // 计算销售业绩 - 只计算确认的订单
       let primary_sales_amount = 0;
       let secondary_sales_amount = 0;
       
       orders.forEach(order => {
-        const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-        const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
-        
-        if (order.sales_code) {
-          const isPrimarySale = primarySales?.some(ps => ps.sales_code === order.sales_code);
-          const isSecondarySale = secondarySales?.some(ss => ss.sales_code === order.sales_code);
+        // 只计算确认状态的订单
+        if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
           
-          if (isPrimarySale) {
-            primary_sales_amount += amountUSD;
-          } else if (isSecondarySale) {
-            secondary_sales_amount += amountUSD;
+          if (order.sales_code) {
+            const isPrimarySale = primarySales?.some(ps => ps.sales_code === order.sales_code);
+            const isSecondarySale = secondarySales?.some(ss => ss.sales_code === order.sales_code);
+            
+            if (isPrimarySale) {
+              primary_sales_amount += amountUSD;
+            } else if (isSecondarySale) {
+              secondary_sales_amount += amountUSD;
+            }
           }
         }
       });
