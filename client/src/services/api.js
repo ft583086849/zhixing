@@ -269,12 +269,18 @@ export const AdminAPI = {
       // 执行查询
       const [ordersResult, primarySalesResult, secondarySalesResult] = await Promise.all([
         ordersQuery,
-        supabaseClient.from('primary_sales').select('sales_code, name, wechat_name'),
-        supabaseClient.from('secondary_sales').select('sales_code, name, wechat_name')
+        supabaseClient.from('primary_sales').select('id, sales_code, name, wechat_name'),
+        supabaseClient.from('secondary_sales').select('id, sales_code, name, wechat_name, primary_sales_id')
       ]);
       
       const orders = ordersResult.data || [];
-      const allSales = [...(primarySalesResult.data || []), ...(secondarySalesResult.data || [])];
+      const primarySales = primarySalesResult.data || [];
+      const secondarySales = secondarySalesResult.data || [];
+      const allSales = [...primarySales, ...secondarySales];
+      
+      // 创建映射以便快速查找
+      const primarySalesMap = new Map(primarySales.map(s => [s.id, s]));
+      const secondarySalesMap = new Map(secondarySales.map(s => [s.id, s]));
       
       // 🔒 核心业务逻辑 - 未经用户确认不可修改
       // PROTECTED: Customer filtering logic - DO NOT MODIFY without user confirmation
@@ -289,15 +295,51 @@ export const AdminAPI = {
         // 🔒 核心逻辑：允许所有有customer_wechat或tradingview_username的订单
         // 包括销售直接购买订单（如"89一级下的直接购买"）
         if (!customerMap.has(key) && (customerWechat || tradingviewUser)) {
-          // 🔧 修复：通过sales_code查找销售表获取微信号
+          // 🔧 修复：通过sales_code查找销售表获取微信号和层级信息
           let salesWechat = '-';
+          let salesType = null;
+          let primarySalesName = null;
           
           if (order.sales_code) {
             const matchingSale = allSales.find(sale => sale.sales_code === order.sales_code);
             if (matchingSale) {
               // 使用wechat_name字段作为销售微信号（name字段是收款人姓名，不应使用）
               salesWechat = matchingSale.wechat_name || '-';
+              
+              // 判断销售类型
+              if (primarySales.some(s => s.sales_code === order.sales_code)) {
+                salesType = 'primary';
+              } else if (secondarySales.some(s => s.sales_code === order.sales_code)) {
+                salesType = 'secondary';
+                // 获取上级销售信息
+                const secondarySale = secondarySales.find(s => s.sales_code === order.sales_code);
+                if (secondarySale && secondarySale.primary_sales_id) {
+                  const primarySale = primarySalesMap.get(secondarySale.primary_sales_id);
+                  if (primarySale) {
+                    primarySalesName = primarySale.wechat_name;
+                  }
+                }
+              }
             }
+          }
+          
+          // 计算到期时间
+          let expiryTime = null;
+          if (order.created_at && order.duration) {
+            const createdDate = new Date(order.created_at);
+            const expiryDate = new Date(createdDate);
+            
+            if (order.duration === '7days') {
+              expiryDate.setDate(expiryDate.getDate() + 7);
+            } else if (order.duration === '1month') {
+              expiryDate.setMonth(expiryDate.getMonth() + 1);
+            } else if (order.duration === '3months') {
+              expiryDate.setMonth(expiryDate.getMonth() + 3);
+            } else if (order.duration === '6months') {
+              expiryDate.setMonth(expiryDate.getMonth() + 6);
+            }
+            
+            expiryTime = expiryDate.toISOString();
           }
           
           customerMap.set(key, {
@@ -305,12 +347,17 @@ export const AdminAPI = {
             customer_wechat: customerWechat,
             tradingview_username: tradingviewUser,
             sales_wechat_name: salesWechat,
+            sales_type: salesType,
+            primary_sales_name: primarySalesName,
             first_order: order.created_at,
             total_orders: 1, // 修复：字段名从order_count改为total_orders
             total_amount: parseFloat(order.actual_payment_amount || order.amount || 0),
             actual_payment_amount: parseFloat(order.actual_payment_amount || 0),
             commission_amount: parseFloat(order.commission_amount || 0),
-            is_reminded: order.is_reminded || false
+            is_reminded: order.is_reminded || false,
+            status: order.status,
+            expiry_time: expiryTime,
+            expiry_date: expiryTime // 兼容字段名
           });
         } else if (customerMap.has(key)) {
           const customer = customerMap.get(key);
@@ -326,6 +373,23 @@ export const AdminAPI = {
               if (matchingSale) {
                 // 使用wechat_name字段作为销售微信号（name字段是收款人姓名，不应使用）
                 customer.sales_wechat_name = matchingSale.wechat_name || '-';
+                
+                // 更新销售类型信息
+                if (!customer.sales_type) {
+                  if (primarySales.some(s => s.sales_code === order.sales_code)) {
+                    customer.sales_type = 'primary';
+                  } else if (secondarySales.some(s => s.sales_code === order.sales_code)) {
+                    customer.sales_type = 'secondary';
+                    // 获取上级销售信息
+                    const secondarySale = secondarySales.find(s => s.sales_code === order.sales_code);
+                    if (secondarySale && secondarySale.primary_sales_id) {
+                      const primarySale = primarySalesMap.get(secondarySale.primary_sales_id);
+                      if (primarySale) {
+                        customer.primary_sales_name = primarySale.wechat_name;
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -334,10 +398,56 @@ export const AdminAPI = {
           if (order.is_reminded) {
             customer.is_reminded = true;
           }
+          
+          // 更新到期时间（使用最晚的到期时间）
+          if (order.created_at && order.duration) {
+            const createdDate = new Date(order.created_at);
+            const expiryDate = new Date(createdDate);
+            
+            if (order.duration === '7days') {
+              expiryDate.setDate(expiryDate.getDate() + 7);
+            } else if (order.duration === '1month') {
+              expiryDate.setMonth(expiryDate.getMonth() + 1);
+            } else if (order.duration === '3months') {
+              expiryDate.setMonth(expiryDate.getMonth() + 3);
+            } else if (order.duration === '6months') {
+              expiryDate.setMonth(expiryDate.getMonth() + 6);
+            }
+            
+            const newExpiryTime = expiryDate.toISOString();
+            if (!customer.expiry_time || new Date(newExpiryTime) > new Date(customer.expiry_time)) {
+              customer.expiry_time = newExpiryTime;
+              customer.expiry_date = newExpiryTime;
+              customer.status = order.status;
+            }
+          }
         }
       });
 
-      const customers = Array.from(customerMap.values());
+      let customers = Array.from(customerMap.values());
+      
+      // 处理催单建议筛选
+      if (params.reminder_suggestion) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        customers = customers.filter(customer => {
+          if (!customer.expiry_time) {
+            return params.reminder_suggestion === 'no_reminder';
+          }
+          
+          const expiryDate = new Date(customer.expiry_time);
+          expiryDate.setHours(0, 0, 0, 0);
+          const daysDiff = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
+          
+          const needReminder = daysDiff <= 7 && daysDiff >= 0 && 
+                              customer.status !== 'confirmed_config' && 
+                              customer.status !== 'active' && 
+                              customer.status !== 'expired';
+          
+          return params.reminder_suggestion === 'need_reminder' ? needReminder : !needReminder;
+        });
+      }
       
       // 如果没有参数，缓存结果
       if (!hasParams) {

@@ -25,8 +25,7 @@ import {
   EyeOutlined,
   CheckOutlined,
   CloseOutlined,
-  StopOutlined,
-  ExclamationCircleOutlined
+  StopOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getAdminOrders, updateAdminOrderStatus, exportOrders } from '../../store/slices/adminSlice';
@@ -77,11 +76,6 @@ const AdminOrders = () => {
       queryParams.expiry_start_date = searchValues.expiry_date_range[0].format('YYYY-MM-DD');
       queryParams.expiry_end_date = searchValues.expiry_date_range[1].format('YYYY-MM-DD');
       delete queryParams.expiry_date_range;
-    }
-
-    // 处理催单建议筛选
-    if (searchValues.reminder_suggestion) {
-      queryParams.reminder_suggestion = searchValues.reminder_suggestion;
     }
 
     dispatch(getAdminOrders(queryParams));
@@ -246,50 +240,7 @@ const AdminOrders = () => {
         );
       }
     },
-    {
-      title: '催单建议',
-      key: 'reminder_suggestion',
-      width: 100,
-      render: (_, record) => {
-        // 检查是否需要催单（到期时间在一周内）
-        if (record.expiry_time) {
-          const expiryDate = dayjs(record.expiry_time);
-          const today = dayjs();
-          const daysUntilExpiry = expiryDate.diff(today, 'day');
-          
-          // 如果在7天内到期且状态不是已完成
-          if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
-              record.status !== 'confirmed_config' && 
-              record.status !== 'active' && 
-              record.status !== 'expired') {
-            return (
-              <Tag color="red" icon={<ExclamationCircleOutlined />}>
-                建议催单
-              </Tag>
-            );
-          }
-        }
-        return <Tag color="default">无需催单</Tag>;
-      },
-      filters: [
-        { text: '建议催单', value: 'need_reminder' },
-        { text: '无需催单', value: 'no_reminder' }
-      ],
-      onFilter: (value, record) => {
-        if (!record.expiry_time) return value === 'no_reminder';
-        
-        const expiryDate = dayjs(record.expiry_time);
-        const today = dayjs();
-        const daysUntilExpiry = expiryDate.diff(today, 'day');
-        
-        const needReminder = daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
-                            record.status !== 'confirmed_config' && 
-                            record.status !== 'active' && 
-                            record.status !== 'expired';
-        
-        return value === 'need_reminder' ? needReminder : !needReminder;
-      }
-    },
+
     {
       title: 'TradingView用户',
       dataIndex: 'tradingview_username',
@@ -755,16 +706,6 @@ const AdminOrders = () => {
               </Form.Item>
             </Col>
             
-            {/* 第四行 - 催单建议 */}
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <Form.Item name="reminder_suggestion" label="催单建议" style={{ marginBottom: 0 }}>
-                <Select placeholder="请选择催单状态" allowClear style={{ width: '100%' }}>
-                  <Option value="need_reminder">建议催单</Option>
-                  <Option value="no_reminder">无需催单</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            
             {/* 按钮组 */}
             <Col 
               xs={24} 
@@ -810,7 +751,7 @@ const AdminOrders = () => {
           dataSource={orders}
           rowKey="id"
           scroll={{ 
-            x: 2000,  // 设置横向滚动（增加了催单建议列）
+            x: 1900,  // 设置横向滚动
             y: 'calc(100vh - 420px)'  // 设置纵向高度
           }}
           pagination={{

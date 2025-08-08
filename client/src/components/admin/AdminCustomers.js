@@ -13,11 +13,13 @@ import {
   Col,
   Input,
   Space,
-  Button
+  Button,
+  Tooltip
 } from 'antd';
 import { 
   SearchOutlined,
-  ExportOutlined
+  ExportOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getCustomers } from '../../store/slices/adminSlice';
@@ -64,6 +66,7 @@ const AdminCustomers = () => {
       customer_wechat: searchValues.customer_wechat,
       sales_wechat: searchValues.sales_wechat,
       is_reminded: searchValues.remind_status,
+      reminder_suggestion: searchValues.reminder_suggestion,
       start_date: searchValues.date_range?.[0]?.format('YYYY-MM-DD'),
       end_date: searchValues.date_range?.[1]?.format('YYYY-MM-DD')
     };
@@ -93,7 +96,8 @@ const AdminCustomers = () => {
       title: '客户微信号',
       dataIndex: 'customer_wechat',
       key: 'customer_wechat',
-      width: 120,
+      width: 130,
+      fixed: 'left',
     },
     {
       title: 'TradingView用户',
@@ -105,9 +109,105 @@ const AdminCustomers = () => {
       title: '销售微信号',
       dataIndex: 'sales_wechat_name',
       key: 'sales_wechat_name',
-      width: 120,
-      // 🔧 修复：添加渲染函数处理空值
-      render: (text) => text || '-'
+      width: 260,
+      render: (text, record) => {
+        // 判断销售类型和层级关系
+        let salesTypeBadge = null;
+        let primarySalesName = null;
+        
+        // 根据sales_type判断类型
+        if (record.sales_type === 'primary') {
+          salesTypeBadge = <Tag color="blue">一级</Tag>;
+        } else if (record.sales_type === 'secondary') {
+          // 检查是否有上级
+          if (record.primary_sales_name) {
+            salesTypeBadge = <Tag color="orange">二级</Tag>;
+            primarySalesName = record.primary_sales_name;
+          } else {
+            salesTypeBadge = <Tag color="green">独立</Tag>;
+          }
+        } else {
+          // 备用逻辑
+          if (record.primary_sales_name) {
+            salesTypeBadge = <Tag color="orange">二级</Tag>;
+            primarySalesName = record.primary_sales_name;
+          } else {
+            salesTypeBadge = <Tag color="green">独立</Tag>;
+          }
+        }
+        
+        return (
+          <Space size="small">
+            {text || '-'}
+            {salesTypeBadge}
+            {primarySalesName && (
+              <Tooltip title={`一级销售: ${primarySalesName}`}>
+                <span style={{ color: '#999', fontSize: '12px' }}>
+                  ({primarySalesName})
+                </span>
+              </Tooltip>
+            )}
+          </Space>
+        );
+      }
+    },
+    {
+      title: '催单建议',
+      key: 'reminder_suggestion',
+      width: 100,
+      render: (_, record) => {
+        // 检查是否需要催单（到期时间在一周内）
+        if (record.expiry_date || record.expiry_time) {
+          const expiryDate = dayjs(record.expiry_date || record.expiry_time);
+          const today = dayjs();
+          const daysUntilExpiry = expiryDate.diff(today, 'day');
+          
+          // 如果在7天内到期且状态不是已完成
+          if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
+              record.status !== 'confirmed_config' && 
+              record.status !== 'active' && 
+              record.status !== 'expired') {
+            return (
+              <Tag color="red" icon={<ExclamationCircleOutlined />}>
+                建议催单
+              </Tag>
+            );
+          }
+        }
+        return <Tag color="default">无需催单</Tag>;
+      },
+      filters: [
+        { text: '建议催单', value: 'need_reminder' },
+        { text: '无需催单', value: 'no_reminder' }
+      ],
+      onFilter: (value, record) => {
+        if (!record.expiry_date && !record.expiry_time) return value === 'no_reminder';
+        
+        const expiryDate = dayjs(record.expiry_date || record.expiry_time);
+        const today = dayjs();
+        const daysUntilExpiry = expiryDate.diff(today, 'day');
+        
+        const needReminder = daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
+                            record.status !== 'confirmed_config' && 
+                            record.status !== 'active' && 
+                            record.status !== 'expired';
+        
+        return value === 'need_reminder' ? needReminder : !needReminder;
+      }
+    },
+    {
+      title: '催单状态',
+      dataIndex: 'is_reminded',
+      key: 'is_reminded',
+      width: 100,
+      render: (isReminded) => {
+        const statusMap = {
+          false: { text: '未催单', color: 'orange' },
+          true: { text: '已催单', color: 'green' }
+        };
+        const statusInfo = statusMap[isReminded] || { text: isReminded ? '已催单' : '未催单', color: 'default' };
+        return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
+      }
     },
     {
       title: '总订单数',
@@ -141,21 +241,7 @@ const AdminCustomers = () => {
       dataIndex: 'expiry_date',
       key: 'expiry_date',
       width: 150,
-      render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      title: '催单状态',
-      dataIndex: 'is_reminded',
-      key: 'is_reminded',
-      width: 100,
-      render: (isReminded) => {
-        const statusMap = {
-          false: { text: '未催单', color: 'orange' },
-          true: { text: '已催单', color: 'green' }
-        };
-        const statusInfo = statusMap[isReminded] || { text: isReminded ? '已催单' : '未催单', color: 'default' };
-        return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
-      }
+      render: (date) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
     },
 
   ];
@@ -179,6 +265,14 @@ const AdminCustomers = () => {
               </Form.Item>
             </Col>
 
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item name="reminder_suggestion" label="催单建议">
+                <Select placeholder="请选择催单状态" allowClear>
+                  <Option value="need_reminder">建议催单</Option>
+                  <Option value="no_reminder">无需催单</Option>
+                </Select>
+              </Form.Item>
+            </Col>
             <Col xs={24} sm={12} md={6}>
               <Form.Item name="remind_status" label="催单状态">
                 <Select placeholder="请选择状态" allowClear>
@@ -272,9 +366,6 @@ const AdminCustomers = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-            defaultPageSize: 20,  // 默认每页20条
-            pageSizeOptions: ['10', '20', '50', '100'],  // 可选每页显示数量
-            defaultCurrent: 1  // 默认第一页
           }}
           loading={loading}
           scroll={{ x: 1400 }}

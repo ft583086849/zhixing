@@ -942,31 +942,6 @@ export class SupabaseService {
       });
     }
     
-    // 处理催单建议筛选
-    if (params.reminder_suggestion) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const filteredOrders = orders.filter(order => {
-        if (!order.expiry_time) {
-          return params.reminder_suggestion === 'no_reminder';
-        }
-        
-        const expiryDate = new Date(order.expiry_time);
-        expiryDate.setHours(0, 0, 0, 0);
-        const daysDiff = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
-        
-        const needReminder = daysDiff <= 7 && daysDiff >= 0 && 
-                            order.status !== 'confirmed_config' && 
-                            order.status !== 'active' && 
-                            order.status !== 'expired';
-        
-        return params.reminder_suggestion === 'need_reminder' ? needReminder : !needReminder;
-      });
-      
-      return filteredOrders;
-    }
-    
     return orders;
   }
 
