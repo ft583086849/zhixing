@@ -1107,6 +1107,79 @@ export class SupabaseService {
       throw error;
     }
   }
+
+  // 获取收益分配配置
+  static async getProfitDistribution() {
+    try {
+      const { data, error } = await supabase
+        .from('profit_distribution')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error && error.code === 'PGRST116') {
+        // 表不存在或没有数据，返回默认值
+        console.log('收益分配配置不存在，使用默认值');
+        return {
+          public_ratio: 40,
+          zhixing_ratio: 35,
+          zijun_ratio: 25
+        };
+      }
+      
+      if (error) throw error;
+      
+      return {
+        public_ratio: parseFloat(data.public_ratio) || 40,
+        zhixing_ratio: parseFloat(data.zhixing_ratio) || 35,
+        zijun_ratio: parseFloat(data.zijun_ratio) || 25
+      };
+    } catch (error) {
+      console.error('获取收益分配配置失败:', error);
+      // 返回默认值
+      return {
+        public_ratio: 40,
+        zhixing_ratio: 35,
+        zijun_ratio: 25
+      };
+    }
+  }
+
+  // 更新收益分配配置
+  static async updateProfitDistribution(ratios) {
+    try {
+      console.log('SupabaseService: 更新收益分配配置', ratios);
+      
+      // 先将所有现有配置设为非激活
+      await supabase
+        .from('profit_distribution')
+        .update({ is_active: false })
+        .eq('is_active', true);
+      
+      // 创建新的激活配置
+      const { data, error } = await supabase
+        .from('profit_distribution')
+        .insert({
+          public_ratio: ratios.public || 40,
+          zhixing_ratio: ratios.zhixing || 35,
+          zijun_ratio: ratios.zijun || 25,
+          is_active: true,
+          created_by: 'admin'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      console.log('SupabaseService: 收益分配配置更新成功', data);
+      return data;
+    } catch (error) {
+      console.error('SupabaseService: 更新收益分配配置失败', error);
+      throw error;
+    }
+  }
 }
 
 console.log('🚀 Supabase服务层初始化完成');

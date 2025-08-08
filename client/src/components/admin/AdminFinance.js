@@ -30,6 +30,7 @@ import {
   CheckCircleOutlined
 } from '@ant-design/icons';
 import { getStats } from '../../store/slices/adminSlice';
+import { AdminAPI } from '../../services/api';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -59,18 +60,36 @@ const AdminFinance = () => {
     dispatch(getStats(params));
   }, [dispatch, timeRange, customRange]);
 
-  // 加载保存的收益分配比例
+  // 从数据库加载保存的收益分配比例
   useEffect(() => {
-    const saved = localStorage.getItem('profitRatios');
-    if (saved) {
+    const loadProfitRatios = async () => {
       try {
-        const parsed = JSON.parse(saved);
-        setProfitRatios(parsed);
-        setSavedRatios(parsed);
-      } catch (e) {
-        console.error('加载收益分配失败:', e);
+        const ratios = await AdminAPI.getProfitDistribution();
+        const formattedRatios = {
+          public: ratios.public_ratio || 40,
+          zhixing: ratios.zhixing_ratio || 35,
+          zijun: ratios.zijun_ratio || 25
+        };
+        setProfitRatios(formattedRatios);
+        setSavedRatios(formattedRatios);
+        console.log('从数据库加载收益分配配置:', formattedRatios);
+      } catch (error) {
+        console.error('加载收益分配配置失败:', error);
+        // 如果数据库加载失败，尝试从localStorage加载
+        const saved = localStorage.getItem('profitRatios');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setProfitRatios(parsed);
+            setSavedRatios(parsed);
+          } catch (e) {
+            console.error('加载收益分配失败:', e);
+          }
+        }
       }
-    }
+    };
+    
+    loadProfitRatios();
   }, []);
 
   const handleTimeRangeChange = (value) => {
@@ -114,15 +133,19 @@ const AdminFinance = () => {
   const saveRatios = async () => {
     setIsSaving(true);
     try {
-      // 保存到localStorage（实际应该保存到数据库）
-      localStorage.setItem('profitRatios', JSON.stringify(profitRatios));
-      setSavedRatios(profitRatios);
+      // 保存到数据库
+      const result = await AdminAPI.saveProfitDistribution(profitRatios);
       
-      // TODO: 这里可以调用API保存到数据库
-      // await AdminAPI.saveProfitRatios(profitRatios);
-      
-      message.success('收益分配比例已保存');
+      if (result.success) {
+        setSavedRatios(profitRatios);
+        // 同时保存到localStorage作为备份
+        localStorage.setItem('profitRatios', JSON.stringify(profitRatios));
+        message.success('收益分配比例已保存到数据库');
+      } else {
+        throw new Error(result.message || '保存失败');
+      }
     } catch (error) {
+      console.error('保存失败:', error);
       message.error('保存失败：' + error.message);
     } finally {
       setIsSaving(false);

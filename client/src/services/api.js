@@ -498,6 +498,51 @@ export const AdminAPI = {
   },
 
   /**
+   * 获取收益分配配置
+   */
+  async getProfitDistribution() {
+    try {
+      const ratios = await SupabaseService.getProfitDistribution();
+      console.log('获取收益分配配置成功:', ratios);
+      return ratios;
+    } catch (error) {
+      console.error('获取收益分配配置失败:', error);
+      // 返回默认配置
+      return {
+        public_ratio: 40,
+        zhixing_ratio: 35,
+        zijun_ratio: 25
+      };
+    }
+  },
+
+  /**
+   * 保存收益分配配置
+   */
+  async saveProfitDistribution(ratios) {
+    try {
+      // 清除缓存
+      CacheManager.clearAll();
+      
+      const result = await SupabaseService.updateProfitDistribution(ratios);
+      console.log('保存收益分配配置成功:', result);
+      
+      return {
+        success: true,
+        data: result,
+        message: '收益分配配置已保存'
+      };
+    } catch (error) {
+      console.error('保存收益分配配置失败:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: '保存失败，请重试'
+      };
+    }
+  },
+
+  /**
    * 更新支付配置
    */
   async updatePaymentConfig(configData) {
