@@ -137,16 +137,6 @@ const AdminOverview = () => {
                 />
               </Card>
             </Col>
-            <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
-                <Statistic
-                  title="已付款确认订单"
-                  value={stats?.confirmed_payment_orders || 0}
-                  prefix={<CheckCircleOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Card>
-            </Col>
           </Row>
 
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
@@ -272,7 +262,18 @@ const AdminOverview = () => {
           {/* 订单分类统计 */}
           <Card title="订单分类统计" style={{ marginTop: 24 }} role="region">
             <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={24} sm={12} lg={4}>
+                <div>
+                  <p>7天免费</p>
+                  <Progress 
+                    percent={stats?.free_trial_percentage || 0} 
+                    status="active"
+                    strokeColor="#52c41a"
+                  />
+                  <p>{stats?.free_trial_orders || 0}笔，占比{(Number(stats?.free_trial_percentage) || 0).toFixed(1)}%</p>
+                </div>
+              </Col>
+              <Col xs={24} sm={12} lg={5}>
                 <div>
                   <p>1个月订单</p>
                   <Progress 
@@ -283,7 +284,7 @@ const AdminOverview = () => {
                   <p>{stats?.one_month_orders || 0}笔，占比{(Number(stats?.one_month_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={24} sm={12} lg={5}>
                 <div>
                   <p>3个月订单</p>
                   <Progress 
@@ -294,7 +295,7 @@ const AdminOverview = () => {
                   <p>{stats?.three_month_orders || 0}笔，占比{(Number(stats?.three_month_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={24} sm={12} lg={5}>
                 <div>
                   <p>6个月订单</p>
                   <Progress 
@@ -305,15 +306,15 @@ const AdminOverview = () => {
                   <p>{stats?.six_month_orders || 0}笔，占比{(Number(stats?.six_month_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={24} sm={12} lg={5}>
                 <div>
-                  <p>终身订单</p>
+                  <p>年费订单</p>
                   <Progress 
-                    percent={stats?.lifetime_percentage || 0} 
+                    percent={stats?.yearly_percentage || 0} 
                     status="active"
                     strokeColor="#722ed1"
                   />
-                  <p>{stats?.lifetime_orders || 0}笔，占比{(Number(stats?.lifetime_percentage) || 0).toFixed(1)}%</p>
+                  <p>{stats?.yearly_orders || 0}笔，占比{(Number(stats?.yearly_percentage) || 0).toFixed(1)}%</p>
                 </div>
               </Col>
             </Row>

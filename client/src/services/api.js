@@ -785,26 +785,26 @@ export const AdminAPI = {
         return paymentTime && new Date(paymentTime).toDateString() === today;
       }).length;
       
-      // 🔧 状态统计 - 简化逻辑，直接匹配
+      // 🔧 状态统计 - 根据核心业务逻辑
       const pending_payment_orders = orders.filter(order => 
         ['pending_payment', 'pending', 'pending_review'].includes(order.status)
       ).length;
       
-      const confirmed_payment_orders = orders.filter(order => 
-        ['confirmed_payment', 'confirmed'].includes(order.status)
-      ).length;
+      // 删除已付款确认订单统计（用户要求）
+      // const confirmed_payment_orders = ...
       
       const pending_config_orders = orders.filter(order => 
-        order.status === 'pending_config'
+        ['pending_config', 'confirmed_payment'].includes(order.status)  // confirmed_payment也是待配置状态
       ).length;
       
       const confirmed_config_orders = orders.filter(order => 
-        ['confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
+        ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
       ).length;
       
       // 🔧 金额统计 - 优先使用实付金额
       let total_amount = 0;
-      let total_commission = 0;
+      let total_commission = 0;  // 已返佣金额（已确认订单）
+      let pending_commission = 0;  // 待返佣金额（未确认订单）
       
       orders.forEach(order => {
         // 🔧 修复：优先使用actual_payment_amount，其次使用amount
@@ -814,11 +814,15 @@ export const AdminAPI = {
         const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
         total_amount += amountUSD;
         
-        // 只计算确认订单的佣金
+        // 根据订单状态计算佣金
+        const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
+        
         if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
-          // 计算佣金：如果没有commission_amount字段，默认按40%计算
-          const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
+          // 已确认订单 - 已返佣金
           total_commission += commission;
+        } else if (['pending_payment', 'confirmed_payment', 'pending_config'].includes(order.status)) {
+          // 未确认订单 - 待返佣金
+          pending_commission += commission;
         }
       });
       
@@ -859,46 +863,72 @@ export const AdminAPI = {
         }
       });
       
-      // 计算订单时长分布
+      // 计算订单时长分布（用户要求：删除终身，添加7天免费和年费）
       const orderDurationStats = {
+        free_trial_orders: 0,    // 7天免费
         one_month_orders: 0,
         three_month_orders: 0,
         six_month_orders: 0,
-        yearly_orders: 0
+        yearly_orders: 0          // 年费订单
       };
       
       orders.forEach(order => {
         const duration = order.duration;
-        if (duration === '1month') orderDurationStats.one_month_orders++;
-        else if (duration === '3months') orderDurationStats.three_month_orders++;
-        else if (duration === '6months') orderDurationStats.six_month_orders++;
-        else if (duration === '1year' || duration === 'yearly') orderDurationStats.yearly_orders++;
+        if (duration === 'free' || duration === '7days' || duration === 'trial') {
+          orderDurationStats.free_trial_orders++;
+        } else if (duration === '1month' || duration === 'month') {
+          orderDurationStats.one_month_orders++;
+        } else if (duration === '3months') {
+          orderDurationStats.three_month_orders++;
+        } else if (duration === '6months') {
+          orderDurationStats.six_month_orders++;
+        } else if (duration === '1year' || duration === 'yearly' || duration === 'annual') {
+          orderDurationStats.yearly_orders++;
+        }
       });
       
       const totalOrders = orders.length || 1;
       const orderDurationPercentages = {
+        free_trial_percentage: (orderDurationStats.free_trial_orders / totalOrders * 100),
         one_month_percentage: (orderDurationStats.one_month_orders / totalOrders * 100),
         three_month_percentage: (orderDurationStats.three_month_orders / totalOrders * 100),
         six_month_percentage: (orderDurationStats.six_month_orders / totalOrders * 100),
         yearly_percentage: (orderDurationStats.yearly_orders / totalOrders * 100)
       };
 
+      // 计算层级关系统计
+      const avg_secondary_per_primary = primarySales?.length > 0 
+        ? secondarySales?.filter(s => s.primary_sales_id).length / primarySales.length 
+        : 0;
+      
+      const secondaryCountByPrimary = {};
+      secondarySales?.forEach(s => {
+        if (s.primary_sales_id) {
+          secondaryCountByPrimary[s.primary_sales_id] = (secondaryCountByPrimary[s.primary_sales_id] || 0) + 1;
+        }
+      });
+      const max_secondary_per_primary = Math.max(0, ...Object.values(secondaryCountByPrimary));
+      
       const stats = {
         total_orders: orders.length,
         total_amount: Math.round(total_amount * 100) / 100,
         today_orders: todayOrders,
         pending_payment_orders,
-        confirmed_payment_orders,
+        // confirmed_payment_orders已删除
         pending_config_orders,
         confirmed_config_orders,
         total_commission: Math.round(total_commission * 100) / 100,
-        commission_amount: Math.round(total_commission * 100) / 100,  // 前端需要这个字段
+        commission_amount: Math.round(total_commission * 100) / 100,  // 销售返佣金额
+        pending_commission_amount: Math.round(pending_commission * 100) / 100,  // 待返佣金额
         primary_sales_count: primarySales?.length || 0,
         secondary_sales_count: secondarySales?.length || 0,
         total_sales: (primarySales?.length || 0) + (secondarySales?.length || 0),
         // 销售业绩
         primary_sales_amount: Math.round(primary_sales_amount * 100) / 100,
         secondary_sales_amount: Math.round(secondary_sales_amount * 100) / 100,
+        // 层级关系统计
+        avg_secondary_per_primary: Math.round(avg_secondary_per_primary * 10) / 10,
+        max_secondary_per_primary,
         // 订单时长统计
         ...orderDurationStats,
         ...orderDurationPercentages,
@@ -908,7 +938,6 @@ export const AdminAPI = {
           orders_count: orders.length,
           status_distribution: {
             pending_payment: pending_payment_orders,
-            confirmed_payment: confirmed_payment_orders,
             pending_config: pending_config_orders,
             confirmed_config: confirmed_config_orders
           }
@@ -1103,6 +1132,9 @@ export const SalesAPI = {
       salesData.created_at = new Date().toISOString();
       salesData.updated_at = new Date().toISOString();
       
+      // 🔧 修复：添加必填的name字段（使用wechat_name作为name）
+      salesData.name = salesData.name || salesData.wechat_name || '';
+      
       const newSale = await SupabaseService.createPrimarySales(salesData);
       
       // 生成链接
@@ -1159,6 +1191,9 @@ export const SalesAPI = {
       salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('SEC');
       salesData.sales_type = 'secondary';  // 添加sales_type字段
       salesData.created_at = new Date().toISOString();
+      
+      // 🔧 修复：添加必填的name字段（使用wechat_name作为name）
+      salesData.name = salesData.name || salesData.wechat_name || '';
       
       const newSale = await SupabaseService.createSecondarySales(salesData);
       
