@@ -122,7 +122,8 @@ const UnifiedSecondarySalesPage = () => {
           user_sales_code: salesData.sales_code,
         });
         message.success('销售收款信息创建成功！');
-        form.resetFields();
+        // 保留表单信息，不清空，方便用户查看
+        // form.resetFields();  // 注释掉，保留用户输入的信息
       } else {
         setError(response.message || '创建失败');
       }

@@ -44,7 +44,8 @@ const SalesPage = () => {
       };
       await dispatch(createPrimarySales(submitValues)).unwrap();
       message.success('销售收款信息创建成功！');
-      form.resetFields();
+      // 保留表单信息，不清空，方便用户查看
+      // form.resetFields();  // 注释掉，保留用户输入的信息
     } catch (error) {
       message.error(error || '创建失败');
     }

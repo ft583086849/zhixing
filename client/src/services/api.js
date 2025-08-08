@@ -1358,7 +1358,9 @@ export const SalesAPI = {
         data: {
           ...newSale,
           user_sales_link,
-          secondary_registration_link
+          secondary_registration_link,
+          user_sales_code: newSale.sales_code,  // 添加用户购买代码
+          secondary_registration_code: newSale.secondary_registration_code  // 添加二级注册代码
         },
         message: '一级销售注册成功'
       };
