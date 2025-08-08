@@ -243,7 +243,9 @@ export const AdminAPI = {
       const orders = ordersResult.data || [];
       const allSales = [...(primarySalesResult.data || []), ...(secondarySalesResult.data || [])];
       
-      // 去重并整理客户信息
+      // 🔒 核心业务逻辑 - 未经用户确认不可修改
+      // PROTECTED: Customer filtering logic - DO NOT MODIFY without user confirmation
+      // 去重并整理客户信息 - 包括特殊标记的订单（如"XX下的直接购买"）
       const customerMap = new Map();
       orders.forEach(order => {
         // 修复字段名称映射
@@ -251,6 +253,8 @@ export const AdminAPI = {
         const tradingviewUser = order.tradingview_username || '';
         const key = `${customerWechat}-${tradingviewUser}`;
         
+        // 🔒 核心逻辑：允许所有有customer_wechat或tradingview_username的订单
+        // 包括销售直接购买订单（如"89一级下的直接购买"）
         if (!customerMap.has(key) && (customerWechat || tradingviewUser)) {
           // 🔧 修复：通过sales_code查找销售表获取微信号
           let salesWechat = '-';
@@ -1373,16 +1377,27 @@ export const OrdersAPI = {
           processedOrderData.commission_amount = salesInfo.commission;
           processedOrderData.sales_type = salesInfo.type;
           processedOrderData.commission_rate = salesInfo.commission / processedOrderData.amount;
+          
+          // 🔒 核心业务逻辑 - 未经用户确认不可修改
+          // PROTECTED: Sales ID Association - DO NOT MODIFY
+          // 添加销售ID关联，解决无法区分独立二级和一级下属二级的问题
+          processedOrderData.primary_sales_id = salesInfo.primarySalesId;
+          processedOrderData.secondary_sales_id = salesInfo.secondarySalesId;
+          
         } catch (error) {
           console.warn('计算佣金失败:', error.message);
           // 免费订单或计算失败时的默认值
           processedOrderData.commission_amount = 0;
           processedOrderData.commission_rate = 0;
+          processedOrderData.primary_sales_id = null;
+          processedOrderData.secondary_sales_id = null;
         }
       } else {
         // 免费订单
         processedOrderData.commission_amount = 0;
         processedOrderData.commission_rate = 0;
+        processedOrderData.primary_sales_id = null;
+        processedOrderData.secondary_sales_id = null;
       }
       
       const newOrder = await SupabaseService.createOrder(processedOrderData);
@@ -1464,10 +1479,20 @@ export const OrdersAPI = {
     
     const commission = parseFloat(amount) * commissionRate;
     
+    // 🔒 核心业务逻辑 - 未经用户确认不可修改
+    // PROTECTED: Complete Sales Information - DO NOT MODIFY
     return {
       commission,
       type: sale.type,
-      rate: commissionRate  // 返回小数格式
+      rate: commissionRate,  // 返回小数格式
+      // 返回销售ID和层级关系，用于订单关联
+      salesId: sale.id,
+      primarySalesId: sale.type === 'primary' 
+        ? sale.id 
+        : (sale.primary_sales_id || null),  // 二级销售的上级ID（如果有）
+      secondarySalesId: sale.type === 'secondary' 
+        ? sale.id 
+        : null
     };
   }
 };

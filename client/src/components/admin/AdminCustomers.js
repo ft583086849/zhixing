@@ -272,6 +272,9 @@ const AdminCustomers = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+            defaultPageSize: 20,  // 默认每页20条
+            pageSizeOptions: ['10', '20', '50', '100'],  // 可选每页显示数量
+            defaultCurrent: 1  // 默认第一页
           }}
           loading={loading}
           scroll={{ x: 1400 }}
