@@ -65,8 +65,8 @@ const SalesReconciliationPage = () => {
       // 调用真实API
       const response = await salesAPI.getSecondarySalesSettlement(params);
       
-      if (response.data.success) {
-        const { sales, orders, reminderOrders, stats } = response.data.data;
+      if (response.success) {
+        const { sales, orders, reminderOrders, stats } = response.data;
         
         setSalesData(sales);
         setOrders(orders);
@@ -75,7 +75,7 @@ const SalesReconciliationPage = () => {
         
         message.success('对账信息查询成功');
       } else {
-        message.error(response.data.message || '查询失败');
+        message.error(response.message || '查询失败');
       }
     } catch (error) {
       console.error('查询失败:', error);
