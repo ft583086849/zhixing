@@ -140,12 +140,12 @@ const PrimarySalesSettlementPage = () => {
                 return 40; // 没有配置确认的订单时，显示40%
               }
               
-              // 1. 计算一级销售的用户下单金额（没有secondary_sales_name的订单）
-              const primaryDirectOrders = confirmedOrders.filter(order => !order.secondary_sales_name);
+              // 1. 计算一级销售的用户下单金额（使用sales_type判断）
+              const primaryDirectOrders = confirmedOrders.filter(order => order.sales_type !== 'secondary');
               const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => sum + order.amount, 0);
               
               // 2. 计算二级销售订单总金额
-              const secondaryOrders = confirmedOrders.filter(order => order.secondary_sales_name);
+              const secondaryOrders = confirmedOrders.filter(order => order.sales_type === 'secondary');
               const secondaryTotalAmount = secondaryOrders.reduce((sum, order) => sum + order.amount, 0);
               
               // 3. 计算二级销售分佣比率平均值
@@ -258,11 +258,20 @@ const PrimarySalesSettlementPage = () => {
       }
     },
     {
-      title: '二级销售',
-      dataIndex: 'secondary_sales_name',
-      key: 'secondary_sales_name',
+      title: '销售人员',
+      dataIndex: 'sales_display_name',
+      key: 'sales_display_name',
       width: 120,
-      render: (name) => name || '直接销售'
+      render: (name, record) => {
+        // 如果有具体的二级销售名字，显示名字
+        if (record.secondary_sales_wechat_name) {
+          return <Tag color="blue">{record.secondary_sales_wechat_name}</Tag>;
+        }
+        // 否则根据类型显示
+        return record.sales_type === 'secondary' 
+          ? <Tag color="orange">二级销售</Tag> 
+          : <Tag color="green">直接销售</Tag>;
+      }
     },
     {
       title: '订单状态',

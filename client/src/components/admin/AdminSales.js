@@ -116,11 +116,11 @@ const AdminSales = () => {
       return 40;
     }
     
-    // 计算各项金额
-    const primaryDirectOrders = confirmedOrders.filter(order => !order.secondary_sales_name);
+    // 计算各项金额（使用sales_type判断）
+    const primaryDirectOrders = confirmedOrders.filter(order => order.sales_type !== 'secondary');
     const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     
-    const secondaryOrders = confirmedOrders.filter(order => order.secondary_sales_name);
+    const secondaryOrders = confirmedOrders.filter(order => order.sales_type === 'secondary');
     const secondaryTotalAmount = secondaryOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     
     // 获取二级销售佣金率（确保是小数格式）

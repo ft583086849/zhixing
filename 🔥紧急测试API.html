@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>紧急测试API</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>紧急测试API连接</h1>
+    <div id="results"></div>
+    
+    <script>
+        const supabaseUrl = 'https://itvmeamoqthfqtkpubdv.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0dm1lYW1vcXRoZnF0a3B1YmR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0ODEyMzUsImV4cCI6MjA3MDA1NzIzNX0.ypBF3lJJTJtSPLEu1zWXqPorS-FDSZzRUy_0ge_Y-r0';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        
+        const results = document.getElementById('results');
+        
+        async function testAPI() {
+            try {
+                // 测试订单数据
+                const { data: orders, error: ordersError } = await supabase
+                    .from('orders')
+                    .select('*');
+                
+                if (ordersError) {
+                    results.innerHTML += `<p style="color: red">❌ 订单查询失败: ${ordersError.message}</p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green">✅ 订单数量: ${orders.length}</p>`;
+                    
+                    // 显示订单状态分布
+                    const statusCount = {};
+                    orders.forEach(o => {
+                        statusCount[o.status] = (statusCount[o.status] || 0) + 1;
+                    });
+                    results.innerHTML += `<p>订单状态分布: ${JSON.stringify(statusCount)}</p>`;
+                }
+                
+                // 测试销售数据
+                const { data: primarySales, error: psError } = await supabase
+                    .from('primary_sales')
+                    .select('*');
+                
+                const { data: secondarySales, error: ssError } = await supabase
+                    .from('secondary_sales')
+                    .select('*');
+                
+                if (!psError && !ssError) {
+                    results.innerHTML += `<p style="color: green">✅ 一级销售: ${primarySales.length}, 二级销售: ${secondarySales.length}</p>`;
+                }
+                
+                // 计算总金额
+                let totalAmount = 0;
+                orders.forEach(o => {
+                    totalAmount += parseFloat(o.amount || 0);
+                });
+                results.innerHTML += `<p>总金额: $${totalAmount}</p>`;
+                
+            } catch (error) {
+                results.innerHTML += `<p style="color: red">❌ 测试失败: ${error.message}</p>`;
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
