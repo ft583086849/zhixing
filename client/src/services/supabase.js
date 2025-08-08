@@ -1047,6 +1047,10 @@ export class SupabaseService {
             crypto_chain_name: configData.crypto_chain_name,
             crypto_address: configData.crypto_address,
             crypto_qr_code: configData.crypto_qr_code,
+            // 第二个链配置
+            crypto2_chain_name: configData.crypto2_chain_name,
+            crypto2_address: configData.crypto2_address,
+            crypto2_qr_code: configData.crypto2_qr_code,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingConfig.id)
@@ -1066,6 +1070,10 @@ export class SupabaseService {
             crypto_chain_name: configData.crypto_chain_name,
             crypto_address: configData.crypto_address,
             crypto_qr_code: configData.crypto_qr_code,
+            // 第二个链配置
+            crypto2_chain_name: configData.crypto2_chain_name,
+            crypto2_address: configData.crypto2_address,
+            crypto2_qr_code: configData.crypto2_qr_code,
             is_active: true
           })
           .select()
