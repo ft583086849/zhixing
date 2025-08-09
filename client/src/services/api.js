@@ -1984,6 +1984,9 @@ export const publicAPI = {
   getPaymentConfig: async () => ({ data: {} }),
 };
 
+// 导出CacheManager类
+export { CacheManager };
+
 // 向后兼容的默认导出
 export default API;
 
