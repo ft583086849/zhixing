@@ -124,15 +124,18 @@ const PrimarySalesSettlementPage = () => {
       // 构建统计数据
       const statsData = {
         totalCommission: stats?.totalCommission || 0,
-        monthlyCommission: stats?.totalCommission || 0, // 可根据需要计算月度数据
+        monthlyCommission: stats?.monthCommission || 0, // 🚀 使用后端计算的本月佣金
+        todayCommission: stats?.todayCommission || 0, // 🚀 当日佣金
         totalOrders: stats?.totalOrders || 0,
-        monthlyOrders: stats?.totalOrders || 0, // 可根据需要计算月度数据
+        monthlyOrders: stats?.monthOrders || 0, // 🚀 使用后端计算的本月订单数
+        todayOrders: stats?.todayOrders || 0, // 🚀 当日订单数
         secondarySales: secondarySales || [],
         pendingReminderCount: stats?.pendingReminderCount || 0,
         monthlyReminderCount: stats?.pendingReminderCount || 0,
         reminderSuccessRate: 85.0, // 默认值
         avgResponseTime: 2.5, // 默认值
-        pendingReminderOrders: reminderOrders || []
+        pendingReminderOrders: reminderOrders || [],
+        currentCommissionRate: stats?.currentCommissionRate || 0.4 // 🚀 使用后端动态计算的佣金率
       };
 
       setSalesData(sales);
@@ -159,7 +162,7 @@ const PrimarySalesSettlementPage = () => {
   // 佣金统计卡片
   const renderStatsCards = () => (
     <Row gutter={16} style={{ marginBottom: 24 }}>
-      <Col span={4}>
+      <Col span={5}>
         <Card>
           <Statistic
             title="总佣金收入"
@@ -171,7 +174,7 @@ const PrimarySalesSettlementPage = () => {
           />
         </Card>
       </Col>
-      <Col span={4}>
+      <Col span={5}>
         <Card>
           <Statistic
             title="本月佣金"
@@ -183,67 +186,38 @@ const PrimarySalesSettlementPage = () => {
           />
         </Card>
       </Col>
-      <Col span={4}>
+      <Col span={5}>
+        <Card>
+          <Statistic
+            title="当日佣金"
+            value={primarySalesStats?.todayCommission || 0}
+            precision={2}
+            valueStyle={{ color: '#fa8c16' }}
+            prefix={<DollarOutlined />}
+            suffix="元"
+          />
+        </Card>
+      </Col>
+      <Col span={3}>
         <Card>
           <Statistic
             title="佣金比率"
             value={(() => {
-              // 新的佣金比率计算逻辑：
-              // 佣金比率 = （（一级销售的用户下单金额*40%）+（二级销售订单总金额-二级销售分佣比率平均值*二级销售订单总金额））/（二级销售订单总金额+一级销售的用户下单金额）
-              
-              if (!primarySalesOrders?.data || primarySalesOrders.data.length === 0) {
-                return 40; // 没有订单时，显示40%
-              }
-              
-              // 获取所有订单（移除配置确认过滤）
-              const confirmedOrders = primarySalesOrders.data;
-              
-              if (confirmedOrders.length === 0) {
-                return 40; // 没有配置确认的订单时，显示40%
-              }
-              
-              // 1. 计算一级销售的用户下单金额（使用sales_type判断）
-              const primaryDirectOrders = confirmedOrders.filter(order => order.sales_type !== 'secondary');
-              const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => sum + order.amount, 0);
-              
-              // 2. 计算二级销售订单总金额
-              const secondaryOrders = confirmedOrders.filter(order => order.sales_type === 'secondary');
-              const secondaryTotalAmount = secondaryOrders.reduce((sum, order) => sum + order.amount, 0);
-              
-              // 3. 计算二级销售分佣比率平均值
-              let averageSecondaryRate = 0;
-              if (primarySalesStats?.secondarySales && primarySalesStats.secondarySales.length > 0) {
-                const secondaryRates = primarySalesStats.secondarySales.map(sales => sales.commission_rate);
-                averageSecondaryRate = secondaryRates.reduce((sum, rate) => sum + rate, 0) / secondaryRates.length;
-              }
-              
-              // 4. 计算总订单金额
-              const totalOrderAmount = primaryDirectAmount + secondaryTotalAmount;
-              
-              if (totalOrderAmount === 0) {
-                return 40; // 总金额为0时，显示40%
-              }
-              
-              // 5. 计算一级销售总佣金
-              const primaryDirectCommission = primaryDirectAmount * 0.40; // 一级销售直接用户佣金：40%
-              const primaryFromSecondaryCommission = secondaryTotalAmount * (0.4 - averageSecondaryRate); // 一级销售从二级销售获得的佣金：(40%-二级销售平均佣金率)
-              const totalPrimaryCommission = primaryDirectCommission + primaryFromSecondaryCommission;
-              
-              // 6. 计算一级销售佣金比率
-              const primaryCommissionRate = (totalPrimaryCommission / totalOrderAmount) * 100;
-              
-              return primaryCommissionRate.toFixed(1);
+              // 🚀 使用后端动态计算的佣金率
+              // 优先使用统计数据中的当前佣金率，其次使用销售数据中的佣金率
+              const rate = primarySalesStats?.currentCommissionRate || salesData?.commission_rate || 0.4;
+              return (rate * 100).toFixed(1);
             })()}
-            valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
+            valueStyle={{ color: '#52c41a', fontSize: '18px', fontWeight: 'bold' }}
             prefix={<DollarOutlined />}
             suffix="%"
           />
         </Card>
       </Col>
-      <Col span={6}>
+      <Col span={3}>
         <Card>
           <Statistic
-            title="二级销售数量"
+            title="二级销售"
             value={primarySalesStats?.secondarySales?.length || 0}
             valueStyle={{ color: '#722ed1' }}
             prefix={<TeamOutlined />}
@@ -251,7 +225,7 @@ const PrimarySalesSettlementPage = () => {
           />
         </Card>
       </Col>
-      <Col span={6}>
+      <Col span={3}>
         <Card>
           <Statistic
             title="总订单数"

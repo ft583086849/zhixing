@@ -187,11 +187,20 @@ export class SupabaseService {
       // 为每个二级销售计算统计信息
       const secondaryStats = [];
       if (secondarySales && secondarySales.length > 0) {
+        // 获取当前月份的开始和结束时间
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        
+        // 获取今天的开始和结束时间
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        
         for (const sale of secondarySales) {
           // 获取该二级销售的所有订单（包括未确认的）
           const { data: allOrders, error: allOrdersErr } = await supabase
             .from('orders')
-            .select('amount, actual_payment_amount, status')
+            .select('amount, actual_payment_amount, status, payment_time, created_at')
             .eq('sales_code', sale.sales_code);
           
           // 🔧 修复：排除已拒绝的订单
@@ -202,12 +211,28 @@ export class SupabaseService {
             ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(o.status)
           ) || [];
           
+          // 筛选本月订单（基于payment_time）
+          const monthOrders = confirmedOrders.filter(o => {
+            const paymentTime = new Date(o.payment_time || o.created_at);
+            return paymentTime >= currentMonthStart && paymentTime <= currentMonthEnd;
+          });
+          
+          // 筛选今日订单（基于payment_time）
+          const todayOrders = confirmedOrders.filter(o => {
+            const paymentTime = new Date(o.payment_time || o.created_at);
+            return paymentTime >= todayStart && paymentTime <= todayEnd;
+          });
+          
           const totalAmount = confirmedOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+          const monthAmount = monthOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+          const todayAmount = todayOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
           const allOrdersAmount = nonRejectedOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
           
           // 使用佣金率计算佣金，如果没有设置则为0
           const commissionRate = sale.commission_rate || 0;
           const commissionAmount = totalAmount * commissionRate;
+          const monthCommission = monthAmount * commissionRate;
+          const todayCommission = todayAmount * commissionRate;
           
           secondaryStats.push({
             ...sale,
@@ -217,6 +242,14 @@ export class SupabaseService {
             total_amount: totalAmount,  // 已确认订单金额
             all_orders_amount: allOrdersAmount,  // 所有订单金额（不包括rejected）
             total_commission: commissionAmount,
+            // 本月数据（基于payment_time）
+            month_orders: monthOrders.length,
+            month_amount: monthAmount,
+            month_commission: monthCommission,
+            // 当日数据（基于payment_time）
+            today_orders: todayOrders.length,
+            today_amount: todayAmount,
+            today_commission: todayCommission,
             order_count: nonRejectedOrders.length,  // 🔧 修复：使用非rejected订单数
             commission_rate: commissionRate  // 确保返回佣金率，即使是0
           });
@@ -253,57 +286,135 @@ export class SupabaseService {
       // 5. 计算一级销售的订单统计
       const { data: primaryOrders } = await supabase
         .from('orders')
-        .select('amount, actual_payment_amount, status')
+        .select('amount, actual_payment_amount, status, payment_time, created_at')
         .eq('sales_code', primaryStats.sales_code)
         .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
       
       if (primaryOrders) {
+        // 获取当前月份的开始和结束时间
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        
+        // 获取今天的开始和结束时间
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        
+        // 筛选本月订单（基于payment_time）
+        const monthOrders = primaryOrders.filter(o => {
+          const paymentTime = new Date(o.payment_time || o.created_at);
+          return paymentTime >= currentMonthStart && paymentTime <= currentMonthEnd;
+        });
+        
+        // 筛选今日订单（基于payment_time）
+        const todayOrders = primaryOrders.filter(o => {
+          const paymentTime = new Date(o.payment_time || o.created_at);
+          return paymentTime >= todayStart && paymentTime <= todayEnd;
+        });
+        
         primaryStats.total_orders = primaryOrders.length;
         primaryStats.total_amount = primaryOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+        
+        // 本月数据（基于payment_time）
+        primaryStats.month_orders = monthOrders.length;
+        primaryStats.month_amount = monthOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+        
+        // 当日数据（基于payment_time）
+        primaryStats.today_orders = todayOrders.length;
+        primaryStats.today_amount = todayOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+        
         // 🔧 修复：正确处理佣金率为0的情况
         const rate = (primaryStats.commission_rate !== null && primaryStats.commission_rate !== undefined) 
           ? primaryStats.commission_rate 
           : 0.4;
         primaryStats.total_commission = primaryStats.total_amount * rate;
+        primaryStats.month_commission = primaryStats.month_amount * rate;
+        primaryStats.today_commission = primaryStats.today_amount * rate;
       }
       
       // 🔧 修复：计算所有二级销售的订单总数和金额
       let secondaryTotalOrders = 0;
       let secondaryTotalAmount = 0;
       let secondaryTotalCommission = 0;
+      let secondaryMonthOrders = 0;
+      let secondaryMonthAmount = 0;
+      let secondaryMonthCommission = 0;
+      let secondaryTodayOrders = 0;
+      let secondaryTodayAmount = 0;
+      let secondaryTodayCommission = 0;
       
       if (secondaryStats && secondaryStats.length > 0) {
         secondaryStats.forEach(ss => {
           secondaryTotalOrders += ss.total_orders || 0;
           secondaryTotalAmount += ss.total_amount || 0;
           secondaryTotalCommission += ss.total_commission || 0;
+          secondaryMonthOrders += ss.month_orders || 0;
+          secondaryMonthAmount += ss.month_amount || 0;
+          secondaryMonthCommission += ss.month_commission || 0;
+          secondaryTodayOrders += ss.today_orders || 0;
+          secondaryTodayAmount += ss.today_amount || 0;
+          secondaryTodayCommission += ss.today_commission || 0;
+        });
+      }
+      
+      // 🚀 动态计算一级销售佣金率
+      // 公式：((一级自己的订单金额 × 基础佣金率) + (二级订单总金额 - 二级佣金支出)) ÷ 团队总订单金额
+      if (secondaryTotalAmount > 0) {
+        const primaryDirectAmount = primaryStats.total_amount || 0;  // 一级直接订单金额
+        const primaryBaseRate = 0.4;  // 一级基础佣金率40%
+        const teamTotalAmount = primaryDirectAmount + secondaryTotalAmount;  // 团队总金额
+        
+        // 计算二级销售平均佣金率
+        const secondaryAvgRate = secondaryTotalCommission / secondaryTotalAmount;
+        
+        // 动态佣金率计算
+        const dynamicRate = (
+          (primaryDirectAmount * primaryBaseRate) + 
+          (secondaryTotalAmount - secondaryTotalCommission)
+        ) / teamTotalAmount;
+        
+        // 更新一级销售的佣金率和佣金金额
+        primaryStats.dynamic_commission_rate = dynamicRate;
+        primaryStats.commission_rate = dynamicRate;  // 使用动态佣金率
+        primaryStats.total_commission = teamTotalAmount * dynamicRate;  // 重新计算总佣金
+        
+        // 重新计算本月和当日佣金（包含团队数据）
+        const teamMonthAmount = (primaryStats.month_amount || 0) + secondaryMonthAmount;
+        const teamTodayAmount = (primaryStats.today_amount || 0) + secondaryTodayAmount;
+        primaryStats.month_commission = teamMonthAmount * dynamicRate;  // 重新计算月佣金
+        primaryStats.today_commission = teamTodayAmount * dynamicRate;  // 重新计算当日佣金
+        
+        console.log('动态佣金率计算:', {
+          一级直接金额: primaryDirectAmount,
+          二级总金额: secondaryTotalAmount,
+          二级总佣金: secondaryTotalCommission,
+          二级平均佣金率: (secondaryAvgRate * 100).toFixed(2) + '%',
+          团队总金额: teamTotalAmount,
+          动态佣金率: (dynamicRate * 100).toFixed(2) + '%'
         });
       }
       
       // 6. 计算综合统计（一级 + 所有二级）
       const totalStats = {
-        // 🔧 修复：总计应包含一级自己的订单 + 所有二级的订单
+        // 🔧 修复：总计应包含一级自己的订单 + 所有二级的订单（不重复计算）
         totalOrders: (primaryStats.total_orders || 0) + secondaryTotalOrders,
         totalAmount: (primaryStats.total_amount || 0) + secondaryTotalAmount,
-        totalCommission: (primaryStats.total_commission || 0) + secondaryTotalCommission,
-        // 本月
-        monthOrders: primaryStats.month_orders,
-        monthAmount: primaryStats.month_amount,
-        monthCommission: primaryStats.month_commission,
+        // 🚀 使用动态佣金率计算的总佣金（如果有二级销售）
+        totalCommission: primaryStats.total_commission || 0,  // 已经在动态计算中更新过了
+        // 本月（包含一级和二级）
+        monthOrders: (primaryStats.month_orders || 0) + secondaryMonthOrders,
+        monthAmount: (primaryStats.month_amount || 0) + secondaryMonthAmount,
+        // 🚀 本月佣金使用动态佣金率
+        monthCommission: primaryStats.month_commission || 0,  // 已经在动态计算中更新过了
+        // 当日（包含一级和二级）
+        todayOrders: (primaryStats.today_orders || 0) + secondaryTodayOrders,
+        todayAmount: (primaryStats.today_amount || 0) + secondaryTodayAmount,
+        // 🚀 当日佣金使用动态佣金率
+        todayCommission: primaryStats.today_commission || 0,  // 已经在动态计算中更新过了
         // 待处理
-        pendingReminderCount: reminderOrders?.length || 0
-      };
-      
-      // 加上二级销售的数据
-      if (secondaryStats && secondaryStats.length > 0) {
-        secondaryStats.forEach(ss => {
-          totalStats.totalOrders += ss.total_orders;
-          totalStats.totalAmount += ss.total_amount;
-          totalStats.totalCommission += ss.total_commission;
-          totalStats.monthOrders += ss.month_orders;
-          totalStats.monthAmount += ss.month_amount;
-          totalStats.monthCommission += ss.month_commission;
-        });
+        pendingReminderCount: reminderOrders?.length || 0,
+        // 当前佣金率（动态计算后的）
+        currentCommissionRate: primaryStats.commission_rate || 0.4
       }
       
       return {
