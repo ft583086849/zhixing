@@ -471,13 +471,36 @@ export class SupabaseService {
         .eq('sales_code', secondarySale.sales_code)
         .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
       
+      // 获取当前时间范围
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      
+      // 筛选本月和今日订单
+      const monthOrders = orders?.filter(o => {
+        const paymentTime = new Date(o.payment_time || o.created_at);
+        return paymentTime >= currentMonthStart && paymentTime <= currentMonthEnd;
+      }) || [];
+      
+      const todayOrders = orders?.filter(o => {
+        const paymentTime = new Date(o.payment_time || o.created_at);
+        return paymentTime >= todayStart && paymentTime <= todayEnd;
+      }) || [];
+      
       const totalOrders = orders?.length || 0;
       const totalAmount = orders?.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
+      const monthAmount = monthOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+      const todayAmount = todayOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
+      
       // 🔧 修复：正确处理佣金率为0的情况
       const commissionRate = (secondarySale.commission_rate !== null && secondarySale.commission_rate !== undefined)
         ? secondarySale.commission_rate
         : 0.3;
       const totalCommission = totalAmount * commissionRate;
+      const monthCommission = monthAmount * commissionRate;
+      const todayCommission = todayAmount * commissionRate;
       
       // 构建统计数据对象（兼容原有结构）
       const salesStats = {
@@ -485,9 +508,12 @@ export class SupabaseService {
         total_orders: totalOrders,
         total_amount: totalAmount,
         total_commission: totalCommission,
-        month_orders: totalOrders,  // 简化处理，本月数据等于总数据
-        month_amount: totalAmount,
-        month_commission: totalCommission
+        month_orders: monthOrders.length,
+        month_amount: monthAmount,
+        month_commission: monthCommission,
+        today_orders: todayOrders.length,
+        today_amount: todayAmount,
+        today_commission: todayCommission
       };
       
       // 2. 获取确认的订单详情（用于显示列表）
@@ -589,7 +615,11 @@ export class SupabaseService {
           // 本月数据
           month_orders: salesStats.month_orders,
           month_amount: salesStats.month_amount,
-          month_commission: salesStats.month_commission
+          month_commission: salesStats.month_commission,
+          // 当日数据
+          today_orders: salesStats.today_orders,
+          today_amount: salesStats.today_amount,
+          today_commission: salesStats.today_commission
         },
         orders: confirmedOrders || [],
         reminderOrders: reminderOrders || [],
@@ -602,6 +632,10 @@ export class SupabaseService {
           monthOrders: salesStats.month_orders,
           monthAmount: salesStats.month_amount,
           monthCommission: salesStats.month_commission,
+          // 当日
+          todayOrders: salesStats.today_orders,
+          todayAmount: salesStats.today_amount,
+          todayCommission: salesStats.today_commission,
           // 待处理
           pendingReminderCount: reminderOrders?.length || 0,
           // 当前佣金率

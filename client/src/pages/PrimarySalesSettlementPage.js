@@ -431,6 +431,45 @@ const PrimarySalesSettlementPage = () => {
       }
     },
     {
+      title: '购买链接',
+      key: 'purchase_link',
+      width: 150,
+      render: (_, record) => {
+        // 生成该二级销售的购买链接
+        const baseUrl = window.location.origin;
+        const purchaseLink = `${baseUrl}/purchase?sales_code=${record.sales_code}`;
+        
+        return (
+          <Space size="small">
+            <Button 
+              type="link"
+              size="small"
+              onClick={() => {
+                // 复制链接到剪贴板
+                navigator.clipboard.writeText(purchaseLink).then(() => {
+                  message.success('链接已复制到剪贴板');
+                }).catch(() => {
+                  message.error('复制失败，请手动复制');
+                });
+              }}
+            >
+              复制链接
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                // 在新窗口打开链接
+                window.open(purchaseLink, '_blank');
+              }}
+            >
+              查看
+            </Button>
+          </Space>
+        );
+      }
+    },
+    {
       title: '操作',
       key: 'action',
       width: 200,

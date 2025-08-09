@@ -41,6 +41,8 @@ const SalesReconciliationPage = () => {
     totalOrders: 0,
     totalAmount: 0,
     totalCommission: 0,
+    monthCommission: 0,
+    todayCommission: 0,
     pendingReminderCount: 0
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -77,6 +79,8 @@ const SalesReconciliationPage = () => {
           totalOrders: stats?.totalOrders || 0,
           totalAmount: stats?.totalAmount || 0,
           totalCommission: stats?.totalCommission || 0,
+          monthCommission: stats?.monthCommission || 0,
+          todayCommission: stats?.todayCommission || 0,
           pendingReminderCount: stats?.pendingReminderCount || 0
         });
         
@@ -146,6 +150,8 @@ const SalesReconciliationPage = () => {
       totalOrders: 0,
       totalAmount: 0,
       totalCommission: 0,
+      monthCommission: 0,
+      todayCommission: 0,
       pendingReminderCount: 0
     });
   };
@@ -423,24 +429,24 @@ const SalesReconciliationPage = () => {
             {/* 订单统计信息 */}
             <Card title="订单统计信息" style={{ marginBottom: 24 }} role="region">
               <Row gutter={16}>
-                <Col span={6}>
+                <Col span={4}>
                   <Statistic
                     title="总订单数"
                     value={stats.totalOrders}
                     prefix={<ShoppingCartOutlined />}
                   />
                 </Col>
-                <Col span={6}>
+                <Col span={4}>
                   <Statistic
-                    title="总订单金额"
+                    title="总金额"
                     value={stats.totalAmount}
                     prefix={<DollarOutlined />}
                     suffix="美元"
                   />
                 </Col>
-                <Col span={6}>
+                <Col span={4}>
                   <Statistic
-                    title="返佣金额"
+                    title="总返佣"
                     value={stats.totalCommission}
                     prefix={<DollarOutlined />}
                     suffix="美元"
@@ -448,7 +454,27 @@ const SalesReconciliationPage = () => {
                     valueStyle={{ color: '#3f8600' }}
                   />
                 </Col>
-                <Col span={6}>
+                <Col span={4}>
+                  <Statistic
+                    title="本月返佣"
+                    value={stats.monthCommission}
+                    prefix={<DollarOutlined />}
+                    suffix="美元"
+                    precision={2}
+                    valueStyle={{ color: '#1890ff' }}
+                  />
+                </Col>
+                <Col span={4}>
+                  <Statistic
+                    title="当日返佣"
+                    value={stats.todayCommission}
+                    prefix={<DollarOutlined />}
+                    suffix="美元"
+                    precision={2}
+                    valueStyle={{ color: '#fa8c16' }}
+                  />
+                </Col>
+                <Col span={4}>
                   <Statistic
                     title="返佣比例"
                     value={salesData.commission_rate * 100}
