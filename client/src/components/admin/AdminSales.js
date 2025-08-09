@@ -356,6 +356,8 @@ const AdminSales = () => {
       return <Tag color="red" icon={<CrownOutlined />}>一级销售</Tag>;
     } else if (salesType === 'secondary') {
       return <Tag color="green" icon={<TeamOutlined />}>二级销售</Tag>;
+    } else if (salesType === 'independent') {
+      return <Tag color="blue">独立销售</Tag>;  // 🔧 修复：添加独立销售标签
     }
     return <Tag color="default">未知</Tag>;
   };
@@ -371,6 +373,9 @@ const AdminSales = () => {
     } else if (salesType === 'secondary') {
       // 使用hierarchy_info字段或默认值
       return record.hierarchy_info || `二级销售`;
+    } else if (salesType === 'independent') {
+      // 🔧 修复：独立销售显示独立运营
+      return record.hierarchy_info || '独立运营';
     }
     return '';
   };

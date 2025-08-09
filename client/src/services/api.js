@@ -988,16 +988,19 @@ export const AdminAPI = {
           }
         ];
         
+        // 🔧 修复：根据是否有primary_sales_id来正确设置sales_type
+        const actualSalesType = sale.primary_sales_id ? 'secondary' : 'independent';
+        
         return {
           // 保留原始销售数据作为sales对象（前端组件需要）
           sales: {
             ...sale,
             wechat_name: wechatName,
-            sales_type: 'secondary',
+            sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'
             commission_rate: commissionRate
           },
           // 顶层字段用于显示
-          sales_type: 'secondary',
+          sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'
           sales_display_type: salesDisplayType,
           total_orders: totalOrders,
           valid_orders: validOrders,
