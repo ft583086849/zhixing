@@ -818,7 +818,7 @@ const PrimarySalesSettlementPage = () => {
                     wordBreak: 'break-all'
                   }}>
                     <code style={{ fontSize: '13px', color: '#764ba2' }}>
-                      {window.location.origin}/secondary-sales?sales_code={salesData.sales_code}
+                      {window.location.origin}/secondary-sales?registration_code={salesData.secondary_registration_code || salesData.sales_code}
                     </code>
                   </div>
                   <Button 
@@ -830,7 +830,7 @@ const PrimarySalesSettlementPage = () => {
                       borderColor: 'rgba(255, 255, 255, 0.5)'
                     }}
                     onClick={() => {
-                      const link = `${window.location.origin}/secondary-sales?sales_code=${salesData.sales_code}`;
+                      const link = `${window.location.origin}/secondary-sales?registration_code=${salesData.secondary_registration_code || salesData.sales_code}`;
                       navigator.clipboard.writeText(link);
                       message.success('注册链接已复制到剪贴板');
                     }}

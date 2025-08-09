@@ -429,6 +429,7 @@ export class SupabaseService {
           id: primaryStats.id,
           wechat_name: primaryStats.wechat_name,
           sales_code: primaryStats.sales_code,
+          secondary_registration_code: primaryStats.secondary_registration_code,  // 添加二级销售注册码
           commission_rate: primaryStats.commission_rate,
           payment_account: primaryStats.payment_account,
           payment_method: primaryStats.payment_method,
