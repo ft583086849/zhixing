@@ -208,7 +208,8 @@ export class SupabaseService {
           
           secondaryStats.push({
             ...sale,
-            total_orders: allOrders?.length || 0,  // 所有订单数
+            // 🔧 修复：total_orders 应该只统计已确认的订单，排除已拒绝的订单
+            total_orders: confirmedOrders.length,  // 已确认订单数（与一级销售统计口径一致）
             confirmed_orders: confirmedOrders.length,  // 已确认订单数
             total_amount: totalAmount,  // 已确认订单金额
             all_orders_amount: allOrdersAmount,  // 所有订单金额

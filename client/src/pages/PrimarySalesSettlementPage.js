@@ -377,26 +377,8 @@ const PrimarySalesSettlementPage = () => {
         if (isNaN(dateObj.getTime())) return '-';
         return dateObj.toLocaleString('zh-CN');
       }
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 120,
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip title="请您联系客户咨询是否复购">
-            <Button 
-              type="primary"
-              size="small"
-              onClick={() => handleUrgeOrder(record)}
-              disabled={record.status === 'cancelled' || record.status === 'refunded'}
-            >
-              催单
-            </Button>
-          </Tooltip>
-        </Space>
-      )
     }
+    // 🔧 修复：移除操作列（用户要求）
   ];
 
   // 二级销售列表表格列定义
