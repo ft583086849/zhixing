@@ -3,7 +3,7 @@
  * 用于在订单状态更新后刷新所有相关数据
  */
 
-import store from '../store';
+import { store } from '../store';
 import { getStats, getAdminOrders, getSales, getCustomers } from '../store/slices/adminSlice';
 import { CacheManager } from '../services/api';
 
