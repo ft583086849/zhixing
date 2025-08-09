@@ -212,41 +212,56 @@ const AdminOrders = () => {
       render: (text) => text || '-',
     },
     {
+      title: '销售类型',
+      key: 'sales_type',
+      width: 100,
+      fixed: 'left',
+      render: (_, record) => {
+        // 🔧 新增：判断销售类型
+        // 优先判断是否有二级销售信息
+        if (record.secondary_sales) {
+          // 有二级销售信息，判断是否独立
+          if (record.secondary_sales.primary_sales_id) {
+            return <Tag color="orange">二级销售</Tag>;
+          } else {
+            return <Tag color="green">独立销售</Tag>;
+          }
+        }
+        // 判断是否有一级销售信息
+        else if (record.primary_sales) {
+          return <Tag color="blue">一级销售</Tag>;
+        }
+        // 通过sales_code判断
+        else if (record.sales_code) {
+          // 这里可能需要额外逻辑判断
+          return <Tag>未知</Tag>;
+        }
+        return '-';
+      }
+    },
+    {
       title: '销售微信号',
       key: 'sales_wechat_name',
       width: 150,
       fixed: 'left',
       render: (_, record) => {
-        // 获取实际产生订单的销售微信号
+        // 🔧 修复：显示实际出单的销售
         let wechatName = '-';
-        let salesTypeBadge = null;
         
-        // 优先从sales_wechat_name字段获取（由supabase.js设置）
-        if (record.sales_wechat_name && record.sales_wechat_name !== '-') {
-          wechatName = record.sales_wechat_name;
+        // 优先显示二级销售（如果是二级出单）
+        if (record.secondary_sales?.wechat_name) {
+          wechatName = record.secondary_sales.wechat_name;
         }
-        // 尝试从嵌套的销售对象中获取wechat_name
+        // 其次显示一级销售（如果是一级直接出单）
         else if (record.primary_sales?.wechat_name) {
           wechatName = record.primary_sales.wechat_name;
-          salesTypeBadge = <Tag color="blue">一级</Tag>;
         }
-        else if (record.secondary_sales?.wechat_name) {
-          wechatName = record.secondary_sales.wechat_name;
-          // 判断是二级还是独立
-          if (record.secondary_sales?.primary_sales_id) {
-            salesTypeBadge = <Tag color="orange">二级</Tag>;
-          } else {
-            salesTypeBadge = <Tag color="green">独立</Tag>;
-          }
+        // 从sales_wechat_name字段获取
+        else if (record.sales_wechat_name && record.sales_wechat_name !== '-') {
+          wechatName = record.sales_wechat_name;
         }
         
-        // 返回销售微信号
-        return (
-          <Space size="small">
-            {salesTypeBadge}
-            {wechatName}
-          </Space>
-        );
+        return wechatName;
       }
     },
     {
@@ -254,21 +269,25 @@ const AdminOrders = () => {
       key: 'primary_sales_wechat',
       width: 150,
       render: (_, record) => {
-        // 如果是一级销售直接订单，显示一级销售微信
+        // 🔧 修复：按照新逻辑显示一级销售
+        
+        // 如果是二级销售订单，显示其所属的一级销售
+        if (record.secondary_sales?.primary_sales_id) {
+          // 从关联中获取一级销售信息
+          const primaryWechat = record.secondary_sales?.primary_sales?.wechat_name;
+          if (primaryWechat) {
+            return primaryWechat;
+          }
+          // 如果没有关联信息，返回占位符
+          return '(有上级)';
+        }
+        
+        // 如果是一级销售直接订单，显示自己
         if (record.primary_sales?.wechat_name) {
           return record.primary_sales.wechat_name;
         }
         
-        // 如果是二级销售订单，显示其一级销售
-        if (record.secondary_sales?.primary_sales_id) {
-          // 从二级销售关联中获取一级销售信息
-          const primaryWechat = record.secondary_sales?.primary_sales?.wechat_name;
-          if (primaryWechat) {
-            return <Tag color="red">{primaryWechat}</Tag>;
-          }
-        }
-        
-        // 独立销售或无一级销售
+        // 独立销售，没有一级
         return '-';
       }
     },

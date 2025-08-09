@@ -35,6 +35,7 @@ import { createOrder, clearCreatedOrder } from '../store/slices/ordersSlice';
 import { getPaymentConfig } from '../store/slices/paymentConfigSlice';
 import QRCodeDisplay from '../components/QRCodeDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { SupabaseService } from '../services/supabase';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -152,6 +153,29 @@ const PurchasePage = () => {
         message.error('请选择生效时间');
         return;
       }
+      
+      // 🔧 新增：7天免费订单重复检查
+      if (selectedDuration === '7days') {
+        try {
+          // 检查是否已经提交过7天免费订单
+          const { data: existingOrders, error } = await SupabaseService.supabase
+            .from('orders')
+            .select('id')
+            .eq('tradingview_username', values.tradingview_username)
+            .eq('duration', '7days')
+            .limit(1);
+          
+          if (!error && existingOrders && existingOrders.length > 0) {
+            // 已经提交过7天免费订单
+            message.error('您已提交过7天免费订单，请进行续费');
+            return;
+          }
+        } catch (error) {
+          console.error('检查7天免费订单失败:', error);
+          // 继续提交，不阻塞用户
+        }
+      }
+      
       // 免费订单不需要验证付款金额和截图
       if (selectedDuration !== '7days') {
         // 获取付款金额
@@ -199,8 +223,20 @@ const PurchasePage = () => {
       
       // 根据订单类型显示不同的提示信息
       if (selectedDuration === '7days') {
-        // 免费订单
-        message.success('订单提交成功！');
+        // 🔧 新增：7天免费订单特殊提示
+        Modal.success({
+          title: '订单提交成功',
+          content: (
+            <div>
+              <p>您的订单已提交，将在当日为您配置完成。</p>
+              <p style={{ marginTop: 12, fontWeight: 'bold' }}>
+                请后续关注TradingView里指标，仅限邀请项的内容。
+              </p>
+            </div>
+          ),
+          okText: '确定',
+          width: 480
+        });
       } else {
         // 付费订单 - 显示特定提示信息，包含销售申请链接
         Modal.success({

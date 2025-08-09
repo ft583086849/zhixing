@@ -458,7 +458,7 @@ const AdminSales = () => {
                 max={100}
                 value={editingCommissionRates[salesId]}
                 onChange={(value) => handleCommissionRateEdit(salesId, value)}
-                style={{ width: 80 }}
+                style={{ width: 120 }}  // 🔧 修复：增大输入框宽度
                 addonAfter="%"
               />
               <Button
@@ -536,6 +536,75 @@ const AdminSales = () => {
             >
               确认
             </Button>
+          </Space>
+        );
+      }
+    },
+    {
+      title: '收款链名',
+      key: 'payment_chain',
+      width: 120,
+      render: (_, record) => {
+        // 🔧 新增：显示销售的收款链名（用于打款）
+        const paymentMethod = record.sales?.payment_method;
+        const chainMap = {
+          'usdt_trc20': 'TRC20',
+          'usdt_bsc': 'BSC',
+          'alipay': '支付宝',
+          'wechat': '微信',
+          'bank': '银行卡'
+        };
+        return (
+          <Tag color="purple">
+            {chainMap[paymentMethod] || paymentMethod || '-'}
+          </Tag>
+        );
+      }
+    },
+    {
+      title: '收款地址',
+      key: 'payment_address',
+      width: 200,
+      render: (_, record) => {
+        // 🔧 新增：显示销售的收款地址（用于打款）
+        const paymentAccount = record.sales?.payment_account || '-';
+        const paymentMethod = record.sales?.payment_method;
+        
+        // 如果是加密货币地址，截断显示
+        if (paymentMethod?.includes('usdt') && paymentAccount.length > 10) {
+          const shortAddress = `${paymentAccount.slice(0, 6)}...${paymentAccount.slice(-4)}`;
+          return (
+            <Tooltip title={paymentAccount}>
+              <Space size="small">
+                <span>{shortAddress}</span>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CopyOutlined />}
+                  onClick={() => {
+                    navigator.clipboard.writeText(paymentAccount);
+                    message.success('地址已复制');
+                  }}
+                />
+              </Space>
+            </Tooltip>
+          );
+        }
+        
+        return (
+          <Space size="small">
+            <span>{paymentAccount}</span>
+            {paymentAccount !== '-' && (
+              <Button
+                type="text"
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={() => {
+                  navigator.clipboard.writeText(paymentAccount);
+                  message.success('已复制');
+                }}
+              />
+            )}
           </Space>
         );
       }
