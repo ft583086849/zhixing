@@ -161,82 +161,127 @@ const PrimarySalesSettlementPage = () => {
 
   // 佣金统计卡片
   const renderStatsCards = () => (
-    <Row gutter={16} style={{ marginBottom: 24 }}>
-      <Col span={5}>
-        <Card>
-          <Statistic
-            title="总佣金收入"
-            value={primarySalesStats?.totalCommission || 0}
-            precision={2}
-            valueStyle={{ color: '#3f8600' }}
-            prefix={<DollarOutlined />}
-            suffix="元"
-          />
-        </Card>
-      </Col>
-      <Col span={5}>
-        <Card>
-          <Statistic
-            title="本月佣金"
-            value={primarySalesStats?.monthlyCommission || 0}
-            precision={2}
-            valueStyle={{ color: '#1890ff' }}
-            prefix={<DollarOutlined />}
-            suffix="元"
-          />
-        </Card>
-      </Col>
-      <Col span={5}>
-        <Card>
-          <Statistic
-            title="当日佣金"
-            value={primarySalesStats?.todayCommission || 0}
-            precision={2}
-            valueStyle={{ color: '#fa8c16' }}
-            prefix={<DollarOutlined />}
-            suffix="元"
-          />
-        </Card>
-      </Col>
-      <Col span={3}>
-        <Card>
-          <Statistic
-            title="佣金比率"
-            value={(() => {
-              // 🚀 使用后端动态计算的佣金率
-              // 优先使用统计数据中的当前佣金率，其次使用销售数据中的佣金率
-              const rate = primarySalesStats?.currentCommissionRate || salesData?.commission_rate || 0.4;
-              return (rate * 100).toFixed(1);
-            })()}
-            valueStyle={{ color: '#52c41a', fontSize: '18px', fontWeight: 'bold' }}
-            prefix={<DollarOutlined />}
-            suffix="%"
-          />
-        </Card>
-      </Col>
-      <Col span={3}>
-        <Card>
-          <Statistic
-            title="二级销售"
-            value={primarySalesStats?.secondarySales?.length || 0}
-            valueStyle={{ color: '#722ed1' }}
-            prefix={<TeamOutlined />}
-            suffix="人"
-          />
-        </Card>
-      </Col>
-      <Col span={3}>
-        <Card>
-          <Statistic
-            title="总订单数"
-            value={primarySalesStats?.totalOrders || 0}
-            valueStyle={{ color: '#fa8c16' }}
-            prefix={<ShoppingCartOutlined />}
-            suffix="单"
-          />
-        </Card>
-      </Col>
-    </Row>
+    <div style={{ marginBottom: 24 }}>
+      {/* 第一行：核心佣金数据 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none'
+            }}
+          >
+            <Statistic
+              title={<span style={{ color: '#fff', fontSize: '14px' }}>总佣金收入</span>}
+              value={primarySalesStats?.totalCommission || 0}
+              precision={2}
+              valueStyle={{ color: '#fff', fontSize: '28px', fontWeight: 'bold' }}
+              prefix={<DollarOutlined style={{ fontSize: '20px' }} />}
+              suffix={<span style={{ fontSize: '16px' }}>元</span>}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              border: 'none'
+            }}
+          >
+            <Statistic
+              title={<span style={{ color: '#fff', fontSize: '14px' }}>本月佣金</span>}
+              value={primarySalesStats?.monthlyCommission || 0}
+              precision={2}
+              valueStyle={{ color: '#fff', fontSize: '28px', fontWeight: 'bold' }}
+              prefix={<DollarOutlined style={{ fontSize: '20px' }} />}
+              suffix={<span style={{ fontSize: '16px' }}>元</span>}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+              border: 'none'
+            }}
+          >
+            <Statistic
+              title={<span style={{ color: '#fff', fontSize: '14px' }}>当日佣金</span>}
+              value={primarySalesStats?.todayCommission || 0}
+              precision={2}
+              valueStyle={{ color: '#fff', fontSize: '28px', fontWeight: 'bold' }}
+              prefix={<DollarOutlined style={{ fontSize: '20px' }} />}
+              suffix={<span style={{ fontSize: '16px' }}>元</span>}
+            />
+          </Card>
+        </Col>
+      </Row>
+      
+      {/* 第二行：业务指标 */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              borderLeft: '4px solid #52c41a'
+            }}
+          >
+            <Statistic
+              title="佣金比率"
+              value={(() => {
+                // 🚀 使用后端动态计算的佣金率
+                // 优先使用统计数据中的当前佣金率，其次使用销售数据中的佣金率
+                const rate = primarySalesStats?.currentCommissionRate || salesData?.commission_rate || 0.4;
+                return (rate * 100).toFixed(1);
+              })()}
+              valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+              suffix="%"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              borderLeft: '4px solid #722ed1'
+            }}
+          >
+            <Statistic
+              title="二级销售"
+              value={primarySalesStats?.secondarySales?.length || 0}
+              valueStyle={{ color: '#722ed1', fontSize: '24px', fontWeight: 'bold' }}
+              prefix={<TeamOutlined style={{ fontSize: '18px' }} />}
+              suffix="人"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              borderLeft: '4px solid #1890ff'
+            }}
+          >
+            <Statistic
+              title="总订单数"
+              value={primarySalesStats?.totalOrders || 0}
+              valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
+              prefix={<ShoppingCartOutlined style={{ fontSize: '18px' }} />}
+              suffix="单"
+            />
+          </Card>
+        </Col>
+      </Row>
+    </div>
   );
 
   // 订单列表表格列定义

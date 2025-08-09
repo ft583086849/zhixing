@@ -66,7 +66,7 @@ const PurchasePage = () => {
     { value: '7days', label: '7天免费', price: 0 },
     { value: '1month', label: '1个月', price: 188 },
     { value: '3months', label: '3个月', price: 488 },
-    { value: '6months', label: '6个月', price: 688 },
+    { value: '6months', label: '6个月', price: 888 },
     { value: '1year', label: '1年', price: 1588 }
   ];
 

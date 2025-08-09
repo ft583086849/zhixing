@@ -810,20 +810,78 @@ export const AdminAPI = {
         }, 0);
         
         // 🔧 修复：一级销售佣金率 - 处理小数和百分比两种格式，正确处理0值
-        let commissionRate;
+        let baseCommissionRate;
         if (sale.commission_rate !== null && sale.commission_rate !== undefined) {
-          commissionRate = sale.commission_rate;
+          baseCommissionRate = sale.commission_rate;
           // 如果是小数格式（0.4），转换为百分比（40）
-          if (commissionRate > 0 && commissionRate < 1) {
-            commissionRate = commissionRate * 100;
+          if (baseCommissionRate > 0 && baseCommissionRate < 1) {
+            baseCommissionRate = baseCommissionRate * 100;
           }
         } else {
           // 只有在真正未设置时才使用默认值
-          commissionRate = 40; // 默认40%
+          baseCommissionRate = 40; // 默认40%
         }
         
-        // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率
-        const commissionAmount = confirmedAmount * (commissionRate / 100);
+        // 🚀 动态佣金计算逻辑（与后端保持一致）
+        // 获取该一级销售管理的所有二级销售
+        const managedSecondarySales = allSecondarySales.filter(s => s.primary_sales_id === sale.id);
+        let dynamicCommissionRate = baseCommissionRate;
+        let netCommissionAmount = confirmedAmount * (baseCommissionRate / 100);
+        
+        if (managedSecondarySales.length > 0) {
+          // 计算二级销售的订单统计
+          let secondaryTotalAmount = 0;
+          let secondaryTotalCommission = 0;
+          
+          managedSecondarySales.forEach(secondarySale => {
+            // 获取该二级销售的订单
+            const secondaryOrders = orders.filter(order => 
+              order.sales_code === secondarySale.sales_code &&
+              ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
+            );
+            
+            // 计算二级销售订单金额
+            const amount = secondaryOrders.reduce((sum, order) => {
+              const orderAmount = parseFloat(order.actual_payment_amount || order.amount || 0);
+              if (order.payment_method === 'alipay') {
+                return sum + (orderAmount / 7.15);
+              }
+              return sum + orderAmount;
+            }, 0);
+            
+            // 计算二级销售佣金（使用其设定的佣金率）
+            let secondaryRate = secondarySale.commission_rate || 0.25;
+            if (secondaryRate > 1) secondaryRate = secondaryRate / 100;
+            
+            secondaryTotalAmount += amount;
+            secondaryTotalCommission += amount * secondaryRate;
+          });
+          
+          // 如果有二级销售订单，应用动态佣金公式
+          if (secondaryTotalAmount > 0) {
+            const teamTotalAmount = confirmedAmount + secondaryTotalAmount;
+            const primaryBaseRate = baseCommissionRate / 100;
+            
+            // 净佣金 = 一级直接订单佣金 + (二级订单按40%计算 - 实际支付给二级的佣金)
+            netCommissionAmount = (confirmedAmount * primaryBaseRate) + 
+                                 (secondaryTotalAmount * primaryBaseRate - secondaryTotalCommission);
+            
+            // 动态佣金率 = 净佣金 ÷ 团队总金额
+            dynamicCommissionRate = teamTotalAmount > 0 ? (netCommissionAmount / teamTotalAmount) * 100 : baseCommissionRate;
+            
+            console.log('💰 动态佣金计算:', {
+              一级直接: confirmedAmount,
+              二级总额: secondaryTotalAmount,
+              二级佣金: secondaryTotalCommission,
+              团队总额: teamTotalAmount,
+              净佣金: netCommissionAmount,
+              动态佣金率: dynamicCommissionRate.toFixed(2) + '%'
+            });
+          }
+        }
+        
+        const commissionRate = dynamicCommissionRate;
+        const commissionAmount = netCommissionAmount;
         
         console.log(`📊 一级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${commissionRate}%, 应返佣金$${commissionAmount.toFixed(2)}`);
         
