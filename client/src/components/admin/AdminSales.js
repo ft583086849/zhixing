@@ -54,6 +54,7 @@ const AdminSales = () => {
   const [paidCommissionData, setPaidCommissionData] = useState({});
   const [salesTypeFilter, setSalesTypeFilter] = useState('all'); // 新增：销售类型筛选
   const [commissionRateOptions, setCommissionRateOptions] = useState([]); // 动态佣金比率选项
+  const [commissionFilter, setCommissionFilter] = useState('all'); // 🔧 新增：佣金筛选条件
 
   useEffect(() => {
     dispatch(getSales());
@@ -166,6 +167,14 @@ const AdminSales = () => {
       searchParams.commission_rate = searchValues.commission_rate;
     }
     
+    // 🔧 新增：保存佣金筛选条件
+    if (searchValues.commission_filter) {
+      searchParams.commission_filter = searchValues.commission_filter;
+      setCommissionFilter(searchValues.commission_filter);
+    } else {
+      setCommissionFilter('all');
+    }
+    
     // 调用API搜索
     dispatch(getSales(searchParams));
     message.success('搜索完成');
@@ -175,9 +184,39 @@ const AdminSales = () => {
   const handleReset = () => {
     form.resetFields();
     setSalesTypeFilter('all');
+    setCommissionFilter('all');  // 🔧 重置佣金筛选条件
     // 🔧 修复：重置时强制刷新数据，不使用任何过滤条件
     dispatch(getSales({}));  // 传递空对象确保获取所有数据
     message.info('已重置搜索条件');
+  };
+  
+  // 🔧 新增：根据佣金筛选条件过滤销售数据
+  const getFilteredSales = () => {
+    if (!sales || !Array.isArray(sales)) return [];
+    
+    let filteredData = [...sales];
+    
+    // 应用佣金筛选
+    if (commissionFilter && commissionFilter !== 'all') {
+      filteredData = filteredData.filter(sale => {
+        const commissionAmount = sale.commission_amount || 0;
+        
+        switch(commissionFilter) {
+          case 'gt1':
+            return commissionAmount > 1;
+          case 'gt10':
+            return commissionAmount > 10;
+          case 'gt100':
+            return commissionAmount > 100;
+          case 'eq0':
+            return commissionAmount === 0;
+          default:
+            return true;
+        }
+      });
+    }
+    
+    return filteredData;
   };
 
   // 导出数据
@@ -512,7 +551,9 @@ const AdminSales = () => {
       width: 180,
       render: (_, record) => {
         const salesId = record.sales?.id;
-        const currentValue = paidCommissionData[salesId] || 0;
+        // 🔧 优先使用用户输入的值，如果没有则使用数据库值
+        const dbValue = record.sales?.paid_commission || record.paid_commission || 0;
+        const currentValue = paidCommissionData[salesId] !== undefined ? paidCommissionData[salesId] : dbValue;
         const displayValue = currentValue ? `$${currentValue.toFixed(2)}` : '$0.00';
         
         return (
@@ -556,6 +597,11 @@ const AdminSales = () => {
             <div style={{ marginTop: 4 }}>
               <Space size="small">
                 <span style={{ fontSize: 12, color: '#666' }}>{displayValue}</span>
+                {dbValue > 0 && (
+                  <span style={{ fontSize: 11, color: '#999' }}>
+                    (数据库: ${dbValue.toFixed(2)})
+                  </span>
+                )}
                 <Button
                   type="text"
                   size="small"
@@ -881,6 +927,26 @@ const AdminSales = () => {
               </Form.Item>
             </Col>
             
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item 
+                name="commission_filter" 
+                label="应返佣金筛选"
+                style={{ marginBottom: 0 }}
+              >
+                <Select 
+                  placeholder="选择佣金筛选条件" 
+                  allowClear
+                  style={{ width: '100%' }}
+                >
+                  <Option value="all">全部</Option>
+                  <Option value="gt1">大于$1</Option>
+                  <Option value="gt10">大于$10</Option>
+                  <Option value="gt100">大于$100</Option>
+                  <Option value="eq0">等于$0</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            
             {/* 按钮组 - 独立一行或右对齐 */}
             <Col 
               xs={24} 
@@ -924,7 +990,7 @@ const AdminSales = () => {
       <Card bodyStyle={{ padding: '0px' }}>
         <Table
           columns={columns}
-          dataSource={sales}
+          dataSource={getFilteredSales()}
           rowKey={record => record.sales?.id || record.id}
           scroll={{ 
             x: 2100,  // 设置横向滚动

@@ -870,9 +870,11 @@ export const AdminAPI = {
             commission_rate: commissionRate,
             payment_method: sale.payment_method,
             payment_account: sale.payment_account || sale.payment_address,  // 🔧 兼容旧字段：优先payment_account，没有则用payment_address
-            chain_name: sale.chain_name  // 🔧 添加chain_name字段
+            chain_name: sale.chain_name,  // 🔧 添加chain_name字段
+            paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
+            last_commission_paid_at: sale.last_commission_paid_at  // 🔧 添加最后支付时间
           },
-          // 顶层字段用于显示
+          // 顾层字段用于显示
           sales_type: 'primary',
           sales_display_type: '一级销售',
           total_orders: totalOrders,
@@ -881,6 +883,7 @@ export const AdminAPI = {
           confirmed_amount: Math.round(confirmedAmount * 100) / 100,
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
+          paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
           hierarchy_info: '一级销售',
           secondary_sales_count: managedSecondaryCount,
           links: links
@@ -1010,7 +1013,9 @@ export const AdminAPI = {
             commission_rate: commissionRate,
             payment_method: sale.payment_method,
             payment_account: sale.payment_account || sale.payment_address,  // 🔧 兼容旧字段：优先payment_account，没有则用payment_address
-            chain_name: sale.chain_name  // 🔧 添加chain_name字段
+            chain_name: sale.chain_name,  // 🔧 添加chain_name字段
+            paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
+            last_commission_paid_at: sale.last_commission_paid_at  // 🔧 添加最后支付时间
           },
           // 顶层字段用于显示
           sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'
@@ -1021,6 +1026,7 @@ export const AdminAPI = {
           confirmed_amount: Math.round(confirmedAmount * 100) / 100,  // 🔧 新增：已配置确认订单金额
           commission_rate: commissionRate,
           commission_amount: Math.round(commissionAmount * 100) / 100,
+          paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
           hierarchy_info: hierarchyInfo,
           links: links  // 🔧 新增：销售链接
         };
