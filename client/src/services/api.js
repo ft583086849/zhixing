@@ -1695,7 +1695,7 @@ export const SalesAPI = {
     try {
       const table = salesType === 'primary' ? 'primary_sales' : 'secondary_sales';
       
-      const { data, error } = await supabase
+      const { data, error } = await SupabaseService.supabase
         .from(table)
         .update({ 
           paid_commission: amount,
