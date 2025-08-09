@@ -513,45 +513,79 @@ const AdminSales = () => {
       render: (_, record) => {
         const salesId = record.sales?.id;
         const currentValue = paidCommissionData[salesId] || 0;
+        const displayValue = currentValue ? `$${currentValue.toFixed(2)}` : '$0.00';
         
         return (
-          <Space size="small">
-            <InputNumber
-              size="small"
-              min={0}
-              step={0.01}
-              value={currentValue}
-              formatter={value => `$${value}`}
-              parser={value => value.replace('$', '')}
-              style={{ width: 80 }}
-              placeholder="已返佣"
-              onChange={(value) => handlePaidCommissionChange(salesId, value)}
-            />
-            <Button
-              type="primary"
-              size="small"
-              icon={<CheckOutlined />}
-              onClick={async () => {
-                const amount = paidCommissionData[salesId] || 0;
-                const result = await AdminAPI.updatePaidCommission(
-                  salesId,
-                  record.sales_type || record.sales_display_type,
-                  amount
-                );
-                
-                if (result.success) {
-                  message.success('已返佣金额已保存');
-                  // 刷新数据
-                  dispatch(getSales());
-                } else {
-                  message.error(`保存失败: ${result.error}`);
-                }
-              }}
-            >
-              确认
-            </Button>
-          </Space>
+          <div>
+            <Space size="small">
+              <InputNumber
+                size="small"
+                min={0}
+                step={0.01}
+                value={currentValue}
+                formatter={value => `$${value}`}
+                parser={value => value.replace('$', '')}
+                style={{ width: 80 }}
+                placeholder="已返佣"
+                onChange={(value) => handlePaidCommissionChange(salesId, value)}
+              />
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={async () => {
+                  const amount = paidCommissionData[salesId] || 0;
+                  const result = await AdminAPI.updatePaidCommission(
+                    salesId,
+                    record.sales_type || record.sales_display_type,
+                    amount
+                  );
+                  
+                  if (result.success) {
+                    message.success('已返佣金额已保存');
+                    // 刷新数据
+                    dispatch(getSales());
+                  } else {
+                    message.error(`保存失败: ${result.error}`);
+                  }
+                }}
+              >
+                确认
+              </Button>
+            </Space>
+            <div style={{ marginTop: 4 }}>
+              <Space size="small">
+                <span style={{ fontSize: 12, color: '#666' }}>{displayValue}</span>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CopyOutlined />}
+                  onClick={() => {
+                    navigator.clipboard.writeText(displayValue);
+                    message.success('已复制金额');
+                  }}
+                />
+              </Space>
+            </div>
+          </div>
         );
+      }
+    },
+    {
+      title: '支付时间',
+      key: 'last_commission_paid_at',
+      width: 160,
+      render: (_, record) => {
+        const paidAt = record.sales?.last_commission_paid_at;
+        if (!paidAt) return '-';
+        const date = new Date(paidAt);
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
       }
     },
     {
@@ -588,7 +622,8 @@ const AdminSales = () => {
       key: 'payment_address',
       width: 200,
       render: (_, record) => {
-        // 🔧 新增：显示销售的收款地址（用于打款）
+        // 🔧 说明：payment_account从API层兼容获取（payment_account || payment_address）
+        // 旧数据存在payment_address字段，新数据存在payment_account字段
         const paymentAccount = record.sales?.payment_account || '-';
         const paymentMethod = record.sales?.payment_method;
         
