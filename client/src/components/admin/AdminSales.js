@@ -329,8 +329,10 @@ const AdminSales = () => {
       });
       
       message.success('佣金率更新成功');
-      // 刷新销售数据
-      dispatch(getSales());
+      // 刷新销售数据 - 延迟执行确保数据库已更新
+      setTimeout(() => {
+        dispatch(getSales());
+      }, 500);
     } catch (error) {
       console.error('佣金率更新失败:', error);
       message.error('佣金率更新失败: ' + (error.message || '未知错误'));

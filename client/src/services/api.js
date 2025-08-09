@@ -868,7 +868,13 @@ export const AdminAPI = {
                                  (secondaryTotalAmount * primaryBaseRate - secondaryTotalCommission);
             
             // 动态佣金率 = 净佣金 ÷ 团队总金额
-            dynamicCommissionRate = teamTotalAmount > 0 ? (netCommissionAmount / teamTotalAmount) * 100 : baseCommissionRate;
+            // 修复：确保佣金率不为负数
+            if (netCommissionAmount < 0) {
+              // 如果净佣金为负，使用最小值0
+              dynamicCommissionRate = 0;
+            } else {
+              dynamicCommissionRate = teamTotalAmount > 0 ? (netCommissionAmount / teamTotalAmount) * 100 : baseCommissionRate;
+            }
             
             console.log('💰 动态佣金计算:', {
               一级直接: confirmedAmount,
@@ -987,8 +993,9 @@ export const AdminAPI = {
             commissionRate = commissionRate * 100;
           }
         } else {
-          // 只有在真正未设置时才使用默认值
-          commissionRate = 30; // 默认30%
+          // 🚀 修复：统一默认值
+          // 二级销售和独立销售都默认25%
+          commissionRate = 25;
         }
         
         if (sale.primary_sales_id) {
