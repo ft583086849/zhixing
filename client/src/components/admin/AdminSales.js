@@ -290,11 +290,12 @@ const AdminSales = () => {
         rateToStore = newRate / 100;
       }
       
-      // 🔧 修复：获取正确的salesId和salesType
+      // 🔧 修复：获取正确的salesId和salesType（支持一级销售）
       const actualSalesId = record.sales?.id;
       const actualSalesType = record.sales?.sales_type || record.sales_type || 'secondary';
       
       if (!actualSalesId) {
+        console.error('无法获取销售ID，当前record数据:', record);
         throw new Error('无法获取销售ID');
       }
       
@@ -302,7 +303,8 @@ const AdminSales = () => {
         salesId: actualSalesId, 
         输入值: newRate, 
         存储值: rateToStore,
-        salesType: actualSalesType 
+        salesType: actualSalesType,
+        record: record 
       });
       
       // 🔧 修复：使用正确的参数
