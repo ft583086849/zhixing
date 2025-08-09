@@ -209,14 +209,15 @@ export const AdminAPI = {
    * 获取客户列表（从订单中提取）
    */
   async getCustomers(params = {}) {
-    // 如果有搜索参数，不使用缓存
+    // 🔧 修复：重置时也要获取最新数据，暂时禁用缓存
     const hasParams = Object.keys(params).length > 0;
     
-    if (!hasParams) {
-      const cacheKey = 'admin-customers';
-      const cached = CacheManager.get(cacheKey);
-      if (cached) return cached;
-    }
+    // 暂时禁用缓存，确保数据实时性
+    // if (!hasParams) {
+    //   const cacheKey = 'admin-customers';
+    //   const cached = CacheManager.get(cacheKey);
+    //   if (cached) return cached;
+    // }
 
     try {
       // 0. 首先尝试同步销售微信号（如果需要）
@@ -637,14 +638,16 @@ export const AdminAPI = {
    * 获取销售列表 - 包含订单关联和佣金计算
    */
   async getSales(params = {}) {
-    // 如果有搜索参数，不使用缓存
+    // 🔧 修复：重置时也要获取最新数据，不使用缓存
+    // 只有在页面初次加载时才使用缓存
     const hasParams = Object.keys(params).length > 0;
     
-    if (!hasParams) {
-      const cacheKey = 'admin-sales';
-      const cached = CacheManager.get(cacheKey);
-      if (cached) return cached;
-    }
+    // 暂时禁用缓存，确保数据实时性
+    // if (!hasParams) {
+    //   const cacheKey = 'admin-sales';
+    //   const cached = CacheManager.get(cacheKey);
+    //   if (cached) return cached;
+    // }
 
     try {
       // 🔧 修复：移除自动同步，避免性能问题
@@ -681,6 +684,13 @@ export const AdminAPI = {
           primaryQuery.then(result => result.data || []),
           secondaryQuery.then(result => result.data || [])
         ]);
+        
+        // 🔧 调试：确认获取了所有数据
+        console.log('📊 重置时获取的原始数据:', {
+          一级销售数量: primarySales.length,
+          二级销售数量: secondarySales.length,
+          总计: primarySales.length + secondarySales.length
+        });
       }
       
       // 销售微信号搜索
@@ -995,7 +1005,9 @@ export const AdminAPI = {
       console.log('处理后的销售数据:', {
         总数: allSales.length,
         一级销售: processedPrimarySales.length,
-        二级销售: processedSecondarySales.length
+        二级销售: processedSecondarySales.length,
+        搜索参数: params,
+        是否有搜索条件: Object.keys(params).length > 0
       });
       
       const result = {

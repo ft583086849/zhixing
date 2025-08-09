@@ -174,7 +174,8 @@ const AdminSales = () => {
   const handleReset = () => {
     form.resetFields();
     setSalesTypeFilter('all');
-    dispatch(getSales());
+    // 🔧 修复：重置时强制刷新数据，不使用任何过滤条件
+    dispatch(getSales({}));  // 传递空对象确保获取所有数据
     message.info('已重置搜索条件');
   };
 
