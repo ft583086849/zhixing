@@ -1255,30 +1255,37 @@ export const AdminAPI = {
       
       // 🔧 金额统计 - 优先使用实付金额
       let total_amount = 0;
-      let total_commission = 0;  // 应返佣金总额（已确认订单）
+      let total_commission = 0;  // 应返佣金总额
+      let paid_commission = 0;   // 已返佣金总额
+      let pending_commission = 0; // 待返佣金总额
       
-      // 🔧 修复：从销售页面汇总佣金，而不是重新计算
-      // 获取销售数据来获取准确的佣金
+      // 🎯 正确的逻辑：从销售数据汇总所有佣金
+      // 销售返佣金额 = SUM(每个销售的应返佣金额)
+      // 待返佣金额 = SUM(每个销售的待返佣金额)
       const salesResponse = await this.getSales();
       if (salesResponse.success && salesResponse.data) {
-        // 从销售数据汇总佣金
         salesResponse.data.forEach(sale => {
-          total_commission += sale.commission_amount || 0;
+          // 汇总应返佣金
+          const commissionAmount = sale.commission_amount || 0;
+          total_commission += commissionAmount;
+          
+          // 汇总已返佣金
+          const paidAmount = sale.paid_commission || 0;
+          paid_commission += paidAmount;
+          
+          // 计算单个销售的待返佣金
+          const pendingAmount = commissionAmount - paidAmount;
+          pending_commission += pendingAmount;
         });
-        console.log('📊 从销售数据汇总的佣金:', total_commission);
-      } else {
-        // 备用方案：如果获取销售数据失败，使用简单计算
-        ordersToProcess.forEach(order => {
-          if (order.status !== 'rejected' && confirmedStatuses.includes(order.status)) {
-            const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-            const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
-            // 使用保守的25%作为默认佣金率
-            total_commission += amountUSD * 0.25;
-          }
+        
+        console.log('📊 实时计算的佣金汇总:', {
+          应返: total_commission,
+          已返: paid_commission,
+          待返: pending_commission
         });
       }
       
-      // 计算总金额
+      // 计算订单总金额（用于其他统计）
       ordersToProcess.forEach(order => {
         if (order.status !== 'rejected') {
           const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
@@ -1286,10 +1293,6 @@ export const AdminAPI = {
           total_amount += amountUSD;
         }
       });
-      
-      // 🔧 修复：待返佣金额 = 应返佣金额 - 已返佣金额
-      // 由于当前系统还没有记录已返佣金，所以待返佣金额等于应返佣金额
-      const pending_commission = total_commission;  // 目前没有已返记录，所以待返=应返
       
       // 🔧 销售统计 - 从订单表关联获取
       const salesFromOrders = new Set();
@@ -1405,9 +1408,9 @@ export const AdminAPI = {
         pending_config_orders,
         confirmed_config_orders,
         total_commission: Math.round(total_commission * 100) / 100,
-        commission_amount: Math.round(total_commission * 100) / 100,  // 销售返佣金额
-        // 待返佣金额 = 应返佣金额 - 已返佣金额（暂时设为应返佣金额，因为还没有已返记录）
-        pending_commission_amount: Math.round(pending_commission * 100) / 100,  // 待返佣金额
+        commission_amount: Math.round(total_commission * 100) / 100,  // 销售返佣金额 = SUM(应返佣金)
+        paid_commission_amount: Math.round(paid_commission * 100) / 100,  // 已返佣金额 = SUM(已返佣金)
+        pending_commission_amount: Math.round(pending_commission * 100) / 100,  // 待返佣金额 = SUM(待返佣金)
         // 🔧 优化：细分销售类型统计
         primary_sales_count: primarySales?.length || 0,
         linked_secondary_sales_count: linkedSecondarySales?.length || 0,  // 二级销售（有上级）
