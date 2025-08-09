@@ -59,6 +59,17 @@ const AdminOrders = () => {
       ...params
     };
     
+    // 🔧 新增：默认排除已拒绝的订单，除非用户明确选择查看
+    // 处理特殊状态值
+    if (queryParams.status === 'all_including_rejected') {
+      // 查看全部订单，包括已拒绝的
+      delete queryParams.status;
+      queryParams.includeRejected = true;
+    } else if (!queryParams.status && !params.includeRejected) {
+      // 如果没有明确选择状态，默认排除已拒绝
+      queryParams.excludeRejected = true;
+    }
+    
     // 处理日期范围
     if (searchValues.date_range && searchValues.date_range.length === 2) {
       queryParams.start_date = searchValues.date_range[0].format('YYYY-MM-DD');
@@ -697,7 +708,12 @@ const AdminOrders = () => {
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8} lg={6}>
-              <Form.Item name="status" label="订单状态" style={{ marginBottom: 0 }}>
+              <Form.Item 
+                name="status" 
+                label="订单状态" 
+                style={{ marginBottom: 0 }}
+                tooltip="默认不显示已拒绝订单，选择'已拒绝'可查看"
+              >
                 <Select placeholder="请选择状态" allowClear style={{ width: '100%' }}>
                   <Option value="pending_payment">待付款确认</Option>
                   <Option value="confirmed_payment">已付款确认</Option>
@@ -707,7 +723,8 @@ const AdminOrders = () => {
                   <Option value="active">已生效</Option>
                   <Option value="expired">已过期</Option>
                   <Option value="cancelled">已取消</Option>
-                  <Option value="rejected">已拒绝</Option>
+                  <Option value="rejected">已拒绝（查看）</Option>
+                  <Option value="all_including_rejected">全部（含已拒绝）</Option>
                 </Select>
               </Form.Item>
             </Col>

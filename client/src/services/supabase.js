@@ -984,6 +984,11 @@ export class SupabaseService {
       query = query.ilike('tradingview_username', `%${params.tradingview_username}%`);
     }
     
+    // 🔧 新增：默认排除已拒绝的订单
+    if (params.excludeRejected && !params.status) {
+      query = query.neq('status', 'rejected');
+    }
+    
     // 订单状态过滤
     if (params.status) {
       query = query.eq('status', params.status);
@@ -1045,6 +1050,7 @@ export class SupabaseService {
     const primarySalesIds = [...new Set(orders.map(order => order.primary_sales_id).filter(Boolean))];
     const secondarySalesIds = [...new Set(orders.map(order => order.secondary_sales_id).filter(Boolean))];
     
+    // 🔧 修复：先获取所有二级销售，以便获取他们的primary_sales_id
     // 并行获取销售数据
     const queries = [];
     
@@ -1092,6 +1098,35 @@ export class SupabaseService {
           });
         }
       });
+      
+      // 🔧 修复：收集二级销售的primary_sales_id，并查询缺失的一级销售
+      const missingPrimaryIds = [];
+      secondarySalesByCode.forEach(sale => {
+        if (sale.primary_sales_id && !primarySalesById.has(sale.primary_sales_id)) {
+          missingPrimaryIds.push(sale.primary_sales_id);
+        }
+      });
+      secondarySalesById.forEach(sale => {
+        if (sale.primary_sales_id && !primarySalesById.has(sale.primary_sales_id)) {
+          missingPrimaryIds.push(sale.primary_sales_id);
+        }
+      });
+      
+      // 如果有缺失的一级销售，查询它们
+      if (missingPrimaryIds.length > 0) {
+        const uniqueMissingIds = [...new Set(missingPrimaryIds)];
+        const { data: missingPrimarySales } = await supabase
+          .from('primary_sales')
+          .select('id, sales_code, name, wechat_name, phone')
+          .in('id', uniqueMissingIds);
+        
+        if (missingPrimarySales) {
+          missingPrimarySales.forEach(sale => {
+            primarySalesById.set(sale.id, sale);
+            if (sale.sales_code) primarySalesByCode.set(sale.sales_code, sale);
+          });
+        }
+      }
       
       // 为每个订单添加销售信息
       orders.forEach(order => {
