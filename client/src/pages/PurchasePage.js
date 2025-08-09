@@ -443,20 +443,6 @@ const PurchasePage = () => {
               </Space>
             </Card>
             
-            {/* 链上地址付款金额输入 - 改为受控的Form.Item */}
-            <Form.Item
-              name="crypto_amount"
-              label="付款金额（美元）"
-              rules={[{ required: true, message: '请输入付款金额' }]}>
-              <Input
-                type="number"
-                placeholder="请输入付款金额"
-                aria-label="请输入付款金额"
-                addonAfter="美元"
-                size="large"
-              />
-            </Form.Item>
-            
             <Alert
               message="请考虑手续费，保障到账金额"
               type="warning"
@@ -639,6 +625,22 @@ const PurchasePage = () => {
               </Radio.Group>
 
             </Form.Item>
+
+            {/* 付款金额输入框 - 付费订单都显示 */}
+            {selectedDuration !== '7days' && (
+              <Form.Item
+                name="crypto_amount"
+                label="付款金额（美元）"
+                rules={[{ required: true, message: '请输入付款金额' }]}>
+                <Input
+                  type="number"
+                  placeholder="请输入付款金额"
+                  aria-label="请输入付款金额"
+                  addonAfter="美元"
+                  size="large"
+                />
+              </Form.Item>
+            )}
 
             {/* 收款信息 - 根据付款方式动态显示 */}
             {renderPaymentInfo()}
