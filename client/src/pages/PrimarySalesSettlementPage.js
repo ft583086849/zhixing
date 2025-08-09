@@ -321,18 +321,25 @@ const PrimarySalesSettlementPage = () => {
     },
     {
       title: '销售人员',
-      dataIndex: 'sales_display_name',
-      key: 'sales_display_name',
+      dataIndex: 'sales_wechat_name',
+      key: 'sales_wechat_name',
       width: 120,
-      render: (name, record) => {
-        // 如果有具体的二级销售名字，显示名字
-        if (record.secondary_sales_wechat_name) {
-          return <Tag color="blue">{record.secondary_sales_wechat_name}</Tag>;
+      render: (wechat, record) => {
+        // 🔧 修复：显示销售微信号
+        // 从订单的关联数据中获取销售微信号
+        if (record.sales_wechat_name) {
+          // 如果是二级销售订单，显示二级销售微信号
+          return <Tag color="blue">{record.sales_wechat_name}</Tag>;
+        } else if (record.sales_code) {
+          // 如果有销售代码但没有微信号，查找对应的销售信息
+          const secondarySale = secondarySalesData.find(s => s.sales_code === record.sales_code);
+          if (secondarySale) {
+            return <Tag color="blue">{secondarySale.wechat_name || '二级销售'}</Tag>;
+          }
+          // 如果是一级销售自己的订单，显示"直接销售"
+          return <Tag color="green">直接销售</Tag>;
         }
-        // 否则根据类型显示
-        return record.sales_type === 'secondary' 
-          ? <Tag color="orange">二级销售</Tag> 
-          : <Tag color="green">直接销售</Tag>;
+        return <Tag color="default">-</Tag>;
       }
     },
     {

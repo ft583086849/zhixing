@@ -1189,22 +1189,25 @@ export const AdminAPI = {
       let pending_commission = 0;  // 待返佣金额（未确认订单）
       
       ordersToProcess.forEach(order => {
-        // 🔧 修复：优先使用actual_payment_amount，其次使用amount
-        const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-        
-        // 人民币转美元 (汇率7.15)
-        const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
-        total_amount += amountUSD;
-        
-        // 根据订单状态计算佣金
-        const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
-        
-        if (confirmedStatuses.includes(order.status)) {
-          // 已确认订单 - 已返佣金
-          total_commission += commission;
-        } else if (['pending_payment', 'confirmed_payment', 'pending_config'].includes(order.status)) {
-          // 未确认订单 - 待返佣金
-          pending_commission += commission;
+        // 🔧 修复：排除已拒绝的订单计算总收入和佣金
+        if (order.status !== 'rejected') {
+          // 🔧 修复：优先使用actual_payment_amount，其次使用amount
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          
+          // 人民币转美元 (汇率7.15)
+          const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
+          total_amount += amountUSD;
+          
+          // 根据订单状态计算佣金
+          const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
+          
+          if (confirmedStatuses.includes(order.status)) {
+            // 已确认订单 - 已返佣金
+            total_commission += commission;
+          } else if (['pending_payment', 'confirmed_payment', 'pending_config'].includes(order.status)) {
+            // 未确认订单 - 待返佣金
+            pending_commission += commission;
+          }
         }
       });
       

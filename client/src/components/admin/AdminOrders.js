@@ -265,18 +265,32 @@ const AdminOrders = () => {
           wechatName = record.secondary_sales.wechat_name;
         }
         
-        // 返回带类型标识的销售微信号
+        // 🔧 修复：优化销售微信号显示，同时显示一级和二级
+        // 如果是二级销售的订单，显示两个微信号
+        if (record.secondary_sales && record.secondary_sales.primary_sales_id) {
+          // 获取一级销售微信号
+          const primaryWechat = primarySalesName || '-';
+          const secondaryWechat = record.secondary_sales?.wechat_name || wechatName || '-';
+          
+          return (
+            <Space direction="vertical" size={0}>
+              <Space size="small">
+                <Tag color="red">一级</Tag>
+                <span>{primaryWechat}</span>
+              </Space>
+              <Space size="small">
+                <Tag color="blue">二级</Tag>
+                <span>{secondaryWechat}</span>
+              </Space>
+            </Space>
+          );
+        }
+        
+        // 返回单个销售微信号
         return (
           <Space size="small">
-            {wechatName}
             {salesTypeBadge}
-            {primarySalesName && (
-              <Tooltip title={`一级销售: ${primarySalesName}`}>
-                <span style={{ color: '#999', fontSize: '12px' }}>
-                  ({primarySalesName})
-                </span>
-              </Tooltip>
-            )}
+            {wechatName}
           </Space>
         );
       }
