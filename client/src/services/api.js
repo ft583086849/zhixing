@@ -676,10 +676,10 @@ export const AdminAPI = {
         const allSecondary = (await secondaryQuery).data || [];
         secondarySales = allSecondary.filter(s => !s.primary_sales_id);
       } else {
-        // 获取所有销售
+        // 获取所有销售（但应用查询条件）
         [primarySales, secondarySales] = await Promise.all([
-          SupabaseService.getPrimarySales(),
-          SupabaseService.getSecondarySales()
+          primaryQuery.then(result => result.data || []),
+          secondaryQuery.then(result => result.data || [])
         ]);
       }
       
