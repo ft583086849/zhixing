@@ -288,6 +288,11 @@ export const AdminAPI = {
       // 去重并整理客户信息 - 包括特殊标记的订单（如"XX下的直接购买"）
       const customerMap = new Map();
       orders.forEach(order => {
+        // 🔧 修复：排除已拒绝的订单
+        if (order.status === 'rejected') {
+          return; // 跳过已拒绝的订单
+        }
+        
         // 修复字段名称映射
         const customerWechat = order.customer_wechat || '';
         const tradingviewUser = order.tradingview_username || '';
@@ -361,6 +366,11 @@ export const AdminAPI = {
             expiry_date: expiryTime // 兼容字段名
           });
         } else if (customerMap.has(key)) {
+          // 已拒绝订单不累加到已有客户
+          if (order.status === 'rejected') {
+            return;
+          }
+          
           const customer = customerMap.get(key);
           customer.total_orders++; // 修复：使用正确的字段名
           customer.total_amount += parseFloat(order.actual_payment_amount || order.amount || 0);
@@ -698,12 +708,12 @@ export const AdminAPI = {
       if (params.wechat_name) {
         const searchTerm = params.wechat_name.toLowerCase();
         
-        // 先筛选匹配的一级销售（不区分大小写）
+        // 先筛选匹配的一级销售（精确匹配，不区分大小写）
         const matchedPrimarySales = primarySales.filter(sale => {
-          // 检查多个字段进行匹配
-          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase().includes(searchTerm);
-          const nameMatch = sale.name && sale.name.toLowerCase().includes(searchTerm);
-          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase().includes(searchTerm);
+          // 检查多个字段进行精确匹配
+          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase() === searchTerm;
+          const nameMatch = sale.name && sale.name.toLowerCase() === searchTerm;
+          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase() === searchTerm;
           return wechatMatch || nameMatch || codeMatch;
         });
         
@@ -712,10 +722,10 @@ export const AdminAPI = {
         
         // 筛选二级销售：直接匹配的 + 属于匹配的一级销售的
         secondarySales = secondarySales.filter(sale => {
-          // 直接匹配
-          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase().includes(searchTerm);
-          const nameMatch = sale.name && sale.name.toLowerCase().includes(searchTerm);
-          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase().includes(searchTerm);
+          // 直接精确匹配
+          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase() === searchTerm;
+          const nameMatch = sale.name && sale.name.toLowerCase() === searchTerm;
+          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase() === searchTerm;
           const directMatch = wechatMatch || nameMatch || codeMatch;
           
           // 或者属于匹配的一级销售
@@ -1374,6 +1384,14 @@ export const AdminAPI = {
   },
 
   /**
+   * 更新已返佣金额
+   */
+  async updatePaidCommission(salesId, salesType, amount) {
+    // 直接调用SalesAPI的方法
+    return SalesAPI.updatePaidCommission(salesId, salesType, amount);
+  },
+
+  /**
    * 更新佣金率 - 添加到AdminAPI
    */
   async updateCommissionRate(salesId, commissionRate, salesType) {
@@ -1550,6 +1568,12 @@ export const SalesAPI = {
    */
   async registerPrimary(salesData) {
     try {
+      // 🔧 字段映射：前端payment_address -> 数据库payment_account
+      if (salesData.payment_address) {
+        salesData.payment_account = salesData.payment_address;
+        delete salesData.payment_address;
+      }
+      
       // 生成唯一的销售代码 - 增强唯一性
       salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('PRI');
       salesData.secondary_registration_code = salesData.secondary_registration_code || this.generateUniqueSalesCode('SEC');
@@ -1614,6 +1638,12 @@ export const SalesAPI = {
    */
   async registerSecondary(salesData) {
     try {
+      // 🔧 字段映射：前端payment_address -> 数据库payment_account
+      if (salesData.payment_address) {
+        salesData.payment_account = salesData.payment_address;
+        delete salesData.payment_address;
+      }
+      
       // 生成唯一的销售代码 - 增强唯一性
       salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('SEC');
       salesData.sales_type = 'secondary';  // 添加sales_type字段
@@ -1651,6 +1681,39 @@ export const SalesAPI = {
       };
     } catch (error) {
       return handleError(error, '注册二级销售');
+    }
+  },
+
+  /**
+   * 更新已返佣金额
+   */
+  async updatePaidCommission(salesId, salesType, amount) {
+    try {
+      const table = salesType === 'primary' ? 'primary_sales' : 'secondary_sales';
+      
+      const { data, error } = await supabase
+        .from(table)
+        .update({ 
+          paid_commission: amount,
+          last_commission_paid_at: new Date().toISOString()
+        })
+        .eq('id', salesId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // 清除相关缓存
+      CacheManager.clear('sales');
+      CacheManager.clear('admin-sales');
+      
+      return { success: true, data };
+    } catch (error) {
+      console.error('更新已返佣金额失败:', error);
+      return { 
+        success: false, 
+        error: error.message || '更新失败' 
+      };
     }
   },
 

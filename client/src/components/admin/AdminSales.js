@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getSales, updateCommissionRate, downloadCommissionData } from '../../store/slices/adminSlice';
+import { AdminAPI } from '../../services/api';
 import { 
   formatCommissionRate, 
   calculatePrimaryCommissionRate as calculateRate,
@@ -530,8 +531,21 @@ const AdminSales = () => {
               type="primary"
               size="small"
               icon={<CheckOutlined />}
-              onClick={() => {
-                message.success('已返佣金额已确认');
+              onClick={async () => {
+                const amount = paidCommissionData[salesId] || 0;
+                const result = await AdminAPI.updatePaidCommission(
+                  salesId,
+                  record.sales_type || record.sales_display_type,
+                  amount
+                );
+                
+                if (result.success) {
+                  message.success('已返佣金额已保存');
+                  // 刷新数据
+                  dispatch(getSales());
+                } else {
+                  message.error(`保存失败: ${result.error}`);
+                }
               }}
             >
               确认
