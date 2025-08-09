@@ -994,6 +994,11 @@ export class SupabaseService {
       query = query.eq('status', params.status);
     }
     
+    // 🔧 新增：按订单金额筛选
+    if (params.amount !== undefined && params.amount !== null && params.amount !== '') {
+      query = query.eq('amount', params.amount);
+    }
+    
     // 支付方式过滤
     if (params.payment_method) {
       query = query.eq('payment_method', params.payment_method);

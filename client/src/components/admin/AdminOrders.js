@@ -751,26 +751,19 @@ const AdminOrders = () => {
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8} lg={6}>
-              <Form.Item name="amount_range" label="付款金额" style={{ marginBottom: 0 }}>
-                <Input.Group compact>
-                  <Input
-                    style={{ width: '40%', textAlign: 'center' }}
-                    placeholder="最小金额"
-                    name="min_amount"
-                    type="number"
-                  />
-                  <Input
-                    style={{ width: '20%', textAlign: 'center', borderLeft: 0, borderRight: 0, pointerEvents: 'none' }}
-                    placeholder="~"
-                    disabled
-                  />
-                  <Input
-                    style={{ width: '40%', textAlign: 'center', borderLeft: 0 }}
-                    placeholder="最大金额"
-                    name="max_amount"
-                    type="number"
-                  />
-                </Input.Group>
+              <Form.Item 
+                name="amount" 
+                label="订单金额" 
+                style={{ marginBottom: 0 }}
+                tooltip="按订单套餐价格筛选"
+              >
+                <Select placeholder="选择订单金额" allowClear style={{ width: '100%' }}>
+                  <Option value="0">免费体验（$0）</Option>
+                  <Option value="188">一个月（$188）</Option>
+                  <Option value="488">$488</Option>
+                  <Option value="888">六个月（$888）</Option>
+                  <Option value="1588">三个月（$1588）</Option>
+                </Select>
               </Form.Item>
             </Col>
             
