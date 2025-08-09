@@ -194,13 +194,16 @@ export class SupabaseService {
             .select('amount, actual_payment_amount, status')
             .eq('sales_code', sale.sales_code);
           
-          // 分别计算已确认和全部订单
-          const confirmedOrders = allOrders?.filter(o => 
+          // 🔧 修复：排除已拒绝的订单
+          const nonRejectedOrders = allOrders?.filter(o => o.status !== 'rejected') || [];
+          
+          // 分别计算已确认和全部订单（不包括rejected）
+          const confirmedOrders = nonRejectedOrders.filter(o => 
             ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(o.status)
           ) || [];
           
           const totalAmount = confirmedOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
-          const allOrdersAmount = allOrders?.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
+          const allOrdersAmount = nonRejectedOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
           
           // 使用佣金率计算佣金，如果没有设置则为0
           const commissionRate = sale.commission_rate || 0;
@@ -212,9 +215,9 @@ export class SupabaseService {
             total_orders: confirmedOrders.length,  // 已确认订单数（与一级销售统计口径一致）
             confirmed_orders: confirmedOrders.length,  // 已确认订单数
             total_amount: totalAmount,  // 已确认订单金额
-            all_orders_amount: allOrdersAmount,  // 所有订单金额
+            all_orders_amount: allOrdersAmount,  // 所有订单金额（不包括rejected）
             total_commission: commissionAmount,
-            order_count: allOrders?.length || 0,
+            order_count: nonRejectedOrders.length,  // 🔧 修复：使用非rejected订单数
             commission_rate: commissionRate  // 确保返回佣金率，即使是0
           });
         }

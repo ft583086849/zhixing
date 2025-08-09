@@ -290,9 +290,16 @@ const AdminSales = () => {
         rateToStore = newRate / 100;
       }
       
-      // 🔧 修复：获取正确的salesId和salesType（支持一级销售）
+      // 🔧 修复：获取正确的salesId和salesType（支持一级销售和独立销售）
       const actualSalesId = record.sales?.id;
       const actualSalesType = record.sales?.sales_type || record.sales_type || 'secondary';
+      
+      // 🔧 修复：独立销售需要特殊处理
+      // 独立销售在数据库中是secondary_sales表，但sales_type是'independent'
+      let tableType = actualSalesType;
+      if (actualSalesType === 'independent') {
+        tableType = 'secondary';  // 独立销售实际存在secondary_sales表中
+      }
       
       if (!actualSalesId) {
         console.error('无法获取销售ID，当前record数据:', record);
@@ -304,14 +311,15 @@ const AdminSales = () => {
         输入值: newRate, 
         存储值: rateToStore,
         salesType: actualSalesType,
+        tableType: tableType,  // 实际更新的表类型
         record: record 
       });
       
-      // 🔧 修复：使用正确的参数
+      // 🔧 修复：使用正确的参数（独立销售使用secondary表）
       await dispatch(updateCommissionRate({ 
         salesId: actualSalesId, 
         commissionRate: rateToStore,
-        salesType: actualSalesType
+        salesType: tableType  // 使用tableType而不是actualSalesType
       })).unwrap();
       
       // 清除编辑状态
