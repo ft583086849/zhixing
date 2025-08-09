@@ -772,84 +772,109 @@ export const AdminAPI = {
       
       // 2. 处理一级销售数据
       // 🔧 v2.5.6: 统一使用一级销售对账页面的数据逻辑
-      const processedPrimarySales = await Promise.all(primarySales.map(async sale => {
-        try {
-          // 调用标准的一级销售对账数据（与一级对账页面一致）
-          const settlementData = await SupabaseService.getPrimarySalesSettlement({
-            wechat_name: sale.wechat_name
-          });
-          
-          if (settlementData) {
-            const { sales: settlementSales, statistics, secondary_sales } = settlementData;
-            
-            // 生成链接
-            const baseUrl = window.location.origin;
-            const purchaseLink = `${baseUrl}/purchase/${sale.sales_code}`;
-            const salesRegisterLink = `${baseUrl}/secondary-registration/${sale.sales_code}`;
-            
-            const links = [
-              {
-                type: 'purchase',
-                title: '用户购买链接',
-                code: sale.sales_code,
-                fullUrl: purchaseLink,
-                description: '分享给用户进行购买'
-              },
-              {
-                type: 'sales_register',
-                title: '分销注册链接',
-                code: sale.sales_code,
-                fullUrl: salesRegisterLink,
-                description: '招募二级销售注册'
-              }
-            ];
-            
-            // 佣金率处理：如果是小数（0.4）转换为百分比（40）
-            let displayCommissionRate = settlementSales.commission_rate || 0.4;
-            if (displayCommissionRate > 0 && displayCommissionRate <= 1) {
-              displayCommissionRate = displayCommissionRate * 100;
-            }
-            
-            return {
-              // 保留原始销售数据
-              sales: {
-                ...sale,
-                ...settlementSales,
-                sales_type: 'primary',
-                commission_rate: displayCommissionRate,
-                payment_method: sale.payment_method || settlementSales.payment_method,
-                payment_account: sale.payment_account || settlementSales.payment_account
-              },
-              // 统计数据（使用对账页面的准确数据）
-              sales_type: 'primary',
-              sales_display_type: '一级销售',
-              total_orders: statistics.totalOrders || 0,
-              valid_orders: statistics.totalOrders || 0,
-              total_amount: Math.round((statistics.totalAmount || 0) * 100) / 100,
-              confirmed_amount: Math.round((statistics.totalAmount || 0) * 100) / 100,
-              commission_rate: displayCommissionRate,
-              commission_amount: Math.round((statistics.totalCommission || 0) * 100) / 100,
-              hierarchy_info: '一级销售',
-              secondary_sales_count: secondary_sales?.length || 0,
-              links: links,
-              // 添加时间维度数据
-              month_orders: statistics.monthOrders || 0,
-              month_amount: statistics.monthAmount || 0,
-              month_commission: statistics.monthCommission || 0,
-              today_orders: statistics.todayOrders || 0,
-              today_amount: statistics.todayAmount || 0,
-              today_commission: statistics.todayCommission || 0
-            };
-          } else {
-            // 如果没有获取到数据，抛出错误
-            throw new Error(`未找到销售 ${sale.wechat_name} 的对账数据`);
+      const processedPrimarySales = primarySales.map(sale => {
+        // 恢复原有逻辑，不强制使用统一数据源
+        // 获取该销售的所有订单（排除已拒绝的订单）
+        const saleOrders = orders.filter(order => 
+          (order.sales_code === sale.sales_code || 
+          order.primary_sales_id === sale.id) &&
+          order.status !== 'rejected'
+        );
+        
+        // 计算订单统计（不包含已拒绝的订单）
+        const totalOrders = saleOrders.length;
+        const validOrders = saleOrders.filter(order => 
+          ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
+        ).length;
+        
+        // 计算总金额（所有订单金额）
+        const totalAmount = saleOrders.reduce((sum, order) => {
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          // 人民币转美元
+          if (order.payment_method === 'alipay') {
+            return sum + (amount / 7.15);
           }
-        } catch (error) {
-          console.error(`❌ 获取一级销售 ${sale.wechat_name} 对账数据失败:`, error);
-          // 强制使用统一数据源，失败就抛出错误
-          throw new Error(`无法获取销售 ${sale.wechat_name} 的数据: ${error.message}`);
+          return sum + amount;
+        }, 0);
+        
+        // 计算已配置确认订单金额
+        const confirmedOrders = saleOrders.filter(order => 
+          ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
+        );
+        const confirmedAmount = confirmedOrders.reduce((sum, order) => {
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          if (order.payment_method === 'alipay') {
+            return sum + (amount / 7.15);
+          }
+          return sum + amount;
+        }, 0);
+        
+        // 佣金率处理 - 使用固定规则
+        let commissionRate;
+        if (sale.commission_rate !== null && sale.commission_rate !== undefined) {
+          commissionRate = sale.commission_rate;
+          // 如果是小数格式（0.4），转换为百分比（40）
+          if (commissionRate > 0 && commissionRate < 1) {
+            commissionRate = commissionRate * 100;
+          }
+        } else {
+          commissionRate = 40; // 默认40%
         }
-      }));
+        
+        // 使用固定佣金规则（40%总池）
+        const commissionAmount = confirmedAmount * (commissionRate / 100);
+        
+        // 获取管理的二级销售数量
+        const managedSecondaryCount = allSecondarySales.filter(s => s.primary_sales_id === sale.id).length;
+        
+        // 生成销售链接
+        const baseUrl = window.location.origin;
+        const purchaseLink = `${baseUrl}/purchase/${sale.sales_code}`;
+        const salesRegisterLink = `${baseUrl}/secondary-registration/${sale.sales_code}`;
+        
+        const links = [
+          {
+            type: 'purchase',
+            title: '用户购买链接',
+            code: sale.sales_code,
+            fullUrl: purchaseLink,
+            description: '分享给用户进行购买'
+          },
+          {
+            type: 'sales_register',
+            title: '分销注册链接',
+            code: sale.sales_code,
+            fullUrl: salesRegisterLink,
+            description: '招募二级销售注册'
+          }
+        ];
+        
+        const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
+        
+        return {
+          // 保留原始销售数据作为sales对象（前端组件需要）
+          sales: {
+            ...sale,
+            wechat_name: wechatName,
+            sales_type: 'primary',
+            commission_rate: commissionRate,
+            payment_method: sale.payment_method,
+            payment_account: sale.payment_account
+          },
+          // 顶层字段用于显示
+          sales_type: 'primary',
+          sales_display_type: '一级销售',
+          total_orders: totalOrders,
+          valid_orders: validOrders,
+          total_amount: Math.round(totalAmount * 100) / 100,
+          confirmed_amount: Math.round(confirmedAmount * 100) / 100,
+          commission_rate: commissionRate,
+          commission_amount: Math.round(commissionAmount * 100) / 100,
+          hierarchy_info: '一级销售',
+          secondary_sales_count: managedSecondaryCount,
+          links: links
+        };
+      });
       
       // 3. 处理二级销售数据
       const processedSecondarySales = secondarySales.map(sale => {

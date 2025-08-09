@@ -1098,21 +1098,24 @@ export class SupabaseService {
         let salesInfo = null;
         let salesType = null;
         
-        // 多重匹配逻辑
-        if (order.primary_sales_id && primarySalesById.has(order.primary_sales_id)) {
-          salesInfo = primarySalesById.get(order.primary_sales_id);
-          salesType = 'primary';
-        } else if (order.secondary_sales_id && secondarySalesById.has(order.secondary_sales_id)) {
-          salesInfo = secondarySalesById.get(order.secondary_sales_id);
-          salesType = 'secondary';
-        } else if (order.sales_code) {
-          if (primarySalesByCode.has(order.sales_code)) {
-            salesInfo = primarySalesByCode.get(order.sales_code);
-            salesType = 'primary';
-          } else if (secondarySalesByCode.has(order.sales_code)) {
+        // 🔧 修复：正确的匹配优先级 - sales_code优先（最准确）
+        if (order.sales_code) {
+          // 先通过sales_code判断是谁实际出的单
+          if (secondarySalesByCode.has(order.sales_code)) {
             salesInfo = secondarySalesByCode.get(order.sales_code);
             salesType = 'secondary';
+          } else if (primarySalesByCode.has(order.sales_code)) {
+            salesInfo = primarySalesByCode.get(order.sales_code);
+            salesType = 'primary';
           }
+        } else if (order.secondary_sales_id && secondarySalesById.has(order.secondary_sales_id)) {
+          // 其次使用secondary_sales_id
+          salesInfo = secondarySalesById.get(order.secondary_sales_id);
+          salesType = 'secondary';
+        } else if (order.primary_sales_id && primarySalesById.has(order.primary_sales_id)) {
+          // 最后才使用primary_sales_id（仅当没有sales_code和secondary_sales_id时）
+          salesInfo = primarySalesById.get(order.primary_sales_id);
+          salesType = 'primary';
         }
         
         if (salesInfo) {
