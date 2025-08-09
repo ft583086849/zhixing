@@ -772,13 +772,14 @@ export const AdminAPI = {
       
       // 2. 处理一级销售数据
       const processedPrimarySales = primarySales.map(sale => {
-        // 获取该销售的所有订单
+        // 获取该销售的所有订单（排除已拒绝的订单）
         const saleOrders = orders.filter(order => 
-          order.sales_code === sale.sales_code || 
-          order.primary_sales_id === sale.id
+          (order.sales_code === sale.sales_code || 
+          order.primary_sales_id === sale.id) &&
+          order.status !== 'rejected'
         );
         
-        // 计算订单统计
+        // 计算订单统计（不包含已拒绝的订单）
         const totalOrders = saleOrders.length;
         // 🔧 修复：有效订单应该是已确认的订单
         const validOrders = saleOrders.filter(order => 
@@ -880,10 +881,10 @@ export const AdminAPI = {
           }
         }
         
-        const commissionRate = dynamicCommissionRate;
+        const commissionRate = Math.round(dynamicCommissionRate * 100) / 100;  // 保留两位小数
         const commissionAmount = netCommissionAmount;
         
-        console.log(`📊 一级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${commissionRate}%, 应返佣金$${commissionAmount.toFixed(2)}`);
+        console.log(`📊 一级销售 ${sale.sales_code}: 订单${totalOrders}个, 有效${validOrders}个, 总额$${totalAmount.toFixed(2)}, 确认金额$${confirmedAmount.toFixed(2)}, 佣金率${commissionRate.toFixed(2)}%, 应返佣金$${commissionAmount.toFixed(2)}`);
         
         // 🔧 修复：确保wechat_name有值，如果销售表中为空，使用name或phone作为备选
         const wechatName = sale.wechat_name || sale.name || sale.phone || `一级销售-${sale.sales_code}`;
@@ -939,13 +940,14 @@ export const AdminAPI = {
       
       // 3. 处理二级销售数据
       const processedSecondarySales = secondarySales.map(sale => {
-        // 获取该销售的所有订单
+        // 获取该销售的所有订单（排除已拒绝的订单）
         const saleOrders = orders.filter(order => 
-          order.sales_code === sale.sales_code || 
-          order.secondary_sales_id === sale.id
+          (order.sales_code === sale.sales_code || 
+          order.secondary_sales_id === sale.id) &&
+          order.status !== 'rejected'
         );
         
-        // 计算订单统计
+        // 计算订单统计（不包含已拒绝的订单）
         const totalOrders = saleOrders.length;
         // 🔧 修复：有效订单应该是已确认的订单（移除pending_payment等待付款状态）
         const validOrders = saleOrders.filter(order => 
@@ -1248,8 +1250,7 @@ export const AdminAPI = {
       
       // 🔧 金额统计 - 优先使用实付金额
       let total_amount = 0;
-      let total_commission = 0;  // 已返佣金额（已确认订单）
-      let pending_commission = 0;  // 待返佣金额（未确认订单）
+      let total_commission = 0;  // 应返佣金总额（已确认订单）
       
       ordersToProcess.forEach(order => {
         // 🔧 修复：排除已拒绝的订单计算总收入和佣金
@@ -1265,14 +1266,15 @@ export const AdminAPI = {
           const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
           
           if (confirmedStatuses.includes(order.status)) {
-            // 已确认订单 - 已返佣金
+            // 已确认订单 - 应返佣金
             total_commission += commission;
-          } else if (['pending_payment', 'confirmed_payment', 'pending_config'].includes(order.status)) {
-            // 未确认订单 - 待返佣金
-            pending_commission += commission;
           }
         }
       });
+      
+      // 🔧 修复：待返佣金额 = 应返佣金额 - 已返佣金额
+      // 由于当前系统还没有记录已返佣金，所以待返佣金额等于应返佣金额
+      let pending_commission = total_commission;  // 目前没有已返记录，所以待返=应返
       
       // 🔧 销售统计 - 从订单表关联获取
       const salesFromOrders = new Set();
@@ -1389,6 +1391,7 @@ export const AdminAPI = {
         confirmed_config_orders,
         total_commission: Math.round(total_commission * 100) / 100,
         commission_amount: Math.round(total_commission * 100) / 100,  // 销售返佣金额
+        // 待返佣金额 = 应返佣金额 - 已返佣金额（暂时设为应返佣金额，因为还没有已返记录）
         pending_commission_amount: Math.round(pending_commission * 100) / 100,  // 待返佣金额
         // 🔧 优化：细分销售类型统计
         primary_sales_count: primarySales?.length || 0,
@@ -1429,6 +1432,14 @@ export const AdminAPI = {
       console.error('❌ 新数据概览API失败:', error);
       return this.getEmptyStats();
     }
+  },
+
+  /**
+   * 更新佣金率 - 添加到AdminAPI
+   */
+  async updateCommissionRate(salesId, commissionRate, salesType) {
+    // 直接调用SalesAPI的方法
+    return SalesAPI.updateCommissionRate(salesId, commissionRate, salesType);
   },
 
   /**
@@ -2095,6 +2106,14 @@ export const authAPI = {
 export const publicAPI = {
   getPaymentConfig: async () => ({ data: {} }),
 };
+
+// 🔧 将API暴露到window对象以便调试
+if (typeof window !== 'undefined') {
+  window.AdminAPI = AdminAPI;
+  window.SalesAPI = SalesAPI;
+  window.OrdersAPI = OrdersAPI;
+  console.log('✅ API已暴露到window对象');
+}
 
 // 导出CacheManager类
 export { CacheManager };

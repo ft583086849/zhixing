@@ -274,21 +274,20 @@ const AdminSales = () => {
   const handleConfirmCommissionRate = async (salesId, record) => {
     try {
       const newRate = editingCommissionRates[salesId];
-      // 🔧 修复：支持设置佣金率为0
-      // 根据数据库当前格式决定存储格式
-      let rateToStore = newRate;
+      // 🔧 统一处理：全部转换为小数格式存储
+      let rateToStore;
       
-      // 如果数据库中当前值存在且小于1（说明是小数格式），则转换为小数存储
       // 特别处理：允许设置为0
       if (newRate === 0) {
         rateToStore = 0; // 直接设置为0
-      } else if (record.sales?.commission_rate !== undefined && 
-                 record.sales.commission_rate !== null && 
-                 record.sales.commission_rate < 1 && 
-                 record.sales.commission_rate > 0) {
-        // 数据库是小数格式，转换百分比为小数
+      } else {
+        // 统一转换为小数格式（0-1之间）
+        // 用户输入的是百分比（如25），转换为小数（0.25）
         rateToStore = newRate / 100;
       }
+      
+      // 处理浮点数精度问题
+      rateToStore = Math.round(rateToStore * 10000) / 10000;
       
       // 🔧 修复：获取正确的salesId和salesType（支持一级销售和独立销售）
       const actualSalesId = record.sales?.id;
