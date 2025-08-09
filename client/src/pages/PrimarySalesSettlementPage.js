@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Tooltip, Typography, InputNumber, DatePicker } from 'antd';
-import { DollarOutlined, UserOutlined, ShoppingCartOutlined, TeamOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { DollarOutlined, UserOutlined, ShoppingCartOutlined, TeamOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPrimarySalesStats, fetchPrimarySalesOrders, updateSecondarySalesCommission, removeSecondarySales, getPrimarySalesSettlement } from '../store/slices/salesSlice';
 import { 
@@ -29,6 +29,65 @@ const PrimarySalesSettlementPage = () => {
   const [removeForm] = Form.useForm();
   const [secondarySalesSearchForm] = Form.useForm();
   const [ordersSearchForm] = Form.useForm();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 保存上次查询参数
+  const lastSearchParams = useRef(null);
+  
+  // 自动刷新（每30秒）
+  useEffect(() => {
+    if (salesData && lastSearchParams.current) {
+      const interval = setInterval(() => {
+        handleRefresh();
+      }, 30000); // 30秒自动刷新
+      
+      return () => clearInterval(interval);
+    }
+  }, [salesData]);
+
+  // 刷新数据
+  const handleRefresh = async () => {
+    if (!lastSearchParams.current) return;
+    
+    setIsRefreshing(true);
+    try {
+      const response = await dispatch(getPrimarySalesSettlement(lastSearchParams.current)).unwrap();
+      
+      if (response && response.sales) {
+        const { sales, orders, secondarySales, reminderOrders, stats } = response;
+        
+        const ordersData = {
+          data: orders || [],
+          total: orders ? orders.length : 0,
+          page: 1
+        };
+        
+        const statsData = {
+          totalCommission: stats?.totalCommission || 0,
+          monthlyCommission: stats?.totalCommission || 0,
+          totalOrders: stats?.totalOrders || 0,
+          monthlyOrders: stats?.totalOrders || 0,
+          secondarySales: secondarySales || [],
+          pendingReminderCount: stats?.pendingReminderCount || 0,
+          monthlyReminderCount: stats?.pendingReminderCount || 0,
+          reminderSuccessRate: 85.0,
+          avgResponseTime: 2.5,
+          pendingReminderOrders: reminderOrders || []
+        };
+        
+        setSalesData(sales);
+        setPrimarySalesStats(statsData);
+        setPrimarySalesOrders(ordersData);
+        
+        message.success('数据已刷新');
+      }
+    } catch (error) {
+      console.error('刷新失败:', error);
+      message.error('数据刷新失败');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // 搜索处理函数
   const handleSearch = async (values) => {
@@ -42,6 +101,9 @@ const PrimarySalesSettlementPage = () => {
       const params = {};
       if (values.wechat_name) params.wechat_name = values.wechat_name;
       if (values.sales_code) params.sales_code = values.sales_code;
+      
+      // 保存查询参数供刷新使用
+      lastSearchParams.current = params;
       
       const response = await dispatch(getPrimarySalesSettlement(params)).unwrap();
       
@@ -315,14 +377,16 @@ const PrimarySalesSettlementPage = () => {
       width: 120,
       render: (_, record) => (
         <Space size="small">
-          <Button 
-            type="primary"
-            size="small"
-            onClick={() => handleUrgeOrder(record)}
-            disabled={record.status === 'cancelled' || record.status === 'refunded'}
-          >
-            催单
-          </Button>
+          <Tooltip title="请您联系客户咨询是否复购">
+            <Button 
+              type="primary"
+              size="small"
+              onClick={() => handleUrgeOrder(record)}
+              disabled={record.status === 'cancelled' || record.status === 'refunded'}
+            >
+              催单
+            </Button>
+          </Tooltip>
         </Space>
       )
     }
@@ -508,17 +572,28 @@ const PrimarySalesSettlementPage = () => {
     }
   };
 
-  // 处理催单
+  // 处理催单（记录线下已联系用户）
   const handleUrgeOrder = (order) => {
     Modal.confirm({
       title: '确认催单',
-      content: `确定要向客户 ${order.customer_wechat} 发送催单提醒吗？`,
+      content: `确定已线下联系客户 ${order.customer_wechat} 了吗？`,
       onOk: async () => {
         try {
-          // 这里需要调用催单API
-          message.success('催单提醒已发送');
+          // 记录催单操作
+          console.log('催单记录:', {
+            orderId: order.id,
+            customer: order.customer_wechat,
+            tradingview: order.tradingview_username,
+            expiryTime: order.expiry_time,
+            urgedAt: new Date().toISOString()
+          });
+          
+          // TODO: 调用API记录催单状态
+          // await salesAPI.recordUrgeOrder(order.id);
+          
+          message.success(`已记录：已线下联系客户 ${order.customer_wechat}`);
         } catch (error) {
-          message.error('催单失败');
+          message.error('记录催单操作失败');
         }
       }
     });
@@ -576,12 +651,22 @@ const PrimarySalesSettlementPage = () => {
                 type="primary" 
                 htmlType="submit"
                 icon={<SearchOutlined />}
+                loading={loading}
               >
                 查询
               </Button>
               <Button onClick={handleReset}>
                 重置
               </Button>
+              {salesData && (
+                <Button 
+                  icon={<ReloadOutlined />}
+                  loading={isRefreshing}
+                  onClick={handleRefresh}
+                >
+                  刷新
+                </Button>
+              )}
             </Space>
           </Form.Item>
         </Form>

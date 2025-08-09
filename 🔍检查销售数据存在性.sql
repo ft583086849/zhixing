@@ -111,3 +111,4 @@ SELECT
     COUNT(*) FILTER (WHERE wechat_name = '王五') as wangwu_records
 FROM secondary_sales_stats;
 
+

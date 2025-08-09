@@ -47,7 +47,7 @@ class CacheManager {
     stats: 0,                   // 统计数据：不缓存，实时获取
     sales: 0,                   // 销售数据：不缓存，实时获取
     orders: 0,                  // 订单数据：不缓存，实时获取
-    customers: 30 * 1000,       // 客户数据：30秒（防抖）
+    customers: 0,               // 客户数据：不缓存，实时获取
     config: 5 * 60 * 1000       // 配置数据：5分钟（很少变化）
   };
   
@@ -489,7 +489,7 @@ export const AdminAPI = {
       return {
         alipay_account: '752304285@qq.com',
         alipay_name: '梁',
-        crypto_chain_name: 'TRC10/TRC20',
+        crypto_chain_name: 'BSC/TRC20',
         crypto_address: 'TDnNfU9GYcDbzFqf8LUNzBuTsaDbCh5LTo',
         alipay_qr_code: null,
         crypto_qr_code: null
@@ -1617,6 +1617,16 @@ export const SalesAPI = {
    */
   async updateCommissionRate(salesId, commissionRate, salesType) {
     try {
+      // 添加参数验证
+      if (!salesId) {
+        throw new Error('销售ID不能为空');
+      }
+      if (commissionRate === null || commissionRate === undefined) {
+        throw new Error('佣金率不能为空');
+      }
+      
+      console.log('更新佣金率参数:', { salesId, commissionRate, salesType });
+      
       let updatedSale;
       
       if (salesType === 'primary') {
@@ -1639,6 +1649,7 @@ export const SalesAPI = {
         message: '佣金比率更新成功'
       };
     } catch (error) {
+      console.error('更新佣金比率失败:', error);
       return handleError(error, '更新佣金比率');
     }
   },

@@ -367,11 +367,12 @@ const AdminCustomers = () => {
             y: 'calc(100vh - 420px)'  // 设置纵向高度
           }}
           pagination={{
-            pageSize: 20,
+            pageSize: 100,
+            defaultPageSize: 100,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100', '200'],
           }}
           loading={loading}
           locale={{

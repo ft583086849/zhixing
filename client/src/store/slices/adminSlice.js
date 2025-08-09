@@ -123,13 +123,13 @@ export const getSalesHierarchyStats = createAsyncThunk(
 // 异步action：更新佣金比率
 export const updateCommissionRate = createAsyncThunk(
   'admin/updateCommissionRate',
-  async ({ salesId, commissionRate }, { rejectWithValue }) => {
+  async ({ salesId, commissionRate, salesType }, { rejectWithValue }) => {
     try {
-      const response = await adminAPI.updateCommissionRate(salesId, commissionRate);
+      const response = await adminAPI.updateCommissionRate(salesId, commissionRate, salesType);
       // 🔧 修复：保持一致性，直接返回response
       return response;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || '更新佣金比率失败');
+      return rejectWithValue(error.response?.data?.message || error.message || '更新佣金比率失败');
     }
   }
 );

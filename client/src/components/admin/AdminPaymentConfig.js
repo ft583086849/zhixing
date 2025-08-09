@@ -159,7 +159,7 @@ const AdminPaymentConfig = () => {
               name="crypto_chain_name"
               rules={[{ required: true, message: '请输入链名' }]}
             >
-              <Input placeholder="如：TRC10/TRC20" />
+              <Input placeholder="如：BSC/TRC20" />
             </Form.Item>
             
             <Form.Item

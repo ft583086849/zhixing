@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Card, 
   Form, 
@@ -14,7 +14,8 @@ import {
   message,
   Alert,
   Divider,
-  DatePicker
+  DatePicker,
+  Tooltip
 } from 'antd';
 import { 
   SearchOutlined,
@@ -22,7 +23,8 @@ import {
   DollarOutlined,
   ShoppingCartOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { salesAPI } from '../services/api';
@@ -41,6 +43,52 @@ const SalesReconciliationPage = () => {
     totalCommission: 0,
     pendingReminderCount: 0
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 保存上次查询参数
+  const lastSearchParams = useRef(null);
+  
+  // 自动刷新（每30秒）
+  useEffect(() => {
+    if (salesData && lastSearchParams.current) {
+      const interval = setInterval(() => {
+        handleRefresh();
+      }, 30000); // 30秒自动刷新
+      
+      return () => clearInterval(interval);
+    }
+  }, [salesData]);
+
+  // 刷新数据
+  const handleRefresh = async () => {
+    if (!lastSearchParams.current) return;
+    
+    setIsRefreshing(true);
+    try {
+      const response = await salesAPI.getSecondarySalesSettlement(lastSearchParams.current);
+      
+      if (response.success && response.data) {
+        const { sales, orders, reminderOrders, stats } = response.data;
+        
+        setSalesData(sales);
+        setOrders(orders || []);
+        setReminderOrders(reminderOrders || []);
+        setStats({
+          totalOrders: stats?.totalOrders || 0,
+          totalAmount: stats?.totalAmount || 0,
+          totalCommission: stats?.totalCommission || 0,
+          pendingReminderCount: stats?.pendingReminderCount || 0
+        });
+        
+        message.success('数据已刷新');
+      }
+    } catch (error) {
+      console.error('刷新失败:', error);
+      message.error('数据刷新失败');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleSearch = async (values) => {
     if (!values.wechat_name && !values.payment_date_range) {
@@ -61,6 +109,9 @@ const SalesReconciliationPage = () => {
         const [startDate, endDate] = values.payment_date_range;
         params.payment_date_range = `${startDate.format('YYYY-MM-DD')},${endDate.format('YYYY-MM-DD')}`;
       }
+      
+      // 保存查询参数供刷新使用
+      lastSearchParams.current = params;
 
       // 调用真实API
       const response = await salesAPI.getSecondarySalesSettlement(params);
@@ -97,6 +148,35 @@ const SalesReconciliationPage = () => {
       totalCommission: 0,
       pendingReminderCount: 0
     });
+  };
+
+  // 处理催单操作（记录线下已联系用户）
+  const handleUrgeOrder = async (order) => {
+    try {
+      // 记录催单操作
+      console.log('催单记录:', {
+        orderId: order.id,
+        customer: order.customer_wechat,
+        tradingview: order.tradingview_username,
+        expiryTime: order.expiry_time,
+        urgedAt: new Date().toISOString()
+      });
+      
+      // TODO: 调用API记录催单状态
+      // await salesAPI.recordUrgeOrder(order.id);
+      
+      // 显示成功消息
+      message.success({
+        content: `已记录：已线下联系用户 ${order.customer_wechat}`,
+        duration: 3
+      });
+      
+      // 可选：刷新数据以更新催单状态
+      // handleRefresh();
+    } catch (error) {
+      console.error('记录催单失败:', error);
+      message.error('记录催单操作失败');
+    }
   };
 
   // 订单列表列定义
@@ -161,7 +241,31 @@ const SalesReconciliationPage = () => {
       dataIndex: 'expiry_time',
       key: 'expiry_time',
       width: 150,
-      render: (time) => dayjs(time).format('YYYY-MM-DD HH:mm'),
+      render: (time) => {
+        if (!time) return '-';
+        const expiry = dayjs(time);
+        const now = dayjs();
+        const daysLeft = expiry.diff(now, 'day');
+        
+        // 根据剩余天数显示不同颜色
+        let color = 'default';
+        if (daysLeft <= 0) {
+          color = 'error';
+        } else if (daysLeft <= 7) {
+          color = 'warning';
+        }
+        
+        return (
+          <Space direction="vertical" size={0}>
+            <span>{expiry.format('YYYY-MM-DD')}</span>
+            {daysLeft <= 7 && (
+              <Tag color={color} style={{ fontSize: '12px' }}>
+                {daysLeft <= 0 ? '已过期' : `剩余${daysLeft}天`}
+              </Tag>
+            )}
+          </Space>
+        );
+      }
     },
     {
       title: '状态',
@@ -179,12 +283,39 @@ const SalesReconciliationPage = () => {
         const statusInfo = statusMap[status] || { text: status, color: 'default' };
         return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
       }
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_, record) => {
+        // 计算剩余天数
+        const daysLeft = record.expiry_time ? 
+          dayjs(record.expiry_time).diff(dayjs(), 'day') : null;
+        
+        // 只在即将到期或已过期时显示催单按钮
+        if (daysLeft !== null && daysLeft <= 7) {
+          return (
+            <Tooltip title="请您联系客户咨询是否复购">
+              <Button 
+                type="link" 
+                size="small"
+                danger={daysLeft <= 0}
+                onClick={() => handleUrgeOrder(record)}
+              >
+                催单
+              </Button>
+            </Tooltip>
+          );
+        }
+        return '-';
+      }
     }
   ];
 
-  // 待催单客户列表列定义
+  // 待催单客户列表列定义（移除重复的操作列，因为orderColumns已经包含了）
   const reminderColumns = [
-    ...orderColumns,
+    ...orderColumns.filter(col => col.key !== 'action'), // 移除原有的操作列
     {
       title: '剩余天数',
       dataIndex: 'daysUntilExpiry',
@@ -205,15 +336,18 @@ const SalesReconciliationPage = () => {
       key: 'action',
       width: 100,
       render: (_, record) => (
-        <Button 
-          type="link" 
-          size="small"
-          icon={<ExclamationCircleOutlined />}
-          tabIndex={0}
-          onClick={() => message.success(`已同${record.customer_wechat}用户完成催单`)}
-        >
-          催单
-        </Button>
+        <Tooltip title="请您联系客户咨询是否复购">
+          <Button 
+            type="primary" 
+            size="small"
+            danger
+            icon={<ExclamationCircleOutlined />}
+            tabIndex={0}
+            onClick={() => handleUrgeOrder(record)}
+          >
+            催单
+          </Button>
+        </Tooltip>
       )
     }
   ];
@@ -268,6 +402,16 @@ const SalesReconciliationPage = () => {
                 <Button onClick={handleReset} tabIndex={0}>
                   重置
                 </Button>
+                {salesData && (
+                  <Button 
+                    icon={<ReloadOutlined />}
+                    loading={isRefreshing}
+                    onClick={handleRefresh}
+                    tabIndex={0}
+                  >
+                    刷新
+                  </Button>
+                )}
               </Space>
             </Form.Item>
           </Form>

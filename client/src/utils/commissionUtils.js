@@ -95,7 +95,11 @@ export const calculatePrimaryCommissionRate = (data) => {
   // 一级销售直接订单佣金：金额 × 40%
   const primaryDirectCommission = primaryDirectAmount * 0.4;
   
-  // 一级销售从二级销售获得的佣金：金额 × (40% - 二级销售佣金率)
+  // 一级销售从二级销售获得的佣金：
+  // 根据需求文档公式：二级销售订单总金额 - 二级销售分佣比率平均值×二级销售订单总金额
+  // = 二级销售订单总金额 × (1 - 二级销售分佣比率平均值)  
+  // 但实际上二级销售只拿自己的佣金率部分，剩余的归一级销售
+  // 正确计算：总佣金40% - 给二级的部分 = 0.4 - averageSecondaryRate
   const primaryFromSecondaryCommission = secondaryTotalAmount * (0.4 - averageSecondaryRate);
   
   // 总佣金

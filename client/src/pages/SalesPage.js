@@ -135,9 +135,9 @@ const SalesPage = () => {
               rules={[{ required: true, message: '请输入链名' }]}
              >
               <Input 
-                placeholder="例如：TRC10/TRC20"
+                placeholder="例如：BSC/TRC20"
                 size="large"
-                aria-label="例如：TRC10/TRC20"
+                aria-label="例如：BSC/TRC20"
               />
             </Form.Item>
             <Form.Item

@@ -398,6 +398,58 @@ export class SupabaseService {
         .in('status', ['pending_payment', 'pending_config'])
         .order('created_at', { ascending: false });
       
+      // 为订单计算到期时间
+      const calculateExpiryTime = (order) => {
+        if (!order.effective_time && !order.created_at) return null;
+        
+        const startDate = new Date(order.effective_time || order.created_at);
+        const expiryDate = new Date(startDate);
+        
+        // 根据购买时长计算到期时间
+        switch(order.duration) {
+          case '7days':
+            expiryDate.setDate(expiryDate.getDate() + 7);
+            break;
+          case '1month':
+            expiryDate.setMonth(expiryDate.getMonth() + 1);
+            break;
+          case '3months':
+            expiryDate.setMonth(expiryDate.getMonth() + 3);
+            break;
+          case '6months':
+            expiryDate.setMonth(expiryDate.getMonth() + 6);
+            break;
+          case '1year':
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+            break;
+          default:
+            return null;
+        }
+        
+        return expiryDate.toISOString();
+      };
+      
+      // 为所有订单添加到期时间
+      if (confirmedOrders) {
+        confirmedOrders.forEach(order => {
+          order.expiry_time = calculateExpiryTime(order);
+        });
+      }
+      
+      if (reminderOrders) {
+        reminderOrders.forEach(order => {
+          order.expiry_time = calculateExpiryTime(order);
+          // 计算剩余天数
+          if (order.expiry_time) {
+            const now = new Date();
+            const expiry = new Date(order.expiry_time);
+            const diffTime = expiry - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            order.daysUntilExpiry = diffDays;
+          }
+        });
+      }
+      
       // 4. 返回整合的数据
       return {
         sales: {

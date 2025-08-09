@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   Table, 
@@ -25,10 +25,12 @@ import {
   EyeOutlined,
   CheckOutlined,
   CloseOutlined,
-  StopOutlined
+  StopOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getAdminOrders, updateAdminOrderStatus, exportOrders } from '../../store/slices/adminSlice';
+import { getAdminOrders, updateAdminOrderStatus, exportOrders, getStats } from '../../store/slices/adminSlice';
+import DataRefreshManager from '../../utils/dataRefresh';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -42,13 +44,17 @@ const AdminOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 保存上次查询参数
+  const lastSearchParams = useRef(null);
 
   // 获取订单列表
   const fetchOrders = (params = {}) => {
     const searchValues = searchForm.getFieldsValue();
     const queryParams = {
-      page: pagination?.page || 1,
-      limit: pagination?.limit || 20,
+      page: params.page || pagination?.page || 1,
+      limit: params.limit || 100,  // 增加默认分页大小到100
       ...searchValues,
       ...params
     };
@@ -78,11 +84,45 @@ const AdminOrders = () => {
       delete queryParams.expiry_date_range;
     }
 
+    // 保存查询参数供刷新使用
+    lastSearchParams.current = queryParams;
+    
     dispatch(getAdminOrders(queryParams));
+  };
+
+  // 手动刷新数据
+  const handleRefresh = async () => {
+    if (!lastSearchParams.current) {
+      fetchOrders();
+      return;
+    }
+    
+    setIsRefreshing(true);
+    try {
+      await dispatch(getAdminOrders(lastSearchParams.current));
+      await dispatch(getStats({ usePaymentTime: true }));
+      message.success('数据已刷新');
+    } catch (error) {
+      console.error('刷新失败:', error);
+      message.error('数据刷新失败');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   useEffect(() => {
     fetchOrders();
+  }, []);
+  
+  // 自动刷新（每30秒）
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (lastSearchParams.current) {
+        handleRefresh();
+      }
+    }, 30000); // 30秒自动刷新
+    
+    return () => clearInterval(interval);
   }, []);
 
   // 处理分页变化
@@ -142,9 +182,10 @@ const AdminOrders = () => {
       console.log('开始更新订单状态:', { orderId, status });
       await dispatch(updateAdminOrderStatus({ orderId, status })).unwrap();
       message.success('状态更新成功');
-      // 延迟刷新订单列表，确保后端状态已更新
-      setTimeout(() => {
-        fetchOrders();
+      // 使用全局数据刷新管理器，确保所有相关数据都更新
+      setTimeout(async () => {
+        await DataRefreshManager.onOrderStatusUpdate();
+        fetchOrders(); // 也刷新当前页面的订单列表
       }, 500);
     } catch (error) {
       console.error('状态更新失败:', error);
@@ -732,6 +773,14 @@ const AdminOrders = () => {
                   重置
                 </Button>
                 <Button 
+                  icon={<ReloadOutlined />}
+                  loading={isRefreshing}
+                  onClick={handleRefresh}
+                  size="middle"
+                >
+                  刷新
+                </Button>
+                <Button 
                   icon={<ExportOutlined />} 
                   onClick={handleExport}
                   size="middle"
@@ -756,12 +805,13 @@ const AdminOrders = () => {
           }}
           pagination={{
             current: pagination?.page || 1,
-            pageSize: pagination?.limit || 20,
-            total: pagination?.total || 0,
+            pageSize: pagination?.limit || 100,
+            total: orders?.length || pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100', '200'],
+            defaultPageSize: 100,
           }}
           loading={loading}
           onChange={handleTableChange}

@@ -68,3 +68,4 @@ WHERE customer_wechat = '89一级下的直接购买'
 GROUP BY customer_wechat, tradingview_username
 HAVING COUNT(*) > 0;
 
+

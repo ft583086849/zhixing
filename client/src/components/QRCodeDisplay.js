@@ -5,7 +5,7 @@ import { ShareAltOutlined, CopyOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
-const QRCodeDisplay = ({ address, chainName = 'TRC10/TRC20' }) => {
+const QRCodeDisplay = ({ address, chainName = 'BSC/TRC20' }) => {
   const [qrCodeUrl, setQrCodeUrl] = React.useState('');
 
   React.useEffect(() => {

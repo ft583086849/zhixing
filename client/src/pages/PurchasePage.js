@@ -59,7 +59,7 @@ const PurchasePage = () => {
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   // const [alipayAmount, setAlipayAmount] = useState(''); // 已移除支付宝
-  const [cryptoAmount, setCryptoAmount] = useState('');
+  // const [cryptoAmount, setCryptoAmount] = useState(''); // 改为Form.Item管理
 
   // 时长选项和价格
   const durationOptions = [
@@ -154,7 +154,9 @@ const PurchasePage = () => {
       }
       // 免费订单不需要验证付款金额和截图
       if (selectedDuration !== '7days') {
-        if (!cryptoAmount) {
+        // 获取付款金额
+        const paymentAmount = values.crypto_amount;
+        if (!paymentAmount) {
           message.error('请输入链上地址付款金额');
           return;
         }
@@ -172,7 +174,7 @@ const PurchasePage = () => {
       }
 
       // 计算实付金额：对于免费订单为0，对于付费订单使用用户输入的金额
-      const actualPaymentAmount = selectedDuration === '7days' ? 0 : parseFloat(cryptoAmount) || 0;
+      const actualPaymentAmount = selectedDuration === '7days' ? 0 : parseFloat(values.crypto_amount) || 0;
 
       const formData = {
         sales_code: linkCode, // 使用新的sales_code字段
@@ -187,10 +189,13 @@ const PurchasePage = () => {
         purchase_type: purchaseType, // 发送原始值，后端负责映射
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
         screenshot_data: screenshotData,
-        crypto_amount: cryptoAmount || null
+        crypto_amount: values.crypto_amount || null
       };
 
       await dispatch(createOrder(formData)).unwrap();
+      
+      // 清除之前的订单状态，允许重复提交
+      dispatch(clearCreatedOrder());
       
       // 根据订单类型显示不同的提示信息
       if (selectedDuration === '7days') {
@@ -221,12 +226,15 @@ const PurchasePage = () => {
         });
       }
       
-      form.resetFields();
+      // 保留用户输入的字段，只清空文件和时间相关的字段
       setFileList([]);
-      // setAlipayAmount(''); // 已移除支付宝
-      setCryptoAmount('');
-      setPurchaseType('immediate');
+      // 只清空付款时间和生效时间字段，以及付款金额
+      form.setFieldsValue({
+        payment_time: null,
+        crypto_amount: null
+      });
       setEffectiveTime(null);
+      // 注意：不再清空其他字段，保留用户输入
     } catch (error) {
       // 用户购买失败友好提示 - 显示具体错误但保持友好性
       console.error('订单提交失败:', error);
@@ -435,15 +443,14 @@ const PurchasePage = () => {
               </Space>
             </Card>
             
-            {/* 链上地址付款金额输入 */}
+            {/* 链上地址付款金额输入 - 改为受控的Form.Item */}
             <Form.Item
+              name="crypto_amount"
               label="付款金额（美元）"
-              required>
+              rules={[{ required: true, message: '请输入付款金额' }]}>
               <Input
                 type="number"
                 placeholder="请输入付款金额"
-                value={cryptoAmount}
-                onChange={(e) => setCryptoAmount(e.target.value)}
                 aria-label="请输入付款金额"
                 addonAfter="美元"
                 size="large"
@@ -734,7 +741,7 @@ const PurchasePage = () => {
                 disabled={
                   !selectedDuration || 
                   (selectedDuration !== '7days' && !paymentMethod) || 
-                  (selectedDuration !== '7days' && !cryptoAmount) ||
+                  (selectedDuration !== '7days' && !form.getFieldValue('crypto_amount')) ||
                   (purchaseType === 'advance' && !effectiveTime)
                 }
                 style={{
