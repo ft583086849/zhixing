@@ -869,7 +869,8 @@ export const AdminAPI = {
             sales_type: 'primary',
             commission_rate: commissionRate,
             payment_method: sale.payment_method,
-            payment_account: sale.payment_account
+            payment_account: sale.payment_account,
+            chain_name: sale.chain_name  // 🔧 添加chain_name字段
           },
           // 顶层字段用于显示
           sales_type: 'primary',
@@ -1006,7 +1007,10 @@ export const AdminAPI = {
             ...sale,
             wechat_name: wechatName,
             sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'
-            commission_rate: commissionRate
+            commission_rate: commissionRate,
+            payment_method: sale.payment_method,
+            payment_account: sale.payment_account,
+            chain_name: sale.chain_name  // 🔧 添加chain_name字段
           },
           // 顶层字段用于显示
           sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'

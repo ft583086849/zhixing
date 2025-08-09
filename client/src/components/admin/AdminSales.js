@@ -559,18 +559,26 @@ const AdminSales = () => {
       key: 'payment_chain',
       width: 120,
       render: (_, record) => {
-        // 🔧 新增：显示销售的收款链名（用于打款）
+        // 🔧 修复：直接显示chain_name字段（用于打款）
+        const chainName = record.sales?.chain_name;
         const paymentMethod = record.sales?.payment_method;
-        const chainMap = {
-          'usdt_trc20': 'TRC20',
-          'usdt_bsc': 'BSC',
-          'alipay': '支付宝',
-          'wechat': '微信',
-          'bank': '银行卡'
-        };
+        
+        // 如果有chain_name直接使用，否则根据payment_method映射
+        let displayName = chainName;
+        if (!chainName && paymentMethod) {
+          const chainMap = {
+            'usdt_trc20': 'TRC20',
+            'usdt_bsc': 'BSC',
+            'alipay': '支付宝',
+            'wechat': '微信',
+            'bank': '银行卡'
+          };
+          displayName = chainMap[paymentMethod] || paymentMethod;
+        }
+        
         return (
           <Tag color="purple">
-            {chainMap[paymentMethod] || paymentMethod || '-'}
+            {displayName || '-'}
           </Tag>
         );
       }

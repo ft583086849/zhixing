@@ -26,6 +26,7 @@ async function checkAllSales() {
       primarySales.forEach(sale => {
         console.log(`\n[${sale.id}] ${sale.wechat_name || sale.name}`);
         console.log(`  - sales_code: ${sale.sales_code}`);
+        console.log(`  - chain_name: ${sale.chain_name || '未设置'}`);
         console.log(`  - payment_method: ${sale.payment_method || '未设置'}`);
         console.log(`  - payment_account: ${sale.payment_account || '未设置'}`);
         console.log(`  - commission_rate: ${sale.commission_rate}`);
@@ -48,6 +49,7 @@ async function checkAllSales() {
         console.log(`\n[${sale.id}] ${sale.wechat_name || sale.name}`);
         console.log(`  - sales_code: ${sale.sales_code}`);
         console.log(`  - primary_sales_id: ${sale.primary_sales_id || '独立销售'}`);
+        console.log(`  - chain_name: ${sale.chain_name || '未设置'}`);
         console.log(`  - payment_method: ${sale.payment_method || '未设置'}`);
         console.log(`  - payment_account: ${sale.payment_account || '未设置'}`);
         console.log(`  - commission_rate: ${sale.commission_rate}`);
