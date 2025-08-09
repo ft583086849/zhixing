@@ -1274,7 +1274,7 @@ export const AdminAPI = {
       
       // 🔧 修复：待返佣金额 = 应返佣金额 - 已返佣金额
       // 由于当前系统还没有记录已返佣金，所以待返佣金额等于应返佣金额
-      let pending_commission = total_commission;  // 目前没有已返记录，所以待返=应返
+      const pending_commission = total_commission;  // 目前没有已返记录，所以待返=应返
       
       // 🔧 销售统计 - 从订单表关联获取
       const salesFromOrders = new Set();
