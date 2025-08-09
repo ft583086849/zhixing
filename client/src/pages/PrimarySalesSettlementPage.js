@@ -430,10 +430,11 @@ const PrimarySalesSettlementPage = () => {
       key: 'commission_rate',
       width: 100,
       render: (rate) => {
-        // 🔧 修复：如果佣金率为0或未设置，显示"未设置"
-        if (!rate || rate === 0) {
+        // 🔧 修复：区分0和未设置的情况
+        if (rate === null || rate === undefined) {
           return <Tag color="orange">未设置</Tag>;
         }
+        // 允许显示0%
         return `${(rate * 100).toFixed(1)}%`;
       }
     },
@@ -495,10 +496,11 @@ const PrimarySalesSettlementPage = () => {
   // 处理更新佣金率
   const handleUpdateCommission = (secondarySales) => {
     setSelectedSecondarySales(secondarySales);
-    // 🔧 修复：处理未设置佣金的情况，默认显示25%
-    const currentRate = secondarySales.commission_rate || 0;
+    // 🔧 修复：正确处理佣金率，包括0值
+    const currentRate = secondarySales.commission_rate;
     commissionForm.setFieldsValue({
-      commission_rate: currentRate > 0 ? currentRate * 100 : 25  // 如果未设置，默认25%
+      // 如果是undefined或null则设置默认值，但0是有效值
+      commission_rate: (currentRate !== null && currentRate !== undefined) ? currentRate * 100 : 30
     });
     setCommissionModalVisible(true);
   };

@@ -256,7 +256,11 @@ export class SupabaseService {
       if (primaryOrders) {
         primaryStats.total_orders = primaryOrders.length;
         primaryStats.total_amount = primaryOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
-        primaryStats.total_commission = primaryStats.total_amount * (primaryStats.commission_rate || 0.4);
+        // 🔧 修复：正确处理佣金率为0的情况
+        const rate = (primaryStats.commission_rate !== null && primaryStats.commission_rate !== undefined) 
+          ? primaryStats.commission_rate 
+          : 0.4;
+        primaryStats.total_commission = primaryStats.total_amount * rate;
       }
       
       // 🔧 修复：计算所有二级销售的订单总数和金额
@@ -354,7 +358,11 @@ export class SupabaseService {
       
       const totalOrders = orders?.length || 0;
       const totalAmount = orders?.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
-      const totalCommission = totalAmount * (secondarySale.commission_rate || 0.3);
+      // 🔧 修复：正确处理佣金率为0的情况
+      const commissionRate = (secondarySale.commission_rate !== null && secondarySale.commission_rate !== undefined)
+        ? secondarySale.commission_rate
+        : 0.3;
+      const totalCommission = totalAmount * commissionRate;
       
       // 构建统计数据对象（兼容原有结构）
       const salesStats = {

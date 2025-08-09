@@ -809,11 +809,17 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 🔧 修复：一级销售佣金率 - 处理小数和百分比两种格式
-        let commissionRate = sale.commission_rate || 40;
-        // 如果是小数格式（0.4），转换为百分比（40）
-        if (commissionRate > 0 && commissionRate < 1) {
-          commissionRate = commissionRate * 100;
+        // 🔧 修复：一级销售佣金率 - 处理小数和百分比两种格式，正确处理0值
+        let commissionRate;
+        if (sale.commission_rate !== null && sale.commission_rate !== undefined) {
+          commissionRate = sale.commission_rate;
+          // 如果是小数格式（0.4），转换为百分比（40）
+          if (commissionRate > 0 && commissionRate < 1) {
+            commissionRate = commissionRate * 100;
+          }
+        } else {
+          // 只有在真正未设置时才使用默认值
+          commissionRate = 40; // 默认40%
         }
         
         // 🔧 修复：应返佣金额 = 已配置确认订单金额 × 佣金率
@@ -912,12 +918,17 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 🔧 修复：二级销售佣金率 - 统一使用百分比格式
-        let commissionRate = sale.commission_rate || 25; // 默认25%
-        
-        // 如果是小数格式（0.3），转换为百分比（30）
-        if (commissionRate > 0 && commissionRate < 1) {
-          commissionRate = commissionRate * 100;
+        // 🔧 修复：二级销售佣金率 - 统一使用百分比格式，正确处理0值
+        let commissionRate;
+        if (sale.commission_rate !== null && sale.commission_rate !== undefined) {
+          commissionRate = sale.commission_rate;
+          // 如果是小数格式（0.3），转换为百分比（30）
+          if (commissionRate > 0 && commissionRate < 1) {
+            commissionRate = commissionRate * 100;
+          }
+        } else {
+          // 只有在真正未设置时才使用默认值
+          commissionRate = 30; // 默认30%
         }
         
         if (sale.primary_sales_id) {
@@ -1633,8 +1644,9 @@ export const SalesAPI = {
       if (!salesId) {
         throw new Error('销售ID不能为空');
       }
-      if (commissionRate === null || commissionRate === undefined) {
-        throw new Error('佣金率不能为空');
+      // 🔧 修复：允许佣金率为0
+      if (commissionRate === null || commissionRate === undefined || commissionRate < 0) {
+        throw new Error('佣金率无效');
       }
       
       console.log('更新佣金率参数:', { salesId, commissionRate, salesType });
