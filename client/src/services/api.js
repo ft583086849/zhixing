@@ -869,7 +869,7 @@ export const AdminAPI = {
             sales_type: 'primary',
             commission_rate: commissionRate,
             payment_method: sale.payment_method,
-            payment_account: sale.payment_account,
+            payment_account: sale.payment_account || sale.payment_address,  // 🔧 兼容旧字段：优先payment_account，没有则用payment_address
             chain_name: sale.chain_name  // 🔧 添加chain_name字段
           },
           // 顶层字段用于显示
@@ -1009,7 +1009,7 @@ export const AdminAPI = {
             sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'
             commission_rate: commissionRate,
             payment_method: sale.payment_method,
-            payment_account: sale.payment_account,
+            payment_account: sale.payment_account || sale.payment_address,  // 🔧 兼容旧字段：优先payment_account，没有则用payment_address
             chain_name: sale.chain_name  // 🔧 添加chain_name字段
           },
           // 顶层字段用于显示
@@ -1572,10 +1572,11 @@ export const SalesAPI = {
    */
   async registerPrimary(salesData) {
     try {
-      // 🔧 字段映射：前端payment_address -> 数据库payment_account
+      // 🔧 字段映射：确保数据保存到payment_address字段（数据库实际字段）
+      // 但同时兼容payment_account（以防未来迁移）
       if (salesData.payment_address) {
-        salesData.payment_account = salesData.payment_address;
-        delete salesData.payment_address;
+        salesData.payment_account = salesData.payment_address; // 兼容性保留
+        // 不删除payment_address，让它保存到数据库
       }
       
       // 生成唯一的销售代码 - 增强唯一性
@@ -1642,10 +1643,11 @@ export const SalesAPI = {
    */
   async registerSecondary(salesData) {
     try {
-      // 🔧 字段映射：前端payment_address -> 数据库payment_account
+      // 🔧 字段映射：确保数据保存到payment_address字段（数据库实际字段）
+      // 但同时兼容payment_account（以防未来迁移）
       if (salesData.payment_address) {
-        salesData.payment_account = salesData.payment_address;
-        delete salesData.payment_address;
+        salesData.payment_account = salesData.payment_address; // 兼容性保留
+        // 不删除payment_address，让它保存到数据库
       }
       
       // 生成唯一的销售代码 - 增强唯一性
