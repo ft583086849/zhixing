@@ -1668,7 +1668,9 @@ export const SalesAPI = {
         });
       }
       
-      CacheManager.clear('sales'); // 清除销售相关缓存
+      // 🔧 修复：清除所有相关缓存
+      CacheManager.clear('sales');
+      CacheManager.clear('admin-sales');
       
       return {
         success: true,
@@ -1676,8 +1678,25 @@ export const SalesAPI = {
         message: '佣金比率更新成功'
       };
     } catch (error) {
-      console.error('更新佣金比率失败:', error);
-      return handleError(error, '更新佣金比率');
+      console.error('更新佣金比率失败详情:', {
+        error,
+        salesId,
+        commissionRate,
+        salesType,
+        errorMessage: error.message,
+        errorCode: error.code
+      });
+      
+      // 🔧 修复：返回错误对象而不是抛出异常
+      if (error.message?.includes('销售ID')) {
+        throw new Error('销售ID无效或不存在');
+      }
+      if (error.message?.includes('佣金率')) {
+        throw new Error('佣金率格式无效');
+      }
+      
+      // 抛出具体的错误信息
+      throw new Error(error.message || '更新佣金比率失败');
     }
   },
 

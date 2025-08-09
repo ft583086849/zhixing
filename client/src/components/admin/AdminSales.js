@@ -290,18 +290,26 @@ const AdminSales = () => {
         rateToStore = newRate / 100;
       }
       
+      // 🔧 修复：获取正确的salesId和salesType
+      const actualSalesId = record.sales?.id;
+      const actualSalesType = record.sales?.sales_type || record.sales_type || 'secondary';
+      
+      if (!actualSalesId) {
+        throw new Error('无法获取销售ID');
+      }
+      
       console.log('更新佣金率:', { 
-        salesId, 
+        salesId: actualSalesId, 
         输入值: newRate, 
         存储值: rateToStore,
-        salesType: record.sales_type 
+        salesType: actualSalesType 
       });
       
-      // 🔧 修复：传递salesType参数
+      // 🔧 修复：使用正确的参数
       await dispatch(updateCommissionRate({ 
-        salesId, 
+        salesId: actualSalesId, 
         commissionRate: rateToStore,
-        salesType: record.sales_type || 'secondary'
+        salesType: actualSalesType
       })).unwrap();
       
       // 清除编辑状态
