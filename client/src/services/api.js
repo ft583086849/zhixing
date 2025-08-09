@@ -791,14 +791,26 @@ export const AdminAPI = {
           order.status !== 'rejected'
         );
         
-        // 计算订单统计（不包含已拒绝的订单）
-        const totalOrders = saleOrders.length;
-        const validOrders = saleOrders.filter(order => 
+        // 🔧 新增：获取管理的二级销售的订单
+        const managedSecondaries = allSecondarySales.filter(s => s.primary_sales_id === sale.id);
+        const secondaryOrders = [];
+        managedSecondaries.forEach(secondary => {
+          const secOrders = orders.filter(order => 
+            order.sales_code === secondary.sales_code &&
+            order.status !== 'rejected'
+          );
+          secondaryOrders.push(...secOrders);
+        });
+        
+        // 计算订单统计（包含一级自己的订单和二级销售的订单）
+        const allRelatedOrders = [...saleOrders, ...secondaryOrders];
+        const totalOrders = allRelatedOrders.length;
+        const validOrders = allRelatedOrders.filter(order => 
           ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
         ).length;
         
         // 计算总金额（所有订单金额）
-        const totalAmount = saleOrders.reduce((sum, order) => {
+        const totalAmount = allRelatedOrders.reduce((sum, order) => {
           const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           // 人民币转美元
           if (order.payment_method === 'alipay') {
@@ -807,8 +819,8 @@ export const AdminAPI = {
           return sum + amount;
         }, 0);
         
-        // 计算已配置确认订单金额
-        const confirmedOrders = saleOrders.filter(order => 
+        // 计算已配置确认订单金额（包括一级和二级的订单）
+        const confirmedOrders = allRelatedOrders.filter(order => 
           ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
         );
         const confirmedAmount = confirmedOrders.reduce((sum, order) => {
@@ -832,7 +844,38 @@ export const AdminAPI = {
         }
         
         // 使用固定佣金规则（40%总池）
-        const commissionAmount = confirmedAmount * (commissionRate / 100);
+        let commissionAmount = confirmedAmount * (commissionRate / 100);
+        
+        // 🔧 新增：计算从二级销售订单获得的佣金
+        // 对于二级销售的订单，一级销售获得 (40% - 二级销售佣金率) 的佣金
+        managedSecondaries.forEach(secondary => {
+          const secOrders = orders.filter(order => 
+            order.sales_code === secondary.sales_code &&
+            order.status === 'confirmed_config'
+          );
+          
+          const secConfirmedAmount = secOrders.reduce((sum, order) => {
+            const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+            if (order.payment_method === 'alipay') {
+              return sum + (amount / 7.15);
+            }
+            return sum + amount;
+          }, 0);
+          
+          // 二级销售的佣金率
+          let secCommissionRate = secondary.commission_rate || 25;
+          if (secCommissionRate > 0 && secCommissionRate < 1) {
+            secCommissionRate = secCommissionRate * 100;
+          }
+          
+          // 一级销售从二级销售订单获得的佣金
+          const primaryShareRate = 40 - secCommissionRate; // 40%总池 - 二级销售佣金率
+          const primaryShareAmount = secConfirmedAmount * (primaryShareRate / 100);
+          
+          commissionAmount += primaryShareAmount;
+          
+          console.log(`  └─ 二级销售 ${secondary.sales_code}: 确认金额$${secConfirmedAmount.toFixed(2)}, 二级佣金率${secCommissionRate}%, 一级获得${primaryShareRate}%, 佣金$${primaryShareAmount.toFixed(2)}`);
+        });
         
         // 获取管理的二级销售数量
         const managedSecondaryCount = allSecondarySales.filter(s => s.primary_sales_id === sale.id).length;
@@ -1222,10 +1265,12 @@ export const AdminAPI = {
           total_amount += amountUSD;
           
           // 根据订单状态计算佣金
-          const commission = parseFloat(order.commission_amount || (amountUSD * 0.4));
-          
+          // 🔧 修复：正确计算佣金，二级销售订单也要计算一级销售的佣金
+          let commission = 0;
           if (confirmedStatuses.includes(order.status)) {
-            // 已确认订单 - 应返佣金
+            // 对于二级销售订单，佣金总额仍是40%（二级25% + 一级15%）
+            // 对于一级销售订单，佣金是40%
+            commission = amountUSD * 0.4; // 总佣金池始终是40%
             total_commission += commission;
           }
         }
