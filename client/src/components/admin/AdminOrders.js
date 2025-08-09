@@ -88,6 +88,8 @@ const AdminOrders = () => {
     lastSearchParams.current = queryParams;
     
     dispatch(getAdminOrders(queryParams));
+    // 🔧 修复：同时刷新统计数据，确保订单状态更新后统计数据同步
+    dispatch(getStats({ usePaymentTime: true }));
   };
 
   // 手动刷新数据

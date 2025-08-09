@@ -1159,7 +1159,9 @@ export const AdminAPI = {
       const ordersToProcess = filteredOrders;
       
       // 今日订单 - 以付款时间为准（如果有付款时间字段），否则以创建时间
+      // 🔧 修复：排除已拒绝的订单
       const todayOrders = ordersToProcess.filter(order => {
+        if (order.status === 'rejected') return false;  // 排除已拒绝的订单
         const paymentTime = order.payment_time || order.updated_at || order.created_at;
         // 修复：使用本地日期比较避免时区问题
         return paymentTime && new Date(paymentTime).toLocaleDateString() === now.toLocaleDateString();
@@ -1312,8 +1314,11 @@ export const AdminAPI = {
         }
       });
       
+      // 🔧 修复：排除已拒绝的订单计算总订单数
+      const non_rejected_orders = ordersToProcess.filter(order => order.status !== 'rejected');
+      
       const stats = {
-        total_orders: ordersToProcess.length,
+        total_orders: non_rejected_orders.length,  // 🔧 修复：不包含已拒绝的订单
         total_amount: Math.round(total_amount * 100) / 100,
         confirmed_amount: Math.round(confirmed_amount * 100) / 100,  // 🔧 新增：已确认订单实付金额
         today_orders: todayOrders,
