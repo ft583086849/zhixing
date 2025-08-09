@@ -332,7 +332,7 @@ const PrimarySalesSettlementPage = () => {
           return <Tag color="blue">{record.sales_wechat_name}</Tag>;
         } else if (record.sales_code) {
           // 如果有销售代码但没有微信号，查找对应的销售信息
-          const secondarySale = secondarySalesData.find(s => s.sales_code === record.sales_code);
+          const secondarySale = primarySalesStats?.secondarySales?.find(s => s.sales_code === record.sales_code);
           if (secondarySale) {
             return <Tag color="blue">{secondarySale.wechat_name || '二级销售'}</Tag>;
           }
