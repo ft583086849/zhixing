@@ -848,34 +848,37 @@ export const AdminAPI = {
         
         // 🔧 新增：计算从二级销售订单获得的佣金
         // 对于二级销售的订单，一级销售获得 (40% - 二级销售佣金率) 的佣金
-        managedSecondaries.forEach(secondary => {
-          const secOrders = orders.filter(order => 
-            order.sales_code === secondary.sales_code &&
-            order.status === 'confirmed_config'
-          );
-          
-          const secConfirmedAmount = secOrders.reduce((sum, order) => {
-            const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-            if (order.payment_method === 'alipay') {
-              return sum + (amount / 7.15);
+        // 但如果一级销售的佣金率是0%，则不获得任何佣金
+        if (commissionRate > 0) {
+          managedSecondaries.forEach(secondary => {
+            const secOrders = orders.filter(order => 
+              order.sales_code === secondary.sales_code &&
+              order.status === 'confirmed_config'
+            );
+            
+            const secConfirmedAmount = secOrders.reduce((sum, order) => {
+              const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+              if (order.payment_method === 'alipay') {
+                return sum + (amount / 7.15);
+              }
+              return sum + amount;
+            }, 0);
+            
+            // 二级销售的佣金率
+            let secCommissionRate = secondary.commission_rate || 25;
+            if (secCommissionRate > 0 && secCommissionRate < 1) {
+              secCommissionRate = secCommissionRate * 100;
             }
-            return sum + amount;
-          }, 0);
-          
-          // 二级销售的佣金率
-          let secCommissionRate = secondary.commission_rate || 25;
-          if (secCommissionRate > 0 && secCommissionRate < 1) {
-            secCommissionRate = secCommissionRate * 100;
-          }
-          
-          // 一级销售从二级销售订单获得的佣金
-          const primaryShareRate = 40 - secCommissionRate; // 40%总池 - 二级销售佣金率
-          const primaryShareAmount = secConfirmedAmount * (primaryShareRate / 100);
-          
-          commissionAmount += primaryShareAmount;
-          
-          console.log(`  └─ 二级销售 ${secondary.sales_code}: 确认金额$${secConfirmedAmount.toFixed(2)}, 二级佣金率${secCommissionRate}%, 一级获得${primaryShareRate}%, 佣金$${primaryShareAmount.toFixed(2)}`);
-        });
+            
+            // 一级销售从二级销售订单获得的佣金
+            const primaryShareRate = 40 - secCommissionRate; // 40%总池 - 二级销售佣金率
+            const primaryShareAmount = secConfirmedAmount * (primaryShareRate / 100);
+            
+            commissionAmount += primaryShareAmount;
+            
+            console.log(`  └─ 二级销售 ${secondary.sales_code}: 确认金额$${secConfirmedAmount.toFixed(2)}, 二级佣金率${secCommissionRate}%, 一级获得${primaryShareRate}%, 佣金$${primaryShareAmount.toFixed(2)}`);
+          });
+        }
         
         // 获取管理的二级销售数量
         const managedSecondaryCount = allSecondarySales.filter(s => s.primary_sales_id === sale.id).length;
@@ -1254,25 +1257,33 @@ export const AdminAPI = {
       let total_amount = 0;
       let total_commission = 0;  // 应返佣金总额（已确认订单）
       
+      // 🔧 修复：从销售页面汇总佣金，而不是重新计算
+      // 获取销售数据来获取准确的佣金
+      const salesResponse = await this.getSales();
+      if (salesResponse.success && salesResponse.data) {
+        // 从销售数据汇总佣金
+        salesResponse.data.forEach(sale => {
+          total_commission += sale.commission_amount || 0;
+        });
+        console.log('📊 从销售数据汇总的佣金:', total_commission);
+      } else {
+        // 备用方案：如果获取销售数据失败，使用简单计算
+        ordersToProcess.forEach(order => {
+          if (order.status !== 'rejected' && confirmedStatuses.includes(order.status)) {
+            const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+            const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
+            // 使用保守的25%作为默认佣金率
+            total_commission += amountUSD * 0.25;
+          }
+        });
+      }
+      
+      // 计算总金额
       ordersToProcess.forEach(order => {
-        // 🔧 修复：排除已拒绝的订单计算总收入和佣金
         if (order.status !== 'rejected') {
-          // 🔧 修复：优先使用actual_payment_amount，其次使用amount
           const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-          
-          // 人民币转美元 (汇率7.15)
           const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
           total_amount += amountUSD;
-          
-          // 根据订单状态计算佣金
-          // 🔧 修复：正确计算佣金，二级销售订单也要计算一级销售的佣金
-          let commission = 0;
-          if (confirmedStatuses.includes(order.status)) {
-            // 对于二级销售订单，佣金总额仍是40%（二级25% + 一级15%）
-            // 对于一级销售订单，佣金是40%
-            commission = amountUSD * 0.4; // 总佣金池始终是40%
-            total_commission += commission;
-          }
         }
       });
       
