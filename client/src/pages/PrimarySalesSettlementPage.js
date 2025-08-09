@@ -673,51 +673,62 @@ const PrimarySalesSettlementPage = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 24 }}>一级销售分销管理和对账</Title>
+    <div style={{ padding: '24px 24px', maxWidth: '100%' }}>
+      <Title level={2} style={{ marginBottom: 24, textAlign: 'center' }}>一级销售分销管理和对账</Title>
       
       {/* 搜索查询功能 */}
       <Card title="查询一级销售信息" style={{ marginBottom: 24 }}>
-        <Form form={searchForm} layout="inline" onFinish={handleSearch}>
-          <Form.Item name="wechat_name" label="微信号">
-            <Input 
-              placeholder="请输入微信号" 
-              style={{ width: 200 }}
-              allowClear
-              prefix={<UserOutlined />}
-            />
-          </Form.Item>
-          <Form.Item name="sales_code" label="销售代码">
-            <Input 
-              placeholder="请输入销售代码" 
-              style={{ width: 200 }}
-              allowClear
-            />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button 
-                type="primary" 
-                htmlType="submit"
-                icon={<SearchOutlined />}
-                loading={loading}
-              >
-                查询
-              </Button>
-              <Button onClick={handleReset}>
-                重置
-              </Button>
-              {salesData && (
-                <Button 
-                  icon={<ReloadOutlined />}
-                  loading={isRefreshing}
-                  onClick={handleRefresh}
-                >
-                  刷新
-                </Button>
-              )}
-            </Space>
-          </Form.Item>
+        <Form 
+          form={searchForm} 
+          layout="horizontal" 
+          onFinish={handleSearch}
+          style={{ maxWidth: '100%' }}
+        >
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item name="wechat_name" label="微信号" style={{ marginBottom: 8 }}>
+                <Input 
+                  placeholder="请输入微信号" 
+                  allowClear
+                  prefix={<UserOutlined />}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item name="sales_code" label="销售代码" style={{ marginBottom: 8 }}>
+                <Input 
+                  placeholder="请输入销售代码" 
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={24} md={8}>
+              <Form.Item style={{ marginBottom: 8 }}>
+                <Space wrap>
+                  <Button 
+                    type="primary" 
+                    htmlType="submit"
+                    icon={<SearchOutlined />}
+                    loading={loading}
+                  >
+                    查询
+                  </Button>
+                  <Button onClick={handleReset}>
+                    重置
+                  </Button>
+                  {salesData && (
+                    <Button 
+                      icon={<ReloadOutlined />}
+                      loading={isRefreshing}
+                      onClick={handleRefresh}
+                    >
+                      刷新
+                    </Button>
+                  )}
+                </Space>
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
         
         <div style={{ marginTop: 16, color: '#666', fontSize: '14px' }}>
@@ -741,6 +752,95 @@ const PrimarySalesSettlementPage = () => {
       {/* 只有搜索到数据后才显示以下内容 */}
       {salesData && (
         <>
+          {/* 销售链接展示 */}
+          <Card 
+            style={{ 
+              marginBottom: 24,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none'
+            }}
+          >
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={12}>
+                <div style={{ 
+                  padding: '20px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '8px',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <h3 style={{ color: '#fff', marginBottom: 12, fontSize: '16px' }}>
+                    <ShoppingCartOutlined style={{ marginRight: 8 }} />
+                    用户购买链接
+                  </h3>
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: '6px',
+                    wordBreak: 'break-all'
+                  }}>
+                    <code style={{ fontSize: '13px', color: '#764ba2' }}>
+                      {window.location.origin}/purchase?sales_code={salesData.sales_code}
+                    </code>
+                  </div>
+                  <Button 
+                    type="ghost"
+                    size="small"
+                    style={{ 
+                      marginTop: 12,
+                      color: '#fff',
+                      borderColor: 'rgba(255, 255, 255, 0.5)'
+                    }}
+                    onClick={() => {
+                      const link = `${window.location.origin}/purchase?sales_code=${salesData.sales_code}`;
+                      navigator.clipboard.writeText(link);
+                      message.success('购买链接已复制到剪贴板');
+                    }}
+                  >
+                    复制链接
+                  </Button>
+                </div>
+              </Col>
+              <Col xs={24} md={12}>
+                <div style={{ 
+                  padding: '20px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '8px',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <h3 style={{ color: '#fff', marginBottom: 12, fontSize: '16px' }}>
+                    <TeamOutlined style={{ marginRight: 8 }} />
+                    二级销售注册链接
+                  </h3>
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: '6px',
+                    wordBreak: 'break-all'
+                  }}>
+                    <code style={{ fontSize: '13px', color: '#764ba2' }}>
+                      {window.location.origin}/secondary-sales?sales_code={salesData.sales_code}
+                    </code>
+                  </div>
+                  <Button 
+                    type="ghost"
+                    size="small"
+                    style={{ 
+                      marginTop: 12,
+                      color: '#fff',
+                      borderColor: 'rgba(255, 255, 255, 0.5)'
+                    }}
+                    onClick={() => {
+                      const link = `${window.location.origin}/secondary-sales?sales_code=${salesData.sales_code}`;
+                      navigator.clipboard.writeText(link);
+                      message.success('注册链接已复制到剪贴板');
+                    }}
+                  >
+                    复制链接
+                  </Button>
+                </div>
+              </Col>
+            </Row>
+          </Card>
           
           {/* 统计卡片 */}
           {renderStatsCards()}
@@ -749,27 +849,33 @@ const PrimarySalesSettlementPage = () => {
           <Card title="二级销售管理" style={{ marginBottom: 24 }}>
             {/* 二级销售搜索 */}
             <div style={{ marginBottom: 16, padding: '16px', backgroundColor: '#fafafa', borderRadius: '6px' }}>
-              <Form form={secondarySalesSearchForm} layout="inline" onFinish={handleSecondarySalesSearch}>
-                <Form.Item name="payment_date_range" label="付款时间">
-                  <DatePicker.RangePicker 
-                    style={{ width: 240 }}
-                    placeholder={['开始时间', '结束时间']}
-                    format="YYYY-MM-DD"
-                  />
-                </Form.Item>
-                <Form.Item>
-                  <Space>
-                    <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
-                      搜索
-                    </Button>
-                    <Button onClick={() => {
-                      secondarySalesSearchForm.resetFields();
-                      handleSecondarySalesSearch({});
-                    }}>
-                      重置
-                    </Button>
-                  </Space>
-                </Form.Item>
+              <Form form={secondarySalesSearchForm} layout="horizontal" onFinish={handleSecondarySalesSearch}>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={16} md={12}>
+                    <Form.Item name="payment_date_range" label="付款时间" style={{ marginBottom: 0 }}>
+                      <DatePicker.RangePicker 
+                        style={{ width: '100%' }}
+                        placeholder={['开始时间', '结束时间']}
+                        format="YYYY-MM-DD"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={8} md={12}>
+                    <Form.Item style={{ marginBottom: 0 }}>
+                      <Space wrap>
+                        <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
+                          搜索
+                        </Button>
+                        <Button onClick={() => {
+                          secondarySalesSearchForm.resetFields();
+                          handleSecondarySalesSearch({});
+                        }}>
+                          重置
+                        </Button>
+                      </Space>
+                    </Form.Item>
+                  </Col>
+                </Row>
               </Form>
             </div>
         <Table
@@ -777,11 +883,13 @@ const PrimarySalesSettlementPage = () => {
           dataSource={primarySalesStats?.secondarySales || []}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1200 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`
+            showTotal: (total) => `共 ${total} 条记录`,
+            responsive: true
           }}
         />
       </Card>
@@ -790,27 +898,33 @@ const PrimarySalesSettlementPage = () => {
       <Card title="我的订单列表" style={{ marginBottom: 24 }}>
         {/* 订单搜索 */}
         <div style={{ marginBottom: 16, padding: '16px', backgroundColor: '#fafafa', borderRadius: '6px' }}>
-          <Form form={ordersSearchForm} layout="inline" onFinish={handleOrdersSearch}>
-            <Form.Item name="payment_date_range" label="付款时间">
-              <DatePicker.RangePicker 
-                style={{ width: 240 }}
-                placeholder={['开始时间', '结束时间']}
-                format="YYYY-MM-DD"
-              />
-            </Form.Item>
-            <Form.Item>
-              <Space>
-                <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
-                  搜索
-                </Button>
-                <Button onClick={() => {
-                  ordersSearchForm.resetFields();
-                  handleOrdersSearch({});
-                }}>
-                  重置
-                </Button>
-              </Space>
-            </Form.Item>
+          <Form form={ordersSearchForm} layout="horizontal" onFinish={handleOrdersSearch}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} sm={16} md={12}>
+                <Form.Item name="payment_date_range" label="付款时间" style={{ marginBottom: 0 }}>
+                  <DatePicker.RangePicker 
+                    style={{ width: '100%' }}
+                    placeholder={['开始时间', '结束时间']}
+                    format="YYYY-MM-DD"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8} md={12}>
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Space wrap>
+                    <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
+                      搜索
+                    </Button>
+                    <Button onClick={() => {
+                      ordersSearchForm.resetFields();
+                      handleOrdersSearch({});
+                    }}>
+                      重置
+                    </Button>
+                  </Space>
+                </Form.Item>
+              </Col>
+            </Row>
           </Form>
         </div>
         <Table
@@ -818,13 +932,15 @@ const PrimarySalesSettlementPage = () => {
           dataSource={primarySalesOrders?.data || []}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1000 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total) => `共 ${total} 条记录`,
             current: primarySalesOrders?.page || 1,
-            total: primarySalesOrders?.total || 0
+            total: primarySalesOrders?.total || 0,
+            responsive: true
           }}
         />
       </Card>

@@ -378,48 +378,63 @@ const SalesReconciliationPage = () => {
           marginBottom: '32px',
           color: '#2c3e50'
         }}>
-          销售对账页面
+          二级销售对账页面
         </Title>
 
         {/* 搜索表单 */}
         <Card title="查询销售信息" style={{ marginBottom: 24 }} role="region">
-          <Form form={form} layout="inline" onFinish={handleSearch} >
-            <Form.Item name="wechat_name" label="微信号" >
-              <Input 
-                placeholder="请输入微信号" 
-                style={{ width: 200 }}
-                allowClear
-                aria-label="请输入微信号"
-              />
-            </Form.Item>
+          <Form form={form} layout="horizontal" onFinish={handleSearch} >
+            <Row gutter={[16, 16]}>
+              <Col xs={24} sm={12} md={8}>
+                <Form.Item name="wechat_name" label="微信号" style={{ marginBottom: 8 }}>
+                  <Input 
+                    prefix={<UserOutlined />}
+                    placeholder="请输入微信号" 
+                    allowClear
+                    aria-label="请输入微信号"
+                  />
+                </Form.Item>
+              </Col>
 
+              <Col xs={24} sm={12} md={8}>
+                <Form.Item name="payment_date_range" label="付款时间" style={{ marginBottom: 8 }}>
+                  <DatePicker.RangePicker 
+                    style={{ width: '100%' }}
+                    placeholder={['开始时间', '结束时间']}
+                    format="YYYY-MM-DD"
+                  />
+                </Form.Item>
+              </Col>
 
-            <Form.Item >
-              <Space>
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  loading={loading}
-                  icon={<SearchOutlined />}
-                  tabIndex={0}
-                >
-                  查询
-                </Button>
-                <Button onClick={handleReset} tabIndex={0}>
-                  重置
-                </Button>
-                {salesData && (
-                  <Button 
-                    icon={<ReloadOutlined />}
-                    loading={isRefreshing}
-                    onClick={handleRefresh}
-                    tabIndex={0}
-                  >
-                    刷新
-                  </Button>
-                )}
-              </Space>
-            </Form.Item>
+              <Col xs={24} sm={24} md={8}>
+                <Form.Item style={{ marginBottom: 8 }}>
+                  <Space wrap>
+                    <Button 
+                      type="primary" 
+                      htmlType="submit" 
+                      loading={loading}
+                      icon={<SearchOutlined />}
+                      tabIndex={0}
+                    >
+                      查询
+                    </Button>
+                    <Button onClick={handleReset} tabIndex={0}>
+                      重置
+                    </Button>
+                    {salesData && (
+                      <Button 
+                        icon={<ReloadOutlined />}
+                        loading={isRefreshing}
+                        onClick={handleRefresh}
+                        tabIndex={0}
+                      >
+                        刷新
+                      </Button>
+                    )}
+                  </Space>
+                </Form.Item>
+              </Col>
+            </Row>
           </Form>
         </Card>
 
