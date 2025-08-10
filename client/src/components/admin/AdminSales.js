@@ -193,13 +193,14 @@ const AdminSales = () => {
         const commissionAmount = sale.commission_amount || 0;
         
         switch(commissionFilter) {
-          case 'pending':
+          case 'pending': {
             // 待返佣：应返佣金额 > 已返佣金额
             const salesId = sale.sales?.id;
             const dbValue = sale.sales?.paid_commission || sale.paid_commission || 0;
             const paidAmount = paidCommissionData[salesId] !== undefined ? paidCommissionData[salesId] : dbValue;
             const pendingAmount = commissionAmount - paidAmount;
             return pendingAmount > 0;
+          }
           case 'gt1':
             return commissionAmount > 1;
           case 'gt10':
