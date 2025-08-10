@@ -1151,12 +1151,20 @@ export const AdminAPI = {
       // 4. 合并所有销售数据
       const allSales = [...processedPrimarySales, ...processedSecondarySales];
       
+      // 🔧 修复：按创建时间降序排序（最新的在前）
+      allSales.sort((a, b) => {
+        const timeA = new Date(a.created_at || 0);
+        const timeB = new Date(b.created_at || 0);
+        return timeB - timeA; // 降序：新的在前
+      });
+      
       console.log('处理后的销售数据:', {
         总数: allSales.length,
         一级销售: processedPrimarySales.length,
         二级销售: processedSecondarySales.length,
         搜索参数: params,
-        是否有搜索条件: Object.keys(params).length > 0
+        是否有搜索条件: Object.keys(params).length > 0,
+        排序: '按创建时间降序'
       });
       
       const result = {
