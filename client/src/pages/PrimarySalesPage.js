@@ -161,9 +161,9 @@ const PrimarySalesPage = () => {
                   rules={[{ required: true, message: '请输入链名' }]}
                  >
                   <Input 
-                    placeholder="例如：BSC/TRC20"
+                    placeholder="例如：BSC（BEP20）、ERC20"
                     size="large"
-                    aria-label="例如：BSC/TRC20"
+                    aria-label="例如：BSC（BEP20）、ERC20"
                   />
                 </Form.Item>
                 <Form.Item

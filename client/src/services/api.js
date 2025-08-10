@@ -915,7 +915,7 @@ export const AdminAPI = {
             sales_type: 'primary',
             commission_rate: commissionRate,
             payment_method: sale.payment_method,
-            payment_account: sale.payment_account || sale.payment_address,  // 🔧 兼容旧字段：优先payment_account，没有则用payment_address
+            payment_account: sale.payment_address,  // 🔧 统一使用 payment_address 字段
             chain_name: sale.chain_name,  // 🔧 添加chain_name字段
             paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
             last_commission_paid_at: sale.last_commission_paid_at  // 🔧 添加最后支付时间
@@ -1058,7 +1058,7 @@ export const AdminAPI = {
             sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'
             commission_rate: commissionRate,
             payment_method: sale.payment_method,
-            payment_account: sale.payment_account || sale.payment_address,  // 🔧 兼容旧字段：优先payment_account，没有则用payment_address
+            payment_account: sale.payment_address,  // 🔧 统一使用 payment_address 字段
             chain_name: sale.chain_name,  // 🔧 添加chain_name字段
             paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
             last_commission_paid_at: sale.last_commission_paid_at  // 🔧 添加最后支付时间
@@ -1638,11 +1638,7 @@ export const SalesAPI = {
   async registerPrimary(salesData) {
     try {
       // 🔧 字段映射：确保数据保存到payment_address字段（数据库实际字段）
-      // 但同时兼容payment_account（以防未来迁移）
-      if (salesData.payment_address) {
-        salesData.payment_account = salesData.payment_address; // 兼容性保留
-        // 不删除payment_address，让它保存到数据库
-      }
+      // payment_address 是数据库中的实际字段，不需要映射到 payment_account
       
       // 生成唯一的销售代码 - 增强唯一性
       salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('PRI');
@@ -1709,11 +1705,7 @@ export const SalesAPI = {
   async registerSecondary(salesData) {
     try {
       // 🔧 字段映射：确保数据保存到payment_address字段（数据库实际字段）
-      // 但同时兼容payment_account（以防未来迁移）
-      if (salesData.payment_address) {
-        salesData.payment_account = salesData.payment_address; // 兼容性保留
-        // 不删除payment_address，让它保存到数据库
-      }
+      // payment_address 是数据库中的实际字段，不需要映射到 payment_account
       
       // 生成唯一的销售代码 - 增强唯一性
       salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('SEC');

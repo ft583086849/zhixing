@@ -69,3 +69,4 @@ GROUP BY customer_wechat, tradingview_username
 HAVING COUNT(*) > 0;
 
 
+
