@@ -870,16 +870,25 @@ export const AdminAPI = {
         }, 0);
         
         // 计算已配置确认订单金额（包括一级和二级的订单）
-        const confirmedOrders = allRelatedOrders.filter(order => 
-          ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
-        );
-        const confirmedAmount = confirmedOrders.reduce((sum, order) => {
-          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-          if (order.payment_method === 'alipay') {
-            return sum + (amount / 7.15);
-          }
-          return sum + amount;
-        }, 0);
+        // v2.10.3回滚：使用数据库中的confirmed_amount或实时计算
+        let confirmedAmount = 0;
+        
+        // 首先尝试从数据库获取confirmed_amount
+        if (sale.confirmed_amount !== undefined && sale.confirmed_amount !== null) {
+          confirmedAmount = sale.confirmed_amount;
+        } else {
+          // 如果数据库没有，则实时计算
+          const confirmedOrders = allRelatedOrders.filter(order => 
+            ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
+          );
+          confirmedAmount = confirmedOrders.reduce((sum, order) => {
+            const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+            if (order.payment_method === 'alipay') {
+              return sum + (amount / 7.15);
+            }
+            return sum + amount;
+          }, 0);
+        }
         
         // 佣金率处理 - 使用固定规则
         let commissionRate;
@@ -1015,17 +1024,26 @@ export const AdminAPI = {
         }, 0);
         
         // 🔧 修复：计算已配置确认订单金额（计算confirmed、confirmed_configuration、confirmed_config和active状态）
-        const confirmedOrders = saleOrders.filter(order => 
-          ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
-        );
-        const confirmedAmount = confirmedOrders.reduce((sum, order) => {
-          // 🔧 修复：优先使用actual_payment_amount，其次使用amount
-          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-          if (order.payment_method === 'alipay') {
-            return sum + (amount / 7.15);
-          }
-          return sum + amount;
-        }, 0);
+        // v2.10.3回滚：使用数据库中的confirmed_amount或实时计算
+        let confirmedAmount = 0;
+        
+        // 首先尝试从数据库获取confirmed_amount
+        if (sale.confirmed_amount !== undefined && sale.confirmed_amount !== null) {
+          confirmedAmount = sale.confirmed_amount;
+        } else {
+          // 如果数据库没有，则实时计算
+          const confirmedOrders = saleOrders.filter(order => 
+            ['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)
+          );
+          confirmedAmount = confirmedOrders.reduce((sum, order) => {
+            // 🔧 修复：优先使用actual_payment_amount，其次使用amount
+            const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+            if (order.payment_method === 'alipay') {
+              return sum + (amount / 7.15);
+            }
+            return sum + amount;
+          }, 0);
+        }
         
         // 🔧 修复：二级销售佣金率 - 统一使用百分比格式，正确处理0值
         let commissionRate;
