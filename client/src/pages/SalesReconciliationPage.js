@@ -555,7 +555,7 @@ const SalesReconciliationPage = () => {
                 <Card hoverable style={{ height: '100%' }}>
                   <Statistic
                     title="佣金比率"
-                    value={salesData.commission_rate * 100}
+                    value={salesData.commission_rate || 25}
                     suffix="%"
                     valueStyle={{ color: '#52c41a' }}
                   />

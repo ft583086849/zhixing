@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Table, 
   Card, 
@@ -34,6 +35,7 @@ import {
 import dayjs from 'dayjs';
 import { getSales, updateCommissionRate, downloadCommissionData } from '../../store/slices/adminSlice';
 import { AdminAPI } from '../../services/api';
+import DataRefreshManager from '../../utils/dataRefresh';
 import { 
   formatCommissionRate, 
   calculatePrimaryCommissionRate as calculateRate,
@@ -49,6 +51,7 @@ const { RangePicker } = DatePicker;
 const AdminSales = () => {
   const dispatch = useDispatch();
   const { sales, loading } = useSelector((state) => state.admin);
+  const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
   const [editingCommissionRates, setEditingCommissionRates] = useState({});
   const [paidCommissionData, setPaidCommissionData] = useState({});
@@ -57,8 +60,15 @@ const AdminSales = () => {
   const [commissionFilter, setCommissionFilter] = useState('all'); // 🔧 新增：佣金筛选条件
 
   useEffect(() => {
+    // 检查URL参数
+    const filterParam = searchParams.get('filter');
+    if (filterParam === 'pending_commission') {
+      // 设置佣金筛选为待返佣
+      setCommissionFilter('pending');
+      form.setFieldsValue({ commission_filter: 'pending' });
+    }
     dispatch(getSales());
-  }, [dispatch]);
+  }, [dispatch, searchParams]);
 
   // 动态生成佣金比率选项
   useEffect(() => {
@@ -110,38 +120,19 @@ const AdminSales = () => {
 
   // 计算一级销售佣金比率（管理员页面）
   const calculatePrimaryCommissionRate = (record) => {
+    // 🔧 修复：直接使用API返回的commission_rate
+    // 如果有用户设置的佣金率，直接使用
+    if (record.commission_rate !== undefined && record.commission_rate !== null) {
+      return record.commission_rate;
+    }
+    
+    // 如果没有订单，返回默认值
     if (!record.orders || record.orders.length === 0) {
-      return 40; // 返回百分比数字用于显示
+      return record.sales?.sales_type === 'primary' ? 40 : 25;
     }
     
-    const confirmedOrders = record.orders;
-    if (confirmedOrders.length === 0) {
-      return 40;
-    }
-    
-    // 计算各项金额（使用sales_type判断）
-    const primaryDirectOrders = confirmedOrders.filter(order => order.sales_type !== 'secondary');
-    const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-    
-    const secondaryOrders = confirmedOrders.filter(order => order.sales_type === 'secondary');
-    const secondaryTotalAmount = secondaryOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-    
-    // 获取二级销售佣金率（确保是小数格式）
-    const secondaryRates = record.secondary_sales?.map(sales => {
-      const rate = sales.commission_rate || 0.3;
-      // 兼容处理：如果是百分比则转换
-      return rate > 1 ? rate / 100 : rate;
-    }) || [];
-    
-    // 使用工具函数计算
-    const rate = calculateRate({
-      primaryDirectAmount,
-      secondaryTotalAmount,
-      secondaryRates
-    });
-    
-    // 返回百分比数字用于显示
-    return parseFloat((rate * 100).toFixed(1));
+    // 其他情况使用默认值
+    return record.sales?.sales_type === 'primary' ? 40 : 25;
   };
 
   // 处理搜索
@@ -202,6 +193,13 @@ const AdminSales = () => {
         const commissionAmount = sale.commission_amount || 0;
         
         switch(commissionFilter) {
+          case 'pending':
+            // 待返佣：应返佣金额 > 已返佣金额
+            const salesId = sale.sales?.id;
+            const dbValue = sale.sales?.paid_commission || sale.paid_commission || 0;
+            const paidAmount = paidCommissionData[salesId] !== undefined ? paidCommissionData[salesId] : dbValue;
+            const pendingAmount = commissionAmount - paidAmount;
+            return pendingAmount > 0;
           case 'gt1':
             return commissionAmount > 1;
           case 'gt10':
@@ -232,7 +230,7 @@ const AdminSales = () => {
       '总金额': sale.total_amount,
       '已配置确认订单金额': sale.confirmed_amount || 0,
       '佣金率': `${sale.commission_rate || sale.sales?.commission_rate || 0}%`,
-      '应返佣金额': sale.commission_amount || 0,
+      '应返佣金额': calculateCommissionAmount(sale),
       '创建时间': sale.sales?.created_at
     }));
 
@@ -277,15 +275,17 @@ const AdminSales = () => {
     }
   };
 
-  // 计算佣金金额（计算所有已配置确认的订单）
-  const calculateCommissionAmount = (orders, commissionRate) => {
-    if (!orders || orders.length === 0) return 0;
-    // 计算已配置确认的订单（移除config_confirmed过滤）
-    const validOrders = orders.filter(order => 
-      order.status === 'confirmed_config'
-    );
-    const totalAmount = validOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-    return (totalAmount * commissionRate) / 100;
+  // 计算佣金金额（基于已配置确认订单金额）
+  const calculateCommissionAmount = (record) => {
+    // 🔧 修复：使用confirmed_amount和commission_rate计算
+    const confirmedAmount = record.confirmed_amount || 0;
+    const rate = getFinalCommissionRate(record);
+    
+    // 如果没有已配置确认订单金额，应返佣金为0
+    if (confirmedAmount === 0) return 0;
+    
+    // 计算应返佣金
+    return (confirmedAmount * rate) / 100;
   };
 
   // 获取最终佣金率
@@ -369,8 +369,9 @@ const AdminSales = () => {
       });
       
       message.success('佣金率更新成功');
-      // 刷新销售数据 - 延迟执行确保数据库已更新
-      setTimeout(() => {
+      // 刷新销售数据和统计数据
+      setTimeout(async () => {
+        await DataRefreshManager.onCommissionUpdate();
         dispatch(getSales());
       }, 500);
     } catch (error) {
@@ -584,7 +585,8 @@ const AdminSales = () => {
                   
                   if (result.success) {
                     message.success('已返佣金额已保存');
-                    // 刷新数据
+                    // 刷新销售和统计数据
+                    await DataRefreshManager.onCommissionUpdate();
                     dispatch(getSales());
                   } else {
                     message.error(`保存失败: ${result.error}`);
@@ -632,35 +634,6 @@ const AdminSales = () => {
           hour: '2-digit',
           minute: '2-digit'
         });
-      }
-    },
-    {
-      title: '收款链名',
-      key: 'payment_chain',
-      width: 120,
-      render: (_, record) => {
-        // 🔧 修复：直接显示chain_name字段（用于打款）
-        const chainName = record.sales?.chain_name;
-        const paymentMethod = record.sales?.payment_method;
-        
-        // 如果有chain_name直接使用，否则根据payment_method映射
-        let displayName = chainName;
-        if (!chainName && paymentMethod) {
-          const chainMap = {
-            'usdt_trc20': 'TRC20',
-            'usdt_bsc': 'BSC',
-            'alipay': '支付宝',
-            'wechat': '微信',
-            'bank': '银行卡'
-          };
-          displayName = chainMap[paymentMethod] || paymentMethod;
-        }
-        
-        return (
-          <Tag color="purple">
-            {displayName || '-'}
-          </Tag>
-        );
       }
     },
     {
@@ -737,7 +710,8 @@ const AdminSales = () => {
       width: 110,
       render: (_, record) => {
         const salesId = record.sales?.id;
-        const commissionAmount = record.commission_amount || 0;  // 🔧 修复：使用API返回的commission_amount
+        // 🔧 修复：基于已配置确认订单金额计算应返佣金
+        const commissionAmount = calculateCommissionAmount(record);
         // 🔧 修复：优先使用用户输入的值，如果没有则使用数据库值
         const dbValue = record.sales?.paid_commission || record.paid_commission || 0;
         const paidAmount = paidCommissionData[salesId] !== undefined ? paidCommissionData[salesId] : dbValue;

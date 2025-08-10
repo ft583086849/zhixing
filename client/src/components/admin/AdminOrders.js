@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Table, 
   Card, 
@@ -39,6 +40,7 @@ const { RangePicker } = DatePicker;
 const AdminOrders = () => {
   const dispatch = useDispatch();
   const { orders, pagination, loading } = useSelector((state) => state.admin);
+  const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -124,8 +126,16 @@ const AdminOrders = () => {
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    // 检查URL参数
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      // 如果有status参数，设置表单值并搜索
+      form.setFieldsValue({ status: statusParam });
+      fetchOrders({ status: statusParam });
+    } else {
+      fetchOrders();
+    }
+  }, [searchParams]);
   
   // 自动刷新（每30秒）
   useEffect(() => {

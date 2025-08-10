@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag } from 'antd';
 import { 
   ShoppingCartOutlined, 
@@ -21,6 +22,7 @@ const { RangePicker } = DatePicker;
 
 const AdminOverview = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { stats, loading, sales } = useSelector((state) => state.admin);
   const { admin } = useSelector((state) => state.auth);
   const [timeRange, setTimeRange] = useState('all'); // 默认显示所有数据
@@ -62,16 +64,49 @@ const AdminOverview = () => {
               sum + (sale.total_amount || 0), 0
             );
             
-            // 计算Top5销售（按销售金额排序）
-            const sortedSales = [...result.payload]
-              .sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0))
+            // 计算Top5销售（智能去重 + 显示归属）
+            // 1. 先按销售金额排序所有销售
+            const allSales = [...result.payload]
+              .sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
+            
+            // 2. 智能去重逻辑
+            const processedSales = [];
+            const processedPrimaryIds = new Set();
+            
+            allSales.forEach(sale => {
+              // 如果是二级销售
+              if (sale.sales_type === 'secondary' && sale.sales?.primary_sales_id) {
+                // 查找其一级销售
+                const primarySales = allSales.find(s => 
+                  s.sales_type === 'primary' && 
+                  s.sales?.id === sale.sales?.primary_sales_id
+                );
+                
+                if (primarySales) {
+                  // 如果二级销售金额 >= 一级销售自营金额，只显示二级销售
+                  if (sale.total_amount >= (primarySales.total_amount || 0)) {
+                    processedPrimaryIds.add(primarySales.sales?.id);
+                    sale.primary_sales_name = primarySales.sales?.wechat_name || primarySales.sales?.name || '-';
+                  }
+                }
+                processedSales.push(sale);
+              } 
+              // 如果是一级销售且未被二级销售覆盖
+              else if (sale.sales_type === 'primary' && !processedPrimaryIds.has(sale.sales?.id)) {
+                processedSales.push(sale);
+              }
+            });
+            
+            // 3. 取前5名并格式化
+            const top5 = processedSales
               .slice(0, 5)
               .map((sale, index) => ({
-                key: sale.id || index,
+                key: sale.sales?.id || index,
                 rank: index + 1,
                 sales_type: sale.sales_type === 'primary' ? '一级销售' : 
                            (sale.sales?.primary_sales_id ? '二级销售' : '独立销售'),
                 sales_name: sale.sales?.wechat_name || sale.sales?.name || '-',
+                primary_sales_name: sale.primary_sales_name || '-',  // 所属一级销售
                 total_amount: sale.total_amount || 0,
                 commission_amount: sale.commission_amount || 0,
                 // 计算占比
@@ -79,7 +114,7 @@ const AdminOverview = () => {
                   ? ((sale.total_amount || 0) / totalSalesAmount * 100).toFixed(2)
                   : '0.00'
               }));
-            setTop5Sales(sortedSales);
+            setTop5Sales(top5);
           }
           return result;
         });
@@ -153,7 +188,12 @@ const AdminOverview = () => {
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
+              <Card 
+                role="region" 
+                hoverable
+                onClick={() => navigate('/admin/orders?status=pending_payment')}
+                style={{ cursor: 'pointer' }}
+              >
                 <Statistic
                   title="待付款确认订单"
                   value={stats?.pending_payment_orders || 0}
@@ -163,7 +203,12 @@ const AdminOverview = () => {
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
+              <Card 
+                role="region" 
+                hoverable
+                onClick={() => navigate('/admin/orders?status=pending_config')}
+                style={{ cursor: 'pointer' }}
+              >
                 <Statistic
                   title="待配置确认订单"
                   value={stats?.pending_config_orders || 0}
@@ -197,7 +242,12 @@ const AdminOverview = () => {
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card role="region">
+              <Card 
+                role="region" 
+                hoverable
+                onClick={() => navigate('/admin/sales?filter=pending_commission')}
+                style={{ cursor: 'pointer' }}
+              >
                 <Statistic
                   title="销售返佣金额"
                   value={stats?.commission_amount || 0}
@@ -494,6 +544,19 @@ const AdminOverview = () => {
                   dataIndex: 'sales_name',
                   key: 'sales_name',
                   render: (name) => <span style={{ fontWeight: '500' }}>{name}</span>
+                },
+                {
+                  title: '所属一级',
+                  dataIndex: 'primary_sales_name',
+                  key: 'primary_sales_name',
+                  width: 150,
+                  render: (name, record) => {
+                    // 只有二级销售才显示所属一级
+                    if (record.sales_type === '二级销售' && name !== '-') {
+                      return <span style={{ color: '#666' }}>{name}</span>;
+                    }
+                    return '-';
+                  }
                 },
                 {
                   title: '销售金额',

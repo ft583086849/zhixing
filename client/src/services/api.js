@@ -674,67 +674,90 @@ export const AdminAPI = {
       let primarySales = [];
       let secondarySales = [];
       
+      // 先获取所有数据
+      const [allPrimary, allSecondary] = await Promise.all([
+        primaryQuery.then(result => result.data || []),
+        secondaryQuery.then(result => result.data || [])
+      ]);
+      
       if (params.sales_type === 'primary') {
         // 只获取一级销售
-        primarySales = (await primaryQuery).data || [];
+        primarySales = allPrimary;
         secondarySales = [];
       } else if (params.sales_type === 'secondary') {
         // 只获取二级销售（有上级的）
         primarySales = [];
-        const allSecondary = (await secondaryQuery).data || [];
         secondarySales = allSecondary.filter(s => s.primary_sales_id);
       } else if (params.sales_type === 'independent') {
         // 只获取独立销售（没有上级的二级销售）
         primarySales = [];
-        const allSecondary = (await secondaryQuery).data || [];
         secondarySales = allSecondary.filter(s => !s.primary_sales_id);
       } else {
-        // 获取所有销售（但应用查询条件）
-        [primarySales, secondarySales] = await Promise.all([
-          primaryQuery.then(result => result.data || []),
-          secondaryQuery.then(result => result.data || [])
-        ]);
-        
-        // 🔧 调试：确认获取了所有数据
-        console.log('📊 重置时获取的原始数据:', {
-          一级销售数量: primarySales.length,
-          二级销售数量: secondarySales.length,
-          总计: primarySales.length + secondarySales.length
-        });
-      }
+        // 获取所有销售
+        primarySales = allPrimary;
+        secondarySales = allSecondary;
+              }
+      
+      // 🔧 调试：确认获取了所有数据
+      console.log('📊 销售类型筛选后的数据:', {
+        筛选类型: params.sales_type || '全部',
+        一级销售数量: primarySales.length,
+        二级销售数量: secondarySales.length,
+        总计: primarySales.length + secondarySales.length
+      });
       
       // 销售微信号搜索
-      // 🔧 修复：搜索一级销售时，也显示其下的二级销售，支持部分匹配
+      // 🔧 修复：智能匹配 - 支持特殊关键词和精确匹配
       if (params.wechat_name) {
-        const searchTerm = params.wechat_name.toLowerCase();
+        const searchTerm = params.wechat_name.toLowerCase().trim();
         
-        // 先筛选匹配的一级销售（精确匹配，不区分大小写）
-        const matchedPrimarySales = primarySales.filter(sale => {
-          // 检查多个字段进行精确匹配
-          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase() === searchTerm;
-          const nameMatch = sale.name && sale.name.toLowerCase() === searchTerm;
-          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase() === searchTerm;
-          return wechatMatch || nameMatch || codeMatch;
-        });
-        
-        // 获取这些一级销售的ID
-        const primarySalesIds = matchedPrimarySales.map(p => p.id);
-        
-        // 筛选二级销售：直接匹配的 + 属于匹配的一级销售的
-        secondarySales = secondarySales.filter(sale => {
-          // 直接精确匹配
-          const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase() === searchTerm;
-          const nameMatch = sale.name && sale.name.toLowerCase() === searchTerm;
-          const codeMatch = sale.sales_code && sale.sales_code.toLowerCase() === searchTerm;
-          const directMatch = wechatMatch || nameMatch || codeMatch;
+        // 特殊关键词处理
+        if (searchTerm === '一级' || searchTerm === '一级销售') {
+          // 显示所有一级销售及其下属二级销售
+          const allPrimaryIds = primarySales.map(p => p.id);
+          secondarySales = secondarySales.filter(sale => 
+            sale.primary_sales_id && allPrimaryIds.includes(sale.primary_sales_id)
+          );
+          // primarySales保持不变（显示所有一级销售）
+          console.log('🔍 智能搜索：显示所有一级销售及其下属');
+        } 
+        else if (searchTerm === '二级' || searchTerm === '二级销售') {
+          // 只显示二级销售
+          primarySales = [];
+          // secondarySales保持不变（显示所有二级销售）
+          console.log('🔍 智能搜索：只显示二级销售');
+        }
+        else {
+          // 普通搜索：精确匹配
+          // 先筛选匹配的一级销售（精确匹配，不区分大小写）
+          const matchedPrimarySales = primarySales.filter(sale => {
+            // 检查多个字段进行精确匹配
+            const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase() === searchTerm;
+            const nameMatch = sale.name && sale.name.toLowerCase() === searchTerm;
+            const codeMatch = sale.sales_code && sale.sales_code.toLowerCase() === searchTerm;
+            return wechatMatch || nameMatch || codeMatch;
+          });
           
-          // 或者属于匹配的一级销售
-          const belongsToMatchedPrimary = sale.primary_sales_id && primarySalesIds.includes(sale.primary_sales_id);
+          // 获取这些一级销售的ID
+          const primarySalesIds = matchedPrimarySales.map(p => p.id);
           
-          return directMatch || belongsToMatchedPrimary;
-        });
-        
-        primarySales = matchedPrimarySales;
+          // 筛选二级销售：直接匹配的 + 属于匹配的一级销售的
+          secondarySales = secondarySales.filter(sale => {
+            // 直接精确匹配
+            const wechatMatch = sale.wechat_name && sale.wechat_name.toLowerCase() === searchTerm;
+            const nameMatch = sale.name && sale.name.toLowerCase() === searchTerm;
+            const codeMatch = sale.sales_code && sale.sales_code.toLowerCase() === searchTerm;
+            const directMatch = wechatMatch || nameMatch || codeMatch;
+            
+            // 或者属于匹配的一级销售
+            const belongsToMatchedPrimary = sale.primary_sales_id && primarySalesIds.includes(sale.primary_sales_id);
+            
+            return directMatch || belongsToMatchedPrimary;
+          });
+          
+          primarySales = matchedPrimarySales;
+          console.log(`🔍 精确搜索"${searchTerm}"：找到${matchedPrimarySales.length}个一级销售，${secondarySales.length}个相关二级销售`);
+        }
       }
       
       // 手机号搜索
@@ -761,8 +784,8 @@ export const AdminAPI = {
       // 获取所有订单
       const orders = await SupabaseService.getOrders();
       
-      // 🔧 修复：在过滤之前先获取所有二级销售用于计算管理数量
-      const allSecondarySales = await SupabaseService.getSecondarySales();
+      // 🔧 修复：使用之前获取的全部二级销售数据，用于计算管理数量
+      const allSecondarySales = allSecondary || [];
       
       console.log('📊 销售数据获取:', {
         一级销售: primarySales.length,
