@@ -990,7 +990,11 @@ export class SupabaseService {
     }
     
     // 订单状态过滤
-    if (params.status) {
+    // 🔧 修复：待配置确认订单包含多种状态
+    if (params.status === 'pending_config') {
+      // 特殊处理：包含所有待配置的订单（与Dashboard统计一致）
+      query = query.or(`status.eq.pending_config,status.eq.confirmed_payment,and(duration.eq.7days,status.in.(pending,pending_payment))`);
+    } else if (params.status) {
       query = query.eq('status', params.status);
     }
     

@@ -460,6 +460,18 @@ export const AdminAPI = {
         });
       }
       
+      // 🔧 修复：按最新订单时间排序（新的在前）
+      customers.sort((a, b) => {
+        const getLatestTime = (customer) => {
+          // 优先使用最新订单时间，其次使用首单时间
+          if (customer.latest_order_time) return new Date(customer.latest_order_time);
+          if (customer.first_order) return new Date(customer.first_order);
+          return new Date(0);
+        };
+        
+        return getLatestTime(b) - getLatestTime(a);
+      });
+      
       // 如果没有参数，缓存结果
       if (!hasParams) {
         const cacheKey = 'admin-customers';
@@ -959,6 +971,7 @@ export const AdminAPI = {
             last_commission_paid_at: sale.last_commission_paid_at  // 🔧 添加最后支付时间
           },
           // 顾层字段用于显示
+          created_at: sale.created_at,  // 🔧 修复：添加创建时间到顶层
           sales_type: 'primary',
           sales_display_type: '一级销售',
           total_orders: totalOrders,
@@ -1102,6 +1115,7 @@ export const AdminAPI = {
             last_commission_paid_at: sale.last_commission_paid_at  // 🔧 添加最后支付时间
           },
           // 顶层字段用于显示
+          created_at: sale.created_at,  // 🔧 修复：添加创建时间到顶层
           sales_type: actualSalesType,  // 🔧 修复：独立销售应该是'independent'
           sales_display_type: salesDisplayType,
           total_orders: totalOrders,

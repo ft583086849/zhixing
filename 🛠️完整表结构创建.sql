@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS primary_sales (
     payment_address TEXT NOT NULL,
     alipay_surname VARCHAR(50),
     chain_name VARCHAR(50),
-    commission_rate DECIMAL(5,2) DEFAULT 40.00,
+    commission_rate DECIMAL(5,4) DEFAULT 0.4000,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS secondary_sales (
     payment_address TEXT NOT NULL,
     alipay_surname VARCHAR(50),
     chain_name VARCHAR(50),
-    commission_rate DECIMAL(5,2) DEFAULT 30.00,
+    commission_rate DECIMAL(5,4) DEFAULT 0.2500,
     status VARCHAR(20) DEFAULT 'active',
     removed_by INTEGER,
     removed_at TIMESTAMP,
