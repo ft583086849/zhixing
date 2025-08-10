@@ -441,65 +441,127 @@ const SalesReconciliationPage = () => {
         {/* 销售信息显示 */}
         {salesData && (
           <>
-            {/* 订单统计信息 */}
-            <Card title="订单统计信息" style={{ marginBottom: 24 }} role="region">
-              <Row gutter={16}>
-                <Col span={4}>
+            {/* 销售链接展示 */}
+            <Card 
+              style={{ 
+                marginBottom: 24,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: 'none'
+              }}
+            >
+              <Row gutter={[16, 16]}>
+                <Col xs={24}>
+                  <div style={{ 
+                    padding: '20px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <h3 style={{ color: '#fff', marginBottom: 12, fontSize: '16px' }}>
+                      <ShoppingCartOutlined style={{ marginRight: 8 }} />
+                      用户购买链接
+                    </h3>
+                    <div style={{
+                      padding: '12px',
+                      background: 'rgba(255, 255, 255, 0.9)',
+                      borderRadius: '6px',
+                      wordBreak: 'break-all'
+                    }}>
+                      <code style={{ fontSize: '13px', color: '#764ba2' }}>
+                        {window.location.origin}/purchase?sales_code={salesData.sales_code}
+                      </code>
+                    </div>
+                    <Button 
+                      type="ghost"
+                      size="small"
+                      style={{ 
+                        marginTop: 12,
+                        color: '#fff',
+                        borderColor: 'rgba(255, 255, 255, 0.5)'
+                      }}
+                      onClick={() => {
+                        const link = `${window.location.origin}/purchase?sales_code=${salesData.sales_code}`;
+                        navigator.clipboard.writeText(link);
+                        message.success('购买链接已复制到剪贴板');
+                      }}
+                    >
+                      复制链接
+                    </Button>
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* 订单统计信息 - 响应式布局 */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} sm={12} md={8}>
+                <Card hoverable style={{ height: '100%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+                  <Statistic
+                    title={<span style={{ color: 'rgba(255, 255, 255, 0.9)' }}>总佣金收入</span>}
+                    value={stats.totalCommission}
+                    prefix={<DollarOutlined />}
+                    suffix="元"
+                    precision={2}
+                    valueStyle={{ color: '#fff', fontSize: '28px', fontWeight: 'bold' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Card hoverable style={{ height: '100%', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+                  <Statistic
+                    title={<span style={{ color: 'rgba(255, 255, 255, 0.9)' }}>本月佣金</span>}
+                    value={stats.monthCommission}
+                    prefix={<DollarOutlined />}
+                    suffix="元"
+                    precision={2}
+                    valueStyle={{ color: '#fff', fontSize: '28px', fontWeight: 'bold' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Card hoverable style={{ height: '100%', background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+                  <Statistic
+                    title={<span style={{ color: 'rgba(255, 255, 255, 0.9)' }}>当日佣金</span>}
+                    value={stats.todayCommission}
+                    prefix={<DollarOutlined />}
+                    suffix="元"
+                    precision={2}
+                    valueStyle={{ color: '#fff', fontSize: '28px', fontWeight: 'bold' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Card hoverable style={{ height: '100%' }}>
                   <Statistic
                     title="总订单数"
                     value={stats.totalOrders}
                     prefix={<ShoppingCartOutlined />}
+                    suffix="单"
                   />
-                </Col>
-                <Col span={4}>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Card hoverable style={{ height: '100%' }}>
                   <Statistic
-                    title="总金额"
+                    title="总销售额"
                     value={stats.totalAmount}
                     prefix={<DollarOutlined />}
-                    suffix="美元"
-                  />
-                </Col>
-                <Col span={4}>
-                  <Statistic
-                    title="总返佣"
-                    value={stats.totalCommission}
-                    prefix={<DollarOutlined />}
-                    suffix="美元"
+                    suffix="元"
                     precision={2}
-                    valueStyle={{ color: '#3f8600' }}
                   />
-                </Col>
-                <Col span={4}>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Card hoverable style={{ height: '100%' }}>
                   <Statistic
-                    title="本月返佣"
-                    value={stats.monthCommission}
-                    prefix={<DollarOutlined />}
-                    suffix="美元"
-                    precision={2}
-                    valueStyle={{ color: '#1890ff' }}
-                  />
-                </Col>
-                <Col span={4}>
-                  <Statistic
-                    title="当日返佣"
-                    value={stats.todayCommission}
-                    prefix={<DollarOutlined />}
-                    suffix="美元"
-                    precision={2}
-                    valueStyle={{ color: '#fa8c16' }}
-                  />
-                </Col>
-                <Col span={4}>
-                  <Statistic
-                    title="返佣比例"
+                    title="佣金比率"
                     value={salesData.commission_rate * 100}
                     suffix="%"
-                    precision={0}
+                    valueStyle={{ color: '#52c41a' }}
                   />
-                </Col>
-              </Row>
-
-            </Card>
+                </Card>
+              </Col>
+            </Row>
 
             {/* 订单列表 */}
             <Card 
@@ -532,9 +594,10 @@ const SalesReconciliationPage = () => {
                   pageSize: 10,
                   showSizeChanger: true,
                   showQuickJumper: true,
-                  showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+                  showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+                  responsive: true
                 }}
-                scroll={{ x: 1000 }}
+                scroll={{ x: 'max-content' }}
               />
             </Card>
 

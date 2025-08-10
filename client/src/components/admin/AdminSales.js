@@ -666,49 +666,68 @@ const AdminSales = () => {
     {
       title: '收款地址',
       key: 'payment_address',
-      width: 200,
+      width: 220,
       render: (_, record) => {
         // 🔧 说明：payment_account从API层兼容获取（payment_account || payment_address）
         // 旧数据存在payment_address字段，新数据存在payment_account字段
         const paymentAccount = record.sales?.payment_account || '-';
         const paymentMethod = record.sales?.payment_method;
+        const chainName = record.sales?.chain_name;
         
         // 如果是加密货币地址，截断显示
-        if (paymentMethod?.includes('usdt') && paymentAccount.length > 10) {
-          const shortAddress = `${paymentAccount.slice(0, 6)}...${paymentAccount.slice(-4)}`;
+        if ((paymentMethod === 'crypto' || paymentAccount.startsWith('0x')) && paymentAccount.length > 10) {
+          const shortAddress = `${paymentAccount.slice(0, 4)}...${paymentAccount.slice(-4)}`;
           return (
-            <Tooltip title={paymentAccount}>
-              <Space size="small">
-                <span>{shortAddress}</span>
+            <Tooltip title={
+              <div>
+                {chainName && <div style={{ marginBottom: 4 }}>链名: {chainName}</div>}
+                <div>{paymentAccount}</div>
+              </div>
+            }>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '12px' }}>
+                  {chainName && <Tag color="blue" style={{ marginRight: 4 }}>{chainName}</Tag>}
+                  {shortAddress}
+                </span>
                 <Button
-                  type="text"
+                  type="primary"
                   size="small"
                   icon={<CopyOutlined />}
-                  onClick={() => {
+                  style={{ padding: '4px 12px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
                     navigator.clipboard.writeText(paymentAccount);
                     message.success('地址已复制');
                   }}
-                />
-              </Space>
+                >
+                  复制
+                </Button>
+              </div>
             </Tooltip>
           );
         }
         
         return (
-          <Space size="small">
-            <span>{paymentAccount}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {paymentAccount}
+            </span>
             {paymentAccount !== '-' && (
               <Button
-                type="text"
+                type="primary"
                 size="small"
                 icon={<CopyOutlined />}
-                onClick={() => {
+                style={{ padding: '4px 12px' }}
+                onClick={(e) => {
+                  e.stopPropagation();
                   navigator.clipboard.writeText(paymentAccount);
                   message.success('已复制');
                 }}
-              />
+              >
+                复制
+              </Button>
             )}
-          </Space>
+          </div>
         );
       }
     },
@@ -719,7 +738,9 @@ const AdminSales = () => {
       render: (_, record) => {
         const salesId = record.sales?.id;
         const commissionAmount = record.commission_amount || 0;  // 🔧 修复：使用API返回的commission_amount
-        const paidAmount = paidCommissionData[salesId] || 0;
+        // 🔧 修复：优先使用用户输入的值，如果没有则使用数据库值
+        const dbValue = record.sales?.paid_commission || record.paid_commission || 0;
+        const paidAmount = paidCommissionData[salesId] !== undefined ? paidCommissionData[salesId] : dbValue;
         const pendingAmount = commissionAmount - paidAmount;
         
         if (pendingAmount > 0) {

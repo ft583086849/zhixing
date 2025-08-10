@@ -547,7 +547,8 @@ const PrimarySalesSettlementPage = () => {
     const currentRate = secondarySales.commission_rate;
     commissionForm.setFieldsValue({
       // 如果是undefined或null则设置默认值，但0是有效值
-      commission_rate: (currentRate !== null && currentRate !== undefined) ? currentRate * 100 : 30
+      // 🔧 修复：二级销售默认佣金率改为25%
+      commission_rate: (currentRate !== null && currentRate !== undefined) ? currentRate * 100 : 25
     });
     setCommissionModalVisible(true);
   };

@@ -45,6 +45,9 @@ const AdminFinance = () => {
   // 收益占比配置（可手动调整）
   const [profitRatios, setProfitRatios] = useState({
     public: 40,  // 公户占比 40%
+    marketing: 10, // 营销费用（公户子项）
+    dividend: 15,  // 分红（公户子项）
+    development: 15, // 开发费用（公户子项）
     zhixing: 35, // 知行占比 35%
     zijun: 25    // 子俊占比 25%
   });
@@ -67,6 +70,9 @@ const AdminFinance = () => {
         const ratios = await AdminAPI.getProfitDistribution();
         const formattedRatios = {
           public: ratios.public_ratio || 40,
+          marketing: ratios.marketing_ratio || 10,
+          dividend: ratios.dividend_ratio || 15,
+          development: ratios.development_ratio || 15,
           zhixing: ratios.zhixing_ratio || 35,
           zijun: ratios.zijun_ratio || 25
         };
@@ -106,10 +112,19 @@ const AdminFinance = () => {
 
   const handleRatioChange = (type, value) => {
     if (value >= 0 && value <= 100) {
-      setProfitRatios(prev => ({
-        ...prev,
-        [type]: value
-      }));
+      setProfitRatios(prev => {
+        const newRatios = {
+          ...prev,
+          [type]: value || 0
+        };
+        
+        // 如果修改的是公户子项，更新公户总和
+        if (['marketing', 'dividend', 'development'].includes(type)) {
+          newRatios.public = newRatios.marketing + newRatios.dividend + newRatios.development;
+        }
+        
+        return newRatios;
+      });
     }
   };
 
@@ -194,36 +209,105 @@ const AdminFinance = () => {
 
   const financials = calculateFinancials();
 
-  // 计算收益分配
+  // 计算收益分配（基于总实付金额）
   const calculateProfitDistribution = () => {
-    const { netProfit } = financials;
+    const { totalPaid } = financials; // 使用总实付金额而不是营利金额
     const total = profitRatios.public + profitRatios.zhixing + profitRatios.zijun;
     
     if (total === 0) return [];
 
+    // 公户总占比（包含子项）
+    const publicTotal = profitRatios.public;
+    
     return [
       {
         key: 'public',
         category: '公户',
-        ratio: profitRatios.public,
-        profit: (netProfit * profitRatios.public / 100).toFixed(2)
+        ratio: publicTotal,
+        profit: (totalPaid * publicTotal / 100).toFixed(2),
+        isParent: true,
+        children: [
+          {
+            key: 'marketing',
+            category: '├─ 营销费用',
+            ratio: profitRatios.marketing,
+            profit: (totalPaid * profitRatios.marketing / 100).toFixed(2),
+            isChild: true,
+            parentKey: 'public'
+          },
+          {
+            key: 'dividend',
+            category: '├─ 分红',
+            ratio: profitRatios.dividend,
+            profit: (totalPaid * profitRatios.dividend / 100).toFixed(2),
+            isChild: true,
+            parentKey: 'public'
+          },
+          {
+            key: 'development',
+            category: '└─ 开发费用',
+            ratio: profitRatios.development,
+            profit: (totalPaid * profitRatios.development / 100).toFixed(2),
+            isChild: true,
+            parentKey: 'public'
+          }
+        ]
       },
       {
         key: 'zhixing',
         category: '知行',
         ratio: profitRatios.zhixing,
-        profit: (netProfit * profitRatios.zhixing / 100).toFixed(2)
+        profit: (totalPaid * profitRatios.zhixing / 100).toFixed(2)
       },
       {
         key: 'zijun',
         category: '子俊',
         ratio: profitRatios.zijun,
-        profit: (netProfit * profitRatios.zijun / 100).toFixed(2)
+        profit: (totalPaid * profitRatios.zijun / 100).toFixed(2)
       }
     ];
   };
 
   const profitColumns = [
+    {
+      title: (
+        <div style={{ textAlign: 'center' }}>
+          <WalletOutlined style={{ marginRight: 8, color: '#52c41a' }} />
+          总实付金额
+        </div>
+      ),
+      dataIndex: 'totalPaid',
+      key: 'totalPaid',
+      width: 150,
+      render: (_, record) => {
+        // 只在第一行显示总实付金额
+        if (record.key === 'public') {
+          return {
+            children: (
+              <div style={{ 
+                background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+                padding: '12px',
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <div style={{ color: '#fff', fontSize: '12px', marginBottom: '4px' }}>基准金额</div>
+                <div style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold' }}>
+                  ${financials.totalPaid.toFixed(2)}
+                </div>
+              </div>
+            ),
+            props: {
+              rowSpan: 6 // 跨越所有行
+            }
+          };
+        }
+        return {
+          props: {
+            rowSpan: 0
+          }
+        };
+      }
+    },
     {
       title: (
         <div style={{ textAlign: 'center' }}>
@@ -233,20 +317,35 @@ const AdminFinance = () => {
       ),
       dataIndex: 'netProfit',
       key: 'netProfit',
-      width: 180,
-      render: () => (
-        <div style={{ 
-          background: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
-          padding: '12px',
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
-          <div style={{ color: '#fff', fontSize: '12px', marginBottom: '4px' }}>总营利</div>
-          <div style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold' }}>
-            ${financials.netProfit.toFixed(2)}
-          </div>
-        </div>
-      )
+      width: 150,
+      render: (_, record) => {
+        // 只在第一行显示营利金额
+        if (record.key === 'public') {
+          return {
+            children: (
+              <div style={{ 
+                background: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
+                padding: '12px',
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <div style={{ color: '#fff', fontSize: '12px', marginBottom: '4px' }}>扣除佣金</div>
+                <div style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold' }}>
+                  ${financials.netProfit.toFixed(2)}
+                </div>
+              </div>
+            ),
+            props: {
+              rowSpan: 6 // 跨越所有行
+            }
+          };
+        }
+        return {
+          props: {
+            rowSpan: 0
+          }
+        };
+      }
     },
     {
       title: (

@@ -793,17 +793,32 @@ export const AdminAPI = {
         
         // 🔧 新增：获取管理的二级销售的订单
         const managedSecondaries = allSecondarySales.filter(s => s.primary_sales_id === sale.id);
-        const secondaryOrders = [];
+        
+        // 🔧 修复：使用 Map 按订单编号去重，避免订单被重复计算
+        const orderMap = new Map();
+        
+        // 添加一级销售自己的订单
+        saleOrders.forEach(order => {
+          if (order.order_number) {
+            orderMap.set(order.order_number, order);
+          }
+        });
+        
+        // 添加管理的二级销售的订单（如果订单号已存在则不会重复添加）
         managedSecondaries.forEach(secondary => {
           const secOrders = orders.filter(order => 
             order.sales_code === secondary.sales_code &&
             order.status !== 'rejected'
           );
-          secondaryOrders.push(...secOrders);
+          secOrders.forEach(order => {
+            if (order.order_number) {
+              orderMap.set(order.order_number, order);
+            }
+          });
         });
         
-        // 计算订单统计（包含一级自己的订单和二级销售的订单）
-        const allRelatedOrders = [...saleOrders, ...secondaryOrders];
+        // 转换为去重后的订单数组
+        const allRelatedOrders = Array.from(orderMap.values());
         const totalOrders = allRelatedOrders.length;
         const validOrders = allRelatedOrders.filter(order => 
           ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
@@ -1236,15 +1251,19 @@ export const AdminAPI = {
       }).length;
       
       // 🔧 状态统计 - 根据核心业务逻辑
+      // 🔧 修复：7天免费订单不计入待付款确认订单（不需要付款）
       const pending_payment_orders = ordersToProcess.filter(order => 
-        ['pending_payment', 'pending', 'pending_review'].includes(order.status)
+        ['pending_payment', 'pending', 'pending_review'].includes(order.status) &&
+        order.duration !== '7days'  // 排除7天免费订单
       ).length;
       
       // 删除已付款确认订单统计（用户要求）
       // const confirmed_payment_orders = ...
       
+      // 🔧 修复：7天免费订单直接计入待配置确认
       const pending_config_orders = ordersToProcess.filter(order => 
-        ['pending_config', 'confirmed_payment'].includes(order.status)  // confirmed_payment也是待配置状态
+        ['pending_config', 'confirmed_payment'].includes(order.status) ||  // confirmed_payment也是待配置状态
+        (order.duration === '7days' && ['pending', 'pending_payment'].includes(order.status))  // 7天免费订单
       ).length;
       
       // 已确认订单 - 只统计这些状态
@@ -1710,6 +1729,7 @@ export const SalesAPI = {
       // 生成唯一的销售代码 - 增强唯一性
       salesData.sales_code = salesData.sales_code || this.generateUniqueSalesCode('SEC');
       salesData.sales_type = 'secondary';  // 添加sales_type字段
+      salesData.commission_rate = salesData.commission_rate || 25;  // 🔧 设置默认佣金率为25%
       salesData.created_at = new Date().toISOString();
       
       // 🔧 移除name字段（支付宝已移除，不再需要）
