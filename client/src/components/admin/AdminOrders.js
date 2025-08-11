@@ -383,12 +383,32 @@ const AdminOrders = () => {
         return `$${record.amount}`;
       }
     },
+    // 🚀 佣金系统v2.0 - 新增佣金拆分列
     {
-      title: '佣金',
-      dataIndex: 'commission_amount',
-      key: 'commission_amount',
-      width: 100,
-      render: (amount) => `¥${amount || 0}`,
+      title: '一级销售佣金额',
+      key: 'primary_commission',
+      width: 140,
+      render: (_, record) => {
+        // 只有一级销售直接卖出的订单才有值
+        if (record.sales_type === 'primary') {
+          const commission = (record.amount || 0) * 0.4;  // 40%固定佣金
+          return <span style={{ color: '#1890ff' }}>${commission.toFixed(2)}</span>;
+        }
+        return '-';
+      }
+    },
+    {
+      title: '二级分销佣金额',
+      key: 'secondary_commission',
+      width: 140,
+      render: (_, record) => {
+        // 二级销售或独立销售卖出的订单
+        if (record.sales_type === 'secondary' || record.sales_type === 'independent') {
+          const commission = record.commission_amount || 0;
+          return <span style={{ color: '#52c41a' }}>${commission.toFixed(2)}</span>;
+        }
+        return '-';
+      }
     },
     {
       title: '付款方式',

@@ -479,18 +479,25 @@ const AdminSales = () => {
       width: 110,
       render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：直接使用API返回的total_amount
     },
+    // 🚀 佣金系统v2.0 - 新增列
     {
-      title: '佣金率',
-      key: 'commission_rate',
+      title: '平均二级佣金率',
+      key: 'secondary_avg_rate',
       width: 140,
       render: (_, record) => {
         const salesId = record.sales?.id;
-        // 🔧 修复：直接使用API返回的commission_rate，支持显示0或未设置的佣金率
+        
+        // 一级销售显示平均二级佣金率
+        if (record.sales_type === 'primary') {
+          const avgRate = record.secondary_avg_rate || 0;
+          return <Tag color="purple">{(avgRate * 100).toFixed(1)}%</Tag>;
+        }
+        
+        // 二级/独立销售显示自己的佣金率（可编辑）
         const currentRate = editingCommissionRates[salesId] !== undefined 
           ? editingCommissionRates[salesId]
-          : (record.commission_rate !== undefined ? record.commission_rate : (record.sales?.commission_rate || 0));
+          : (record.commission_rate !== undefined ? record.commission_rate : 25);
         
-        // 🔧 修复：一级销售和二级销售都可以编辑佣金率
         if (editingCommissionRates[salesId] !== undefined) {
           return (
             <Space size="small">
@@ -500,7 +507,7 @@ const AdminSales = () => {
                 max={100}
                 value={editingCommissionRates[salesId]}
                 onChange={(value) => handleCommissionRateEdit(salesId, value)}
-                style={{ width: 120 }}  // 🔧 修复：增大输入框宽度
+                style={{ width: 80 }}
                 addonAfter="%"
               />
               <Button
@@ -517,11 +524,9 @@ const AdminSales = () => {
             </Space>
           );
         } else {
-          // 根据销售类型显示不同颜色的标签
-          const tagColor = record.sales_type === 'primary' ? 'green' : 'blue';
           return (
             <Space size="small">
-              <Tag color={tagColor}>{currentRate}%</Tag>
+              <Tag color="blue">{currentRate}%</Tag>
               <Button
                 type="link"
                 size="small"
@@ -534,18 +539,66 @@ const AdminSales = () => {
       }
     },
     {
-      title: '已配置确认订单金额',
-      dataIndex: 'confirmed_amount',
-      key: 'confirmed_amount',
-      width: 180,
-      render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：使用API返回的confirmed_amount字段
+      title: '一级销售配置确认订单金额',
+      key: 'primary_direct_amount',
+      width: 200,
+      render: (_, record) => {
+        if (record.sales_type === 'primary' && record.primary_direct_amount > 0) {
+          return `$${record.primary_direct_amount.toFixed(2)}`;
+        }
+        return '-';
+      }
+    },
+    {
+      title: '二级销售配置确认订单金额',
+      key: 'secondary_orders_amount', 
+      width: 200,
+      render: (_, record) => {
+        if (record.sales_type === 'primary') {
+          // 一级销售显示其下二级的订单总额
+          return record.secondary_orders_amount > 0 
+            ? `$${record.secondary_orders_amount.toFixed(2)}` 
+            : '$0.00';
+        } else {
+          // 二级/独立销售显示自己的订单总额
+          const amount = record.confirmed_amount || 0;
+          return amount > 0 ? `$${amount.toFixed(2)}` : '$0.00';
+        }
+      }
+    },
+    {
+      title: '一级直销佣金',
+      key: 'primary_direct_commission',
+      width: 130,
+      render: (_, record) => {
+        if (record.sales_type === 'primary' && record.primary_direct_commission > 0) {
+          return <span style={{ color: '#1890ff' }}>${record.primary_direct_commission.toFixed(2)}</span>;
+        }
+        return '-';
+      }
+    },
+    {
+      title: '二级分销收益',
+      key: 'secondary_share_commission',
+      width: 130,
+      render: (_, record) => {
+        if (record.sales_type === 'primary') {
+          // 一级销售显示从二级获得的收益
+          const shareCommission = record.secondary_share_commission || 0;
+          return <span style={{ color: '#13c2c2' }}>${shareCommission.toFixed(2)}</span>;
+        } else {
+          // 二级/独立销售显示自己的佣金收益
+          const commission = record.commission_amount || 0;
+          return <span style={{ color: '#52c41a' }}>${commission.toFixed(2)}</span>;
+        }
+      }
     },
     {
       title: '应返佣金额',
       dataIndex: 'commission_amount',
       key: 'commission_amount',
       width: 130,
-      render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：直接使用API返回的commission_amount
+      render: (value) => value ? <span style={{ fontWeight: 'bold', color: '#f5222d' }}>${value.toFixed(2)}</span> : '$0.00'  // 🔧 修复：直接使用API返回的commission_amount
     },
     {
       title: '已返佣金额',

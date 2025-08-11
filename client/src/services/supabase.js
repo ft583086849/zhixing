@@ -357,49 +357,79 @@ export class SupabaseService {
         });
       }
       
-      // 🚀 动态计算一级销售佣金率
-      // 修正后的公式：一级销售净佣金 = (团队总订单 × 40%) - 二级销售佣金支出
-      if (secondaryTotalAmount > 0 || (primaryStats.total_amount || 0) > 0) {
-        const primaryDirectAmount = primaryStats.total_amount || 0;  // 一级直接订单金额
-        const primaryBaseRate = 0.4;  // 一级基础佣金率40%
-        const teamTotalAmount = primaryDirectAmount + secondaryTotalAmount;  // 团队总金额
-        
-        // 计算一级销售的净佣金（扣除二级销售佣金后）
-        // 净佣金 = 一级直接订单佣金 + (二级订单按40%计算 - 实际支付给二级的佣金)
-        const primaryNetCommission = (primaryDirectAmount * primaryBaseRate) + 
-                                    (secondaryTotalAmount * primaryBaseRate - secondaryTotalCommission);
-        
-        // 动态佣金率 = 净佣金 ÷ 团队总金额
-        const dynamicRate = teamTotalAmount > 0 ? primaryNetCommission / teamTotalAmount : primaryBaseRate;
-        
-        // 更新一级销售的佣金率和佣金金额
-        primaryStats.dynamic_commission_rate = dynamicRate;
-        primaryStats.commission_rate = dynamicRate;  // 使用动态佣金率
-        primaryStats.total_commission = primaryNetCommission;  // 使用净佣金
-        
-        // 重新计算本月和当日佣金（包含团队数据）
-        const teamMonthAmount = (primaryStats.month_amount || 0) + secondaryMonthAmount;
-        const teamTodayAmount = (primaryStats.today_amount || 0) + secondaryTodayAmount;
-        
-        // 月度和当日净佣金计算
-        const monthNetCommission = (primaryStats.month_amount || 0) * primaryBaseRate + 
-                                  (secondaryMonthAmount * primaryBaseRate - secondaryMonthCommission);
-        const todayNetCommission = (primaryStats.today_amount || 0) * primaryBaseRate + 
-                                  (secondaryTodayAmount * primaryBaseRate - secondaryTodayCommission);
-        
-        primaryStats.month_commission = monthNetCommission;  // 月度净佣金
-        primaryStats.today_commission = todayNetCommission;  // 当日净佣金
-        
-        console.log('动态佣金率计算（修正版）:', {
-          一级直接金额: primaryDirectAmount,
-          二级总金额: secondaryTotalAmount,
-          二级佣金支出: secondaryTotalCommission,
-          团队总金额: teamTotalAmount,
-          一级净佣金: primaryNetCommission,
-          动态佣金率: (dynamicRate * 100).toFixed(2) + '%',
-          计算验证: `${teamTotalAmount} × ${(dynamicRate * 100).toFixed(2)}% = ${primaryNetCommission.toFixed(2)}`
+      // 🚀 佣金系统v2.0 - 详细拆分计算
+      const primaryDirectAmount = primaryStats.total_amount || 0;  // 一级直接订单金额
+      const primaryBaseRate = 0.4;  // 一级基础佣金率40%
+      const teamTotalAmount = primaryDirectAmount + secondaryTotalAmount;  // 团队总金额
+      
+      // 1. 计算一级直销佣金
+      const primaryDirectCommission = primaryDirectAmount * primaryBaseRate;
+      
+      // 2. 计算二级分销收益（差额收益）
+      const secondaryShareCommission = secondaryTotalAmount * primaryBaseRate - secondaryTotalCommission;
+      
+      // 3. 计算总佣金
+      const primaryTotalCommission = primaryDirectCommission + secondaryShareCommission;
+      
+      // 4. 计算加权平均二级佣金率
+      let secondaryAvgRate = 0;
+      if (secondaryTotalAmount > 0) {
+        // 加权平均 = Σ(佣金率×订单额) ÷ Σ订单额
+        let weightedSum = 0;
+        secondaryStats.forEach(ss => {
+          const rate = ss.commission_rate || 0.25;
+          const amount = ss.total_amount || 0;
+          weightedSum += rate * amount;
         });
+        secondaryAvgRate = weightedSum / secondaryTotalAmount;
       }
+      
+      // 5. 更新primaryStats - 添加详细的佣金拆分数据
+      primaryStats.base_commission_rate = primaryBaseRate;  // 固定40%
+      primaryStats.direct_orders_amount = primaryDirectAmount;  // 一级直销订单金额
+      primaryStats.direct_commission = primaryDirectCommission;  // 一级直销佣金
+      
+      primaryStats.secondary_orders_amount = secondaryTotalAmount;  // 二级订单总额
+      primaryStats.secondary_avg_rate = secondaryAvgRate;  // 加权平均二级佣金率
+      primaryStats.secondary_share_commission = secondaryShareCommission;  // 二级分销收益
+      
+      primaryStats.total_commission = primaryTotalCommission;  // 总佣金（直销+分销）
+      
+      // 保留动态佣金率（用于兼容旧代码）
+      const dynamicRate = teamTotalAmount > 0 ? primaryTotalCommission / teamTotalAmount : primaryBaseRate;
+      primaryStats.dynamic_commission_rate = dynamicRate;
+      primaryStats.commission_rate = dynamicRate;
+      
+      // 6. 计算月度和当日佣金明细
+      const monthDirectCommission = (primaryStats.month_amount || 0) * primaryBaseRate;
+      const monthShareCommission = secondaryMonthAmount * primaryBaseRate - secondaryMonthCommission;
+      primaryStats.month_commission = monthDirectCommission + monthShareCommission;
+      primaryStats.month_direct_commission = monthDirectCommission;
+      primaryStats.month_share_commission = monthShareCommission;
+      
+      const todayDirectCommission = (primaryStats.today_amount || 0) * primaryBaseRate;
+      const todayShareCommission = secondaryTodayAmount * primaryBaseRate - secondaryTodayCommission;
+      primaryStats.today_commission = todayDirectCommission + todayShareCommission;
+      primaryStats.today_direct_commission = todayDirectCommission;
+      primaryStats.today_share_commission = todayShareCommission;
+      
+      console.log('佣金系统v2.0计算结果:', {
+        一级直销: {
+          订单金额: primaryDirectAmount,
+          佣金率: '40%',
+          佣金: primaryDirectCommission
+        },
+        二级分销: {
+          订单金额: secondaryTotalAmount,
+          平均佣金率: (secondaryAvgRate * 100).toFixed(2) + '%',
+          分销收益: secondaryShareCommission
+        },
+        总计: {
+          团队总金额: teamTotalAmount,
+          总佣金: primaryTotalCommission,
+          综合佣金率: (dynamicRate * 100).toFixed(2) + '%'
+        }
+      });
       
       // 6. 计算综合统计（一级 + 所有二级）
       const totalStats = {

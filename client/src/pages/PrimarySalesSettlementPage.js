@@ -223,7 +223,83 @@ const PrimarySalesSettlementPage = () => {
         </Col>
       </Row>
       
-      {/* 第二行：业务指标 */}
+      {/* 第二行：佣金明细 - v2.0新增 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              borderLeft: '4px solid #1890ff'
+            }}
+          >
+            <Statistic
+              title="一级销售佣金额"
+              value={primarySalesStats?.direct_commission || 0}
+              precision={2}
+              valueStyle={{ color: '#1890ff', fontSize: '22px', fontWeight: 'bold' }}
+              prefix="$"
+              suffix={<span style={{ fontSize: '12px', color: '#999' }}>(直销×40%)</span>}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              borderLeft: '4px solid #722ed1'
+            }}
+          >
+            <Statistic
+              title="平均二级佣金率"
+              value={(() => {
+                const rate = primarySalesStats?.secondary_avg_rate || 0;
+                return (rate * 100).toFixed(1);
+              })()}
+              valueStyle={{ color: '#722ed1', fontSize: '22px', fontWeight: 'bold' }}
+              suffix="%"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              borderLeft: '4px solid #13c2c2'
+            }}
+          >
+            <Statistic
+              title="二级佣金收益额"
+              value={primarySalesStats?.secondary_share_commission || 0}
+              precision={2}
+              valueStyle={{ color: '#13c2c2', fontSize: '22px', fontWeight: 'bold' }}
+              prefix="$"
+              suffix={<span style={{ fontSize: '12px', color: '#999' }}>(分销收益)</span>}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            hoverable
+            style={{ 
+              height: '100%',
+              borderLeft: '4px solid #eb2f96'
+            }}
+          >
+            <Statistic
+              title="二级销售订单总额"
+              value={primarySalesStats?.secondary_orders_amount || 0}
+              precision={2}
+              valueStyle={{ color: '#eb2f96', fontSize: '22px', fontWeight: 'bold' }}
+              prefix="$"
+            />
+          </Card>
+        </Col>
+      </Row>
+      
+      {/* 第三行：业务指标 */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={8}>
           <Card 
@@ -234,7 +310,7 @@ const PrimarySalesSettlementPage = () => {
             }}
           >
             <Statistic
-              title="佣金比率"
+              title="综合佣金率"
               value={(() => {
                 // 🚀 使用后端动态计算的佣金率
                 // 优先使用统计数据中的当前佣金率，其次使用销售数据中的佣金率

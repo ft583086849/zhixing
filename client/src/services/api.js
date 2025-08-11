@@ -902,42 +902,61 @@ export const AdminAPI = {
           commissionRate = 40; // 默认40%
         }
         
-        // 使用固定佣金规则（40%总池）
-        let commissionAmount = confirmedAmount * (commissionRate / 100);
+        // 🚀 佣金系统v2.0 - 详细拆分计算
+        // 1. 计算一级直销订单（不包括二级的订单）
+        const primaryDirectOrders = allRelatedOrders.filter(order => 
+          order.sales_code === sale.sales_code &&
+          ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
+        );
         
-        // 🔧 新增：计算从二级销售订单获得的佣金
-        // 对于二级销售的订单，一级销售获得 (40% - 二级销售佣金率) 的佣金
-        // 但如果一级销售的佣金率是0%，则不获得任何佣金
-        if (commissionRate > 0) {
-          managedSecondaries.forEach(secondary => {
-            const secOrders = orders.filter(order => 
-              order.sales_code === secondary.sales_code &&
-              order.status === 'confirmed_config'
-            );
-            
-            const secConfirmedAmount = secOrders.reduce((sum, order) => {
-              const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-              if (order.payment_method === 'alipay') {
-                return sum + (amount / 7.15);
-              }
-              return sum + amount;
-            }, 0);
-            
-            // 二级销售的佣金率
-            let secCommissionRate = secondary.commission_rate || 25;
-            if (secCommissionRate > 0 && secCommissionRate < 1) {
-              secCommissionRate = secCommissionRate * 100;
+        const primaryDirectAmount = primaryDirectOrders.reduce((sum, order) => {
+          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+          if (order.payment_method === 'alipay') {
+            return sum + (amount / 7.15);
+          }
+          return sum + amount;
+        }, 0);
+        
+        // 2. 计算二级销售订单总额
+        let secondaryOrdersAmount = 0;
+        let secondaryTotalCommission = 0;
+        let secondaryWeightedSum = 0;  // 用于计算加权平均
+        
+        managedSecondaries.forEach(secondary => {
+          const secOrders = orders.filter(order => 
+            order.sales_code === secondary.sales_code &&
+            ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'].includes(order.status)
+          );
+          
+          const secConfirmedAmount = secOrders.reduce((sum, order) => {
+            const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
+            if (order.payment_method === 'alipay') {
+              return sum + (amount / 7.15);
             }
-            
-            // 一级销售从二级销售订单获得的佣金
-            const primaryShareRate = 40 - secCommissionRate; // 40%总池 - 二级销售佣金率
-            const primaryShareAmount = secConfirmedAmount * (primaryShareRate / 100);
-            
-            commissionAmount += primaryShareAmount;
-            
-            console.log(`  └─ 二级销售 ${secondary.sales_code}: 确认金额$${secConfirmedAmount.toFixed(2)}, 二级佣金率${secCommissionRate}%, 一级获得${primaryShareRate}%, 佣金$${primaryShareAmount.toFixed(2)}`);
-          });
-        }
+            return sum + amount;
+          }, 0);
+          
+          // 二级销售的佣金率处理
+          let secCommissionRate = secondary.commission_rate || 0.25;
+          if (secCommissionRate > 1) {
+            secCommissionRate = secCommissionRate / 100;
+          }
+          
+          secondaryOrdersAmount += secConfirmedAmount;
+          secondaryTotalCommission += secConfirmedAmount * secCommissionRate;
+          secondaryWeightedSum += secCommissionRate * secConfirmedAmount;
+        });
+        
+        // 3. 计算加权平均二级佣金率
+        const secondaryAvgRate = secondaryOrdersAmount > 0 
+          ? secondaryWeightedSum / secondaryOrdersAmount 
+          : 0;
+        
+        // 4. 计算一级销售佣金明细
+        const primaryBaseRate = 0.4;  // 固定40%
+        const primaryDirectCommission = primaryDirectAmount * primaryBaseRate;  // 直销佣金
+        const secondaryShareCommission = secondaryOrdersAmount * primaryBaseRate - secondaryTotalCommission;  // 分销收益
+        const commissionAmount = primaryDirectCommission + secondaryShareCommission;  // 总佣金
         
         // 获取管理的二级销售数量
         const managedSecondaryCount = allSecondarySales.filter(s => s.primary_sales_id === sale.id).length;
@@ -988,6 +1007,15 @@ export const AdminAPI = {
           total_amount: Math.round(totalAmount * 100) / 100,
           confirmed_amount: Math.round(confirmedAmount * 100) / 100,
           commission_rate: commissionRate,
+          // 🚀 佣金系统v2.0 - 新增字段
+          base_commission_rate: primaryBaseRate,  // 基础佣金率（固定40%）
+          primary_direct_amount: Math.round(primaryDirectAmount * 100) / 100,  // 一级销售配置确认订单金额（仅直销）
+          secondary_orders_amount: Math.round(secondaryOrdersAmount * 100) / 100,  // 二级销售配置确认订单金额
+          secondary_avg_rate: secondaryAvgRate,  // 平均二级佣金率（加权）
+          primary_direct_commission: Math.round(primaryDirectCommission * 100) / 100,  // 一级直销佣金
+          secondary_share_commission: Math.round(secondaryShareCommission * 100) / 100,  // 二级分销收益
+          
+          // 保留原字段（兼容）
           commission_amount: Math.round(commissionAmount * 100) / 100,
           paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
           hierarchy_info: '一级销售',
@@ -1141,6 +1169,15 @@ export const AdminAPI = {
           total_amount: Math.round(totalAmount * 100) / 100,
           confirmed_amount: Math.round(confirmedAmount * 100) / 100,  // 🔧 新增：已配置确认订单金额
           commission_rate: commissionRate,
+          // 🚀 佣金系统v2.0 - 新增字段（二级/独立销售）
+          base_commission_rate: null,  // 二级销售无基础率概念
+          primary_direct_amount: 0,  // 二级销售无直销订单
+          secondary_orders_amount: Math.round(confirmedAmount * 100) / 100,  // 二级销售配置确认订单金额（就是自己的订单）
+          secondary_avg_rate: commissionRate / 100,  // 自己的佣金率（转为小数）
+          primary_direct_commission: 0,  // 二级销售无直销佣金
+          secondary_share_commission: Math.round(commissionAmount * 100) / 100,  // 二级分销收益（就是自己的佣金）
+          
+          // 保留原字段（兼容）
           commission_amount: Math.round(commissionAmount * 100) / 100,
           paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
           hierarchy_info: hierarchyInfo,
