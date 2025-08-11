@@ -301,28 +301,7 @@ const PrimarySalesSettlementPage = () => {
       
       {/* 第三行：业务指标 */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={8}>
-          <Card 
-            hoverable
-            style={{ 
-              height: '100%',
-              borderLeft: '4px solid #52c41a'
-            }}
-          >
-            <Statistic
-              title="综合佣金率"
-              value={(() => {
-                // 🚀 使用后端动态计算的佣金率
-                // 优先使用统计数据中的当前佣金率，其次使用销售数据中的佣金率
-                const rate = primarySalesStats?.currentCommissionRate || salesData?.commission_rate || 0.4;
-                return (rate * 100).toFixed(1);
-              })()}
-              valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-              suffix="%"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={12}>
           <Card 
             hoverable
             style={{ 
@@ -339,7 +318,7 @@ const PrimarySalesSettlementPage = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={12}>
           <Card 
             hoverable
             style={{ 
