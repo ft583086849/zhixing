@@ -13,6 +13,9 @@ const AuthTestPage = lazy(() => import('./pages/AuthTestPage'));
 const PrimarySalesPage = lazy(() => import('./pages/PrimarySalesPage'));
 const PrimarySalesSettlementPage = lazy(() => import('./pages/PrimarySalesSettlementPage'));
 const UnifiedSecondarySalesPage = lazy(() => import('./pages/UnifiedSecondarySalesPage'));
+const EnvTestPage = lazy(() => import('./pages/EnvTestPage'));
+const TestSafeConfigPage = lazy(() => import('./pages/TestSafeConfigPage'));
+const ConfigTestPage = lazy(() => import('./pages/ConfigTestPage'));
 
 // 组件
 import LoadingSpinner from './components/LoadingSpinner';
@@ -119,6 +122,14 @@ function App() {
           {/* 认证测试页面 */}
           <Route path="/auth-test" element={<Suspense fallback={<div>加载中...</div>}><AuthTestPage /></Suspense>} />
           
+          {/* 环境变量测试页面 */}
+          <Route path="/env-test" element={<Suspense fallback={<div>加载中...</div>}><EnvTestPage /></Suspense>} />
+          
+          {/* 配置兼容性测试页面 */}
+          <Route path="/test-config" element={<Suspense fallback={<div>加载中...</div>}><TestSafeConfigPage /></Suspense>} />
+          
+          {/* 安全配置测试页面 */}
+          <Route path="/config-test" element={<Suspense fallback={<div>加载中...</div>}><ConfigTestPage /></Suspense>} />
 
           
           {/* 管理员后台页面 - 需要认证 */}
