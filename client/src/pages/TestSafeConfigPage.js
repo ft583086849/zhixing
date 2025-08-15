@@ -3,7 +3,7 @@ import { Card, Button, Alert, Descriptions, Tag, Space, Spin } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
 // 测试两种配置
-import supabaseOld from '../config/supabase'; // 原配置
+import { supabase as supabaseOld } from '../config/supabase'; // 原配置
 import supabaseSafe from '../config/supabase-safe'; // 新配置
 
 const TestSafeConfigPage = () => {
