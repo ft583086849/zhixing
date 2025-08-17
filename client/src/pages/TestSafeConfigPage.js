@@ -164,8 +164,8 @@ const TestSafeConfigPage = () => {
                   <div>
                     <p>配置验证通过！现在可以安全地进行迁移：</p>
                     <ol>
-                      <li>先在一个测试页面中将 <code>import supabase from '../config/supabase'</code></li>
-                      <li>替换为 <code>import supabase from '../config/supabase-safe'</code></li>
+                      <li>先在一个测试页面中将 <code>import supabase from &apos;../config/supabase&apos;</code></li>
+                      <li>替换为 <code>import supabase from &apos;../config/supabase-safe&apos;</code></li>
                       <li>测试功能是否正常</li>
                       <li>确认无误后，批量替换所有文件</li>
                     </ol>

@@ -175,7 +175,7 @@ const EnvTestPage = () => {
           message="配置说明"
           description={
             <ul>
-              <li>在Vercel Dashboard > Settings > Environment Variables 中配置</li>
+              <li>在Vercel Dashboard &gt; Settings &gt; Environment Variables 中配置</li>
               <li>配置后需要重新部署才能生效</li>
               <li>REACT_APP_ 前缀是必须的</li>
               <li>配置完成后，可以开始使用 supabase-safe.js 替换原有配置</li>
