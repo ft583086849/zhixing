@@ -27,11 +27,15 @@ import {
   CheckOutlined,
   CloseOutlined,
   StopOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  CopyOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getAdminOrders, updateAdminOrderStatus, exportOrders, getStats } from '../../store/slices/adminSlice';
 import DataRefreshManager from '../../utils/dataRefresh';
+// import { checkE8257Order } from '../../utils/checkE8257';
+// import { simpleCheckE8257 } from '../../utils/simpleCheck';
+// import { fixE8257Order } from '../../utils/fixE8257Order';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -39,10 +43,45 @@ const { RangePicker } = DatePicker;
 
 const AdminOrders = () => {
   const dispatch = useDispatch();
-  const { orders, pagination, loading } = useSelector((state) => state.admin);
+  const { orders: rawOrders, pagination, loading } = useSelector((state) => {
+    console.log('Redux state.admin:', state.admin);
+    console.log('Orders data:', state.admin.orders);
+    console.log('Orders type:', typeof state.admin.orders);
+    console.log('Orders isArray:', Array.isArray(state.admin.orders));
+    return state.admin;
+  });
   const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
+  
+  // 🔧 由于后端已经处理筛选，直接使用返回的数据
+  const orders = React.useMemo(() => {
+    if (!Array.isArray(rawOrders)) return [];
+    
+    console.log('🔍 所有订单数据:', rawOrders.length, '个订单');
+    
+    // 查找e8257的订单
+    const e8257Orders = rawOrders.filter(order => 
+      order.tradingview_username?.toLowerCase().includes('e8257') ||
+      order.customer_wechat?.toLowerCase().includes('e8257') ||
+      order.customer_name?.toLowerCase().includes('e8257')
+    );
+    if (e8257Orders.length > 0) {
+      console.log('🔍 找到e8257的订单:', e8257Orders);
+    }
+    
+    // 查找$1588的订单
+    const amount1588Orders = rawOrders.filter(order => 
+      order.amount === 1588 || order.amount === '1588'
+    );
+    console.log('🔍 找到$1588的订单:', amount1588Orders.length, '个');
+    if (amount1588Orders.length > 0) {
+      console.log('$1588订单详情:', amount1588Orders.map(o => `#${o.id} ${o.tradingview_username} ${o.status}`));
+    }
+    
+    // 直接返回后端筛选后的数据，不做客户端过滤
+    return rawOrders;
+  }, [rawOrders]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
@@ -60,6 +99,9 @@ const AdminOrders = () => {
       ...searchValues,
       ...params
     };
+    
+    // 🔧 处理多选金额筛选 - 直接传递给后端，后端已支持数组
+    // 金额数组会被直接传递给后端，后端已经更新支持 array.in 查询
     
     // 🔧 新增：默认排除已拒绝的订单，除非用户明确选择查看
     // 处理特殊状态值
@@ -100,9 +142,16 @@ const AdminOrders = () => {
     // 保存查询参数供刷新使用
     lastSearchParams.current = queryParams;
     
-    dispatch(getAdminOrders(queryParams));
-    // 🔧 修复：同时刷新统计数据，确保订单状态更新后统计数据同步
-    dispatch(getStats({ usePaymentTime: true }));
+    console.log('🔍 发送的查询参数:', queryParams);
+    
+    try {
+      dispatch(getAdminOrders(queryParams));
+      // 🔧 修复：同时刷新统计数据，确保订单状态更新后统计数据同步
+      dispatch(getStats({ usePaymentTime: true }));
+    } catch (error) {
+      console.error('获取订单列表失败:', error);
+      message.error('获取订单数据失败，请稍后重试');
+    }
   };
 
   // 手动刷新数据
@@ -126,6 +175,11 @@ const AdminOrders = () => {
   };
 
   useEffect(() => {
+    // 临时：检查e8257订单数据 - 已注释，修复完成
+    // window.checkE8257Order = checkE8257Order;
+    // window.simpleCheckE8257 = simpleCheckE8257;
+    // window.fixE8257Order = fixE8257Order;
+    
     // 检查URL参数
     const statusParam = searchParams.get('status');
     if (statusParam) {
@@ -169,6 +223,9 @@ const AdminOrders = () => {
     try {
       const searchValues = searchForm.getFieldsValue();
       const queryParams = { ...searchValues };
+      
+      // 🔧 处理多选金额筛选（导出）- 直接传递给后端，后端已支持数组
+      // 金额数组会被直接传递给后端，后端已经更新支持 array.in 查询
       
       if (searchValues.date_range && searchValues.date_range.length === 2) {
         queryParams.start_date = searchValues.date_range[0].format('YYYY-MM-DD');
@@ -222,67 +279,110 @@ const AdminOrders = () => {
     setPreviewVisible(true);
   };
 
+  // 复制到剪贴板函数
+  const copyToClipboard = (text, type) => {
+    if (!text) {
+      message.warning(`${type}为空，无法复制`);
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      message.success(`${type}已复制到剪贴板`);
+    }).catch(() => {
+      message.error('复制失败');
+    });
+  };
+
   // 表格列定义
   const columns = [
     {
-      title: '用户微信号',
-      dataIndex: 'customer_wechat',
-      key: 'customer_wechat',
-      width: 130,
-      fixed: 'left',
-      render: (text) => text || '-',
-    },
-    {
-      title: '销售类型',
-      key: 'sales_type',
-      width: 100,
+      title: '用户信息',
+      key: 'user_info',
+      width: 200,
       fixed: 'left',
       render: (_, record) => {
-        // 🔧 新增：判断销售类型
-        // 优先判断是否有二级销售信息
-        if (record.secondary_sales) {
-          // 有二级销售信息，判断是否独立
-          if (record.secondary_sales.primary_sales_id) {
-            return <Tag color="orange">二级销售</Tag>;
-          } else {
-            return <Tag color="green">独立销售</Tag>;
-          }
+        try {
+          return (
+            <div style={{ lineHeight: '1.4' }}>
+              {/* 第一行：TradingView用户名 + 复制按钮 */}
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontWeight: 'bold', marginRight: '8px' }}>
+                  {record?.tradingview_username || '-'}
+                </span>
+                {record?.tradingview_username && (
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    icon={<CopyOutlined />}
+                    onClick={() => copyToClipboard(record.tradingview_username, 'TradingView用户名')}
+                    style={{ padding: '0 4px', minWidth: 'auto' }}
+                  />
+                )}
+              </div>
+              
+              {/* 第二行：用户微信 */}
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                微信: {record?.customer_wechat || '-'}
+              </div>
+            </div>
+          );
+        } catch (error) {
+          console.error('用户信息列渲染错误:', error, record);
+          return <span>数据错误</span>;
         }
-        // 判断是否有一级销售信息
-        else if (record.primary_sales) {
-          return <Tag color="blue">一级销售</Tag>;
-        }
-        // 通过sales_code判断
-        else if (record.sales_code) {
-          // 这里可能需要额外逻辑判断
-          return <Tag>未知</Tag>;
-        }
-        return '-';
-      }
+      },
     },
     {
-      title: '销售微信号',
-      key: 'sales_wechat_name',
+      title: '销售信息',
+      key: 'sales_info',
       width: 150,
       fixed: 'left',
       render: (_, record) => {
-        // 🔧 修复：显示实际出单的销售
-        let wechatName = '-';
-        
-        // 优先显示二级销售（如果是二级出单）
-        if (record.secondary_sales?.wechat_name) {
-          wechatName = record.secondary_sales.wechat_name;
+        try {
+          // 获取销售微信号和类型
+          let salesWechat = '-';
+          let salesType = '-';
+          let salesTypeColor = 'default';
+          
+          // 优先判断是否有二级销售信息
+          if (record?.secondary_sales) {
+            salesWechat = record.secondary_sales.wechat_name || '-';
+            if (record.secondary_sales.primary_sales_id) {
+              salesType = '二级销售';
+              salesTypeColor = 'orange';
+            } else {
+              salesType = '独立销售';
+              salesTypeColor = 'green';
+            }
+          }
+          // 判断是否有一级销售信息
+          else if (record?.primary_sales) {
+            salesWechat = record.primary_sales.wechat_name || '-';
+            salesType = '一级销售';
+            salesTypeColor = 'blue';
+          }
+          // 从sales_wechat_name字段获取
+          else if (record?.sales_wechat_name && record.sales_wechat_name !== '-') {
+            salesWechat = record.sales_wechat_name;
+            salesType = '未知类型';
+          }
+          
+          return (
+            <div style={{ lineHeight: '1.4' }}>
+              {/* 第一行：销售微信号 */}
+              <div style={{ marginBottom: '4px' }}>
+                {salesWechat}
+              </div>
+              
+              {/* 第二行：销售类型 */}
+              <div>
+                <Tag color={salesTypeColor} size="small">{salesType}</Tag>
+              </div>
+            </div>
+          );
+        } catch (error) {
+          console.error('销售信息列渲染错误:', error, record);
+          return <span>数据错误</span>;
         }
-        // 其次显示一级销售（如果是一级直接出单）
-        else if (record.primary_sales?.wechat_name) {
-          wechatName = record.primary_sales.wechat_name;
-        }
-        // 从sales_wechat_name字段获取
-        else if (record.sales_wechat_name && record.sales_wechat_name !== '-') {
-          wechatName = record.sales_wechat_name;
-        }
-        
-        return wechatName;
       }
     },
     {
@@ -313,12 +413,6 @@ const AdminOrders = () => {
       }
     },
 
-    {
-      title: 'TradingView用户',
-      dataIndex: 'tradingview_username',
-      key: 'tradingview_username',
-      width: 150,
-    },
     {
       title: '购买时长',
       dataIndex: 'duration',
@@ -386,27 +480,33 @@ const AdminOrders = () => {
     // 🚀 佣金系统v2.0 - 新增佣金拆分列
     {
       title: '一级销售佣金额',
-      key: 'primary_commission',
+      dataIndex: 'primary_commission_amount',
+      key: 'primary_commission_amount',
       width: 140,
-      render: (_, record) => {
-        // 只有一级销售直接卖出的订单才有值
-        if (record.sales_type === 'primary') {
-          const commission = (record.amount || 0) * 0.4;  // 40%固定佣金
-          return <span style={{ color: '#1890ff' }}>${commission.toFixed(2)}</span>;
+      render: (commission) => {
+        // 如果数据库字段存在，直接使用
+        if (commission !== undefined && commission !== null) {
+          return commission > 0 
+            ? <span style={{ color: '#1890ff' }}>${Number(commission).toFixed(2)}</span>
+            : '-';
         }
+        // 数据库字段不存在时的后备计算（兼容旧数据）
         return '-';
       }
     },
     {
       title: '二级分销佣金额',
-      key: 'secondary_commission',
+      dataIndex: 'secondary_commission_amount',
+      key: 'secondary_commission_amount',
       width: 140,
-      render: (_, record) => {
-        // 二级销售或独立销售卖出的订单
-        if (record.sales_type === 'secondary' || record.sales_type === 'independent') {
-          const commission = record.commission_amount || 0;
-          return <span style={{ color: '#52c41a' }}>${commission.toFixed(2)}</span>;
+      render: (commission) => {
+        // 如果数据库字段存在，直接使用
+        if (commission !== undefined && commission !== null) {
+          return commission > 0 
+            ? <span style={{ color: '#52c41a' }}>${Number(commission).toFixed(2)}</span>
+            : '-';
         }
+        // 数据库字段不存在时的后备计算（兼容旧数据）
         return '-';
       }
     },
@@ -745,15 +845,10 @@ const AdminOrders = () => {
                 tooltip="默认不显示已拒绝订单，选择'已拒绝'可查看"
               >
                 <Select placeholder="请选择状态" allowClear style={{ width: '100%' }}>
+                  <Option value="rejected">已拒绝（查看）</Option>
                   <Option value="pending_payment">待付款确认</Option>
-                  <Option value="confirmed_payment">已付款确认</Option>
                   <Option value="pending_config">待配置确认</Option>
                   <Option value="confirmed_config">已配置确认</Option>
-                  <Option value="incomplete">未完成购买</Option>
-                  <Option value="active">已生效</Option>
-                  <Option value="expired">已过期</Option>
-                  <Option value="cancelled">已取消</Option>
-                  <Option value="rejected">已拒绝（查看）</Option>
                   <Option value="all_including_rejected">全部（含已拒绝）</Option>
                 </Select>
               </Form.Item>
@@ -785,14 +880,19 @@ const AdminOrders = () => {
                 name="amount" 
                 label="订单金额" 
                 style={{ marginBottom: 0 }}
-                tooltip="按订单套餐价格筛选"
+                tooltip="按订单套餐价格筛选，可多选"
               >
-                <Select placeholder="选择订单金额" allowClear style={{ width: '100%' }}>
+                <Select 
+                  mode="multiple"
+                  placeholder="选择订单金额（可多选）" 
+                  allowClear 
+                  style={{ width: '100%' }}
+                >
                   <Option value="0">免费体验（$0）</Option>
                   <Option value="188">一个月（$188）</Option>
-                  <Option value="488">$488</Option>
+                  <Option value="488">三个月（$488）</Option>
                   <Option value="888">六个月（$888）</Option>
-                  <Option value="1588">三个月（$1588）</Option>
+                  <Option value="1588">一年（$1588）</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -847,21 +947,20 @@ const AdminOrders = () => {
       <Card bodyStyle={{ padding: '0px' }}>
         <Table
           columns={columns}
-          dataSource={orders}
-          rowKey="id"
+          dataSource={Array.isArray(orders) ? orders : []}
+          rowKey={(record) => record.id || record.order_id || Math.random()}
           scroll={{ 
             x: 1900,  // 设置横向滚动
             y: 'calc(100vh - 420px)'  // 设置纵向高度
           }}
           pagination={{
-            current: pagination?.page || 1,
-            pageSize: pagination?.limit || 100,
-            total: orders?.length || pagination?.total || 0,
+            pageSize: 50,
+            total: Array.isArray(orders) ? orders.length : 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-            pageSizeOptions: ['20', '50', '100', '200'],
-            defaultPageSize: 100,
+            pageSizeOptions: ['20', '50', '100', '200', '500'],
+            defaultPageSize: 50,
           }}
           loading={loading}
           onChange={handleTableChange}

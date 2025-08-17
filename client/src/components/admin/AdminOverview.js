@@ -31,8 +31,9 @@ const AdminOverview = () => {
 
   // 加载数据的函数 - 使用并行加载优化
   const loadData = async () => {
-    // 只有在已登录的情况下才获取数据
-    if (!admin) {
+    // 检查是否有token（更可靠的登录状态检查）
+    const token = localStorage.getItem('token') || localStorage.getItem('admin_token');
+    if (!token && !admin) {
       console.log('⚠️ AdminOverview: 用户未登录，跳过数据加载');
       return;
     }
@@ -128,7 +129,7 @@ const AdminOverview = () => {
 
   useEffect(() => {
     loadData();
-  }, [dispatch, timeRange, customRange, admin]);
+  }, [dispatch, timeRange, customRange]); // 移除admin依赖，避免循环
 
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
@@ -180,10 +181,15 @@ const AdminOverview = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card role="region">
                 <Statistic
-                  title="总订单数"
-                  value={stats?.total_orders || 0}
+                  title="生效订单数"
+                  value={stats?.valid_orders || (stats?.total_orders - stats?.rejected_orders) || 0}
                   prefix={<ShoppingCartOutlined />}
                   valueStyle={{ color: '#3f8600' }}
+                  suffix={
+                    <span style={{ fontSize: '12px', color: '#999' }}>
+                      / {stats?.total_orders || 0} 总
+                    </span>
+                  }
                 />
               </Card>
             </Col>
@@ -250,7 +256,7 @@ const AdminOverview = () => {
               >
                 <Statistic
                   title="销售返佣金额"
-                  value={stats?.commission_amount || 0}
+                  value={stats?.total_commission || stats?.commission_amount || 0}
                   prefix={<DollarOutlined />}
                   valueStyle={{ color: '#722ed1' }}
                   suffix="美元"
@@ -261,7 +267,7 @@ const AdminOverview = () => {
               <Card role="region">
                 <Statistic
                   title="待返佣金金额"
-                  value={stats?.pending_commission_amount || 0}
+                  value={stats?.pending_commission || stats?.pending_commission_amount || 0}
                   prefix={<DollarOutlined />}
                   valueStyle={{ color: '#ff4d4f' }}
                   suffix="美元"
