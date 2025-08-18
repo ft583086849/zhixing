@@ -1871,6 +1871,11 @@ export const AdminAPI = {
       CacheManager.remove('admin-orders');
       CacheManager.remove('admin-stats');
       
+      // 清除订单缓存管理器的缓存
+      const { ordersCacheManager } = await import('./ordersCache.js');
+      ordersCacheManager.clear();
+      console.log('✅ 已清除订单缓存');
+      
       return result;
     } catch (error) {
       console.error('更新订单状态失败 - 详细错误:', {
