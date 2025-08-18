@@ -746,10 +746,57 @@ export class SupabaseService {
   }
 
   static async updateOrderStatus(orderId, status) {
+    // 先获取订单信息
+    const { data: order } = await supabase
+      .from('orders_optimized')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+    
     const updates = {
       status: status,
       updated_at: new Date().toISOString()
     };
+    
+    // 如果状态改为confirmed_config，需要设置到期时间
+    if (status === 'confirmed_config' && order) {
+      const now = new Date();
+      let expiryDate;
+      
+      // 根据订单时长计算到期时间
+      switch(order.duration || order.price_plan) {
+        case '7days':
+        case '7_days':
+          expiryDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '1month':
+        case '1_month':
+        case '30days':
+          expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '3months':
+        case '3_months':
+        case '90days':
+          expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+          break;
+        case '6months':
+        case '6_months':
+        case '180days':
+          expiryDate = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
+          break;
+        case '1year':
+        case '12months':
+        case '365days':
+          expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          // 默认30天
+          expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      }
+      
+      updates.expiry_time = expiryDate.toISOString();
+      updates.config_time = now.toISOString(); // 记录配置时间
+    }
     
     const { data, error } = await supabase
       .from('orders_optimized')
@@ -762,6 +809,12 @@ export class SupabaseService {
       console.error('更新订单状态失败:', error);
       throw error;
     }
+    
+    // 同步更新orders表
+    await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId);
     
     console.log('订单状态更新成功:', data);
     return data;
