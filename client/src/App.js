@@ -16,7 +16,7 @@ const UnifiedSecondarySalesPage = lazy(() => import('./pages/UnifiedSecondarySal
 const EnvTestPage = lazy(() => import('./pages/EnvTestPage'));
 const TestSafeConfigPage = lazy(() => import('./pages/TestSafeConfigPage'));
 const ConfigTestPage = lazy(() => import('./pages/ConfigTestPage'));
-const AdminSalesTestPage = lazy(() => import('./pages/AdminSalesTestPage'));
+// const AdminSalesTestPage = lazy(() => import('./pages/AdminSalesTestPage'));
 
 // 组件
 import LoadingSpinner from './components/LoadingSpinner';
@@ -146,7 +146,7 @@ function App() {
           />
           
           {/* 销售管理测试页面 - 需要认证 */}
-          <Route 
+          {/* <Route 
             path="/admin/sales-test" 
             element={
               <ProtectedRoute>
@@ -155,7 +155,7 @@ function App() {
                 </Suspense>
               </ProtectedRoute>
             } 
-          />
+          /> */}
           
           {/* 管理员通配符路由 - 需要认证 */}
           <Route 
