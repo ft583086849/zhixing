@@ -192,7 +192,7 @@ const AdminDashboardPage = () => {
                   <Route path="dashboard" element={<AdminOverview />} />
                   <Route path="" element={<AdminOverview />} />
                   <Route path="finance" element={<AdminFinance />} />
-                  <Route path="orders" element={<AdminOrdersOptimized />} />
+                  <Route path="orders" element={<AdminOrders />} />
                   <Route path="sales" element={<AdminSalesOptimized />} />
                   <Route path="payment-config" element={<AdminPaymentConfig />} />
                 </Routes>
