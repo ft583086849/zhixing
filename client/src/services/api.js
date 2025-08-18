@@ -351,14 +351,16 @@ export const AdminAPI = {
             const createdDate = new Date(order.created_at);
             const expiryDate = new Date(createdDate);
             
-            if (order.duration === '7days') {
+            if (order.duration === '7days' || order.duration === '7天') {
               expiryDate.setDate(expiryDate.getDate() + 7);
-            } else if (order.duration === '1month') {
+            } else if (order.duration === '1month' || order.duration === '1个月') {
               expiryDate.setMonth(expiryDate.getMonth() + 1);
-            } else if (order.duration === '3months') {
+            } else if (order.duration === '3months' || order.duration === '3个月') {
               expiryDate.setMonth(expiryDate.getMonth() + 3);
-            } else if (order.duration === '6months') {
+            } else if (order.duration === '6months' || order.duration === '6个月') {
               expiryDate.setMonth(expiryDate.getMonth() + 6);
+            } else if (order.duration === '1year' || order.duration === '1年') {
+              expiryDate.setFullYear(expiryDate.getFullYear() + 1);
             }
             
             expiryTime = expiryDate.toISOString();
@@ -431,14 +433,16 @@ export const AdminAPI = {
             const createdDate = new Date(order.created_at);
             const expiryDate = new Date(createdDate);
             
-            if (order.duration === '7days') {
+            if (order.duration === '7days' || order.duration === '7天') {
               expiryDate.setDate(expiryDate.getDate() + 7);
-            } else if (order.duration === '1month') {
+            } else if (order.duration === '1month' || order.duration === '1个月') {
               expiryDate.setMonth(expiryDate.getMonth() + 1);
-            } else if (order.duration === '3months') {
+            } else if (order.duration === '3months' || order.duration === '3个月') {
               expiryDate.setMonth(expiryDate.getMonth() + 3);
-            } else if (order.duration === '6months') {
+            } else if (order.duration === '6months' || order.duration === '6个月') {
               expiryDate.setMonth(expiryDate.getMonth() + 6);
+            } else if (order.duration === '1year' || order.duration === '1年') {
+              expiryDate.setFullYear(expiryDate.getFullYear() + 1);
             }
             
             const newExpiryTime = expiryDate.toISOString();
@@ -1414,7 +1418,7 @@ export const AdminAPI = {
       // 🔧 修复：7天免费订单直接计入待配置确认
       const pending_config_orders = ordersToProcess.filter(order => 
         ['pending_config', 'confirmed_payment'].includes(order.status) ||  // confirmed_payment也是待配置状态
-        (order.duration === '7days' && ['pending', 'pending_payment'].includes(order.status))  // 7天免费订单
+        ((order.duration === '7days' || order.duration === '7天') && ['pending', 'pending_payment'].includes(order.status))  // 7天免费订单
       ).length;
       
       // 已确认订单 - 只统计这些状态

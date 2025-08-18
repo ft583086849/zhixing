@@ -199,7 +199,7 @@ export class SupabaseService {
         for (const sale of secondarySales) {
           // 获取该二级销售的所有订单（包括未确认的）
           const { data: allOrders, error: allOrdersErr } = await supabase
-            .from('orders')
+            .from('orders_optimized')
             .select('amount, actual_payment_amount, status, payment_time, created_at')
             .eq('sales_code', sale.sales_code);
           
@@ -264,7 +264,7 @@ export class SupabaseService {
       }
       
       const { data: orders, error: ordersError } = await supabase
-        .from('orders')  // 直接从订单表查询
+        .from('orders_optimized')  // 直接从订单表查询
         .select('*')
         .in('sales_code', allSalesCodes)
         .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'])  // 只获取确认的订单
@@ -277,7 +277,7 @@ export class SupabaseService {
       
       // 4. 获取待催单订单
       const { data: reminderOrders } = await supabase
-        .from('orders')
+        .from('orders_optimized')
         .select('*')
         .in('sales_code', allSalesCodes)
         .in('status', ['pending_payment', 'pending_config'])
@@ -285,7 +285,7 @@ export class SupabaseService {
       
       // 5. 计算一级销售的订单统计
       const { data: primaryOrders } = await supabase
-        .from('orders')
+        .from('orders_optimized')
         .select('amount, actual_payment_amount, status, payment_time, created_at')
         .eq('sales_code', primaryStats.sales_code)
         .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
@@ -504,7 +504,7 @@ export class SupabaseService {
       
       // 计算订单统计
       const { data: orders } = await supabase
-        .from('orders')
+        .from('orders_optimized')
         .select('*')
         .eq('sales_code', secondarySale.sales_code)
         .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
@@ -556,7 +556,7 @@ export class SupabaseService {
       
       // 2. 获取确认的订单详情（用于显示列表）
       let ordersQuery = supabase
-        .from('orders')  // 直接从订单表查询
+        .from('orders_optimized')  // 直接从订单表查询
         .select('*')
         .eq('sales_code', salesStats.sales_code)
         .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'])  // 只获取确认的订单
@@ -579,7 +579,7 @@ export class SupabaseService {
       
       // 3. 获取待催单（未确认的订单）
       const { data: reminderOrders } = await supabase
-        .from('orders')
+        .from('orders_optimized')
         .select('*')
         .eq('sales_code', salesStats.sales_code)
         .in('status', ['pending_payment', 'pending_config'])
@@ -713,7 +713,7 @@ export class SupabaseService {
 
   static async getOrderById(orderId) {
     const { data, error } = await supabase
-      .from('orders')
+      .from('orders_optimized')
       .select('*')
       .eq('id', orderId)
       .single();
@@ -812,7 +812,7 @@ export class SupabaseService {
     
     // 同步更新orders表
     await supabase
-      .from('orders')
+      .from('orders_optimized')
       .update(updates)
       .eq('id', orderId);
     
@@ -823,7 +823,7 @@ export class SupabaseService {
   // 订单查询
   static async getOrders() {
     const { data: orders, error } = await supabase
-      .from('orders')
+      .from('orders_optimized')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -955,15 +955,15 @@ export class SupabaseService {
           // 到期时间计算 - 基于创建时间计算
           // 支持中文和英文的duration值
           const expiryDate = new Date(createdDate);
-          if (order.duration === '7days' || order.duration === '7天') {
+          if ((order.duration === '7天' || order.duration === '7days') || order.duration === '7天') {
             expiryDate.setDate(expiryDate.getDate() + 7);
-          } else if (order.duration === '1month' || order.duration === '1个月') {
+          } else if ((order.duration === '1个月' || order.duration === '1month') || order.duration === '1个月') {
             expiryDate.setMonth(expiryDate.getMonth() + 1);
-          } else if (order.duration === '3months' || order.duration === '3个月') {
+          } else if ((order.duration === '3个月' || order.duration === '3months') || order.duration === '3个月') {
             expiryDate.setMonth(expiryDate.getMonth() + 3);
-          } else if (order.duration === '6months' || order.duration === '6个月') {
+          } else if ((order.duration === '6个月' || order.duration === '6months') || order.duration === '6个月') {
             expiryDate.setMonth(expiryDate.getMonth() + 6);
-          } else if (order.duration === '1year' || order.duration === '1年') {
+          } else if ((order.duration === '1年' || order.duration === '1year') || order.duration === '1年') {
             expiryDate.setFullYear(expiryDate.getFullYear() + 1);
           }
           order.expiry_time = expiryDate.toISOString();
@@ -977,7 +977,7 @@ export class SupabaseService {
   // 带过滤条件的订单查询
   static async getOrdersWithFilters(params = {}) {
     let query = supabase
-      .from('orders')
+      .from('orders_optimized')
       .select('*');
     
     // 销售类型过滤
@@ -1284,13 +1284,13 @@ export class SupabaseService {
           order.effective_time = order.created_at;
           
           const expiryDate = new Date(createdDate);
-          if (order.duration === '7days') {
+          if ((order.duration === '7天' || order.duration === '7days')) {
             expiryDate.setDate(expiryDate.getDate() + 7);
-          } else if (order.duration === '1month') {
+          } else if ((order.duration === '1个月' || order.duration === '1month')) {
             expiryDate.setMonth(expiryDate.getMonth() + 1);
-          } else if (order.duration === '3months') {
+          } else if ((order.duration === '3个月' || order.duration === '3months')) {
             expiryDate.setMonth(expiryDate.getMonth() + 3);
-          } else if (order.duration === '1year') {
+          } else if ((order.duration === '1年' || order.duration === '1year')) {
             expiryDate.setFullYear(expiryDate.getFullYear() + 1);
           }
           order.expiry_time = expiryDate.toISOString();
@@ -1304,7 +1304,7 @@ export class SupabaseService {
   // 统计查询
   static async getOrderStats() {
     const { data: orders, error } = await supabase
-      .from('orders')
+      .from('orders_optimized')
       .select('amount, actual_payment_amount, payment_method, created_at, status, commission_amount');
     
     if (error) throw error;

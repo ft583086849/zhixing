@@ -369,7 +369,7 @@ const AdminOrdersOptimized = () => {
         };
         
         let displayStatus = status;
-        if (record.duration === '7days' && status === 'pending_payment') {
+        if ((record.duration === '7天' || record.duration === '7days') && status === 'pending_payment') {
           displayStatus = 'pending_config';
         }
         

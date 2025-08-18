@@ -16,6 +16,7 @@ const UnifiedSecondarySalesPage = lazy(() => import('./pages/UnifiedSecondarySal
 const EnvTestPage = lazy(() => import('./pages/EnvTestPage'));
 const TestSafeConfigPage = lazy(() => import('./pages/TestSafeConfigPage'));
 const ConfigTestPage = lazy(() => import('./pages/ConfigTestPage'));
+const FixDurationPage = lazy(() => import('./pages/FixDurationPage'));
 // const AdminSalesTestPage = lazy(() => import('./pages/AdminSalesTestPage'));
 
 // 组件
@@ -131,6 +132,9 @@ function App() {
           
           {/* 安全配置测试页面 */}
           <Route path="/config-test" element={<Suspense fallback={<div>加载中...</div>}><ConfigTestPage /></Suspense>} />
+          
+          {/* Duration字段修复页面 */}
+          <Route path="/fix-duration" element={<Suspense fallback={<div>加载中...</div>}><FixDurationPage /></Suspense>} />
 
           
           {/* 管理员后台页面 - 需要认证 */}

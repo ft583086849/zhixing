@@ -62,13 +62,13 @@ const PurchasePage = () => {
   // const [alipayAmount, setAlipayAmount] = useState(''); // 已移除支付宝
   // const [cryptoAmount, setCryptoAmount] = useState(''); // 改为Form.Item管理
 
-  // 时长选项和价格
+  // 时长选项和价格 - 统一使用中文值存储到数据库
   const durationOptions = [
-    { value: '7days', label: '7天免费', price: 0 },
-    { value: '1month', label: '1个月', price: 188 },
-    { value: '3months', label: '3个月', price: 488 },
-    { value: '6months', label: '6个月', price: 888 },
-    { value: '1year', label: '1年', price: 1588 }
+    { value: '7天', label: '7天免费', price: 0 },
+    { value: '1个月', label: '1个月', price: 188 },
+    { value: '3个月', label: '3个月', price: 488 },
+    { value: '6个月', label: '6个月', price: 888 },
+    { value: '1年', label: '1年', price: 1588 }
   ];
 
   // 获取销售信息和管理员收款配置
@@ -159,10 +159,10 @@ const PurchasePage = () => {
         try {
           // 检查是否已经提交过7天免费订单
           const { data: existingOrders, error } = await SupabaseService.supabase
-            .from('orders')
+            .from('orders_optimized')
             .select('id')
             .eq('tradingview_username', values.tradingview_username)
-            .eq('duration', '7days')
+            .eq('duration', '7天')
             .limit(1);
           
           if (!error && existingOrders && existingOrders.length > 0) {

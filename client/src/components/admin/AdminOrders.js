@@ -551,7 +551,7 @@ const AdminOrders = () => {
         
         // 7天免费订单特殊处理：如果是pending状态直接显示为待配置
         let displayStatus = status;
-        if (record.duration === '7days' && (status === 'pending' || status === 'pending_payment')) {
+        if ((record.duration === '7天' || record.duration === '7days') && (status === 'pending' || status === 'pending_payment')) {
           displayStatus = 'pending_config';
         }
         
@@ -620,7 +620,7 @@ const AdminOrders = () => {
           switch (currentStatus) {
             case 'pending_payment':
               // 7天免费订单特殊处理：直接显示"配置确认"按钮
-              if (record.duration === '7days') {
+              if ((record.duration === '7天' || record.duration === '7days')) {
                 return (
                   <>
                     <Button 

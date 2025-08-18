@@ -25,8 +25,8 @@ import ErrorBoundary from '../components/ErrorBoundary';
 
 // 使用懒加载优化性能
 const AdminOverview = React.lazy(() => import('../components/admin/AdminOverview'));
-const AdminOrders = React.lazy(() => import('../components/admin/AdminOrdersOptimized'));
-const AdminSales = React.lazy(() => import('../components/admin/AdminSales'));
+const AdminOrders = React.lazy(() => import('../components/admin/AdminOrders'));
+const AdminOrdersOptimized = React.lazy(() => import('../components/admin/AdminOrdersOptimized'));
 const AdminSalesOptimized = React.lazy(() => import('../components/admin/AdminSalesOptimized'));
 const AdminCustomers = React.lazy(() => import('../components/admin/AdminCustomers'));
 const AdminCustomersOptimized = React.lazy(() => import('../components/admin/AdminCustomersOptimized'));
@@ -91,23 +91,6 @@ const AdminDashboardPage = () => {
       key: '/admin/sales',
       icon: <UserOutlined />,
       label: '销售管理',
-    },
-    {
-      key: '/admin/sales-test',
-      icon: <ExperimentOutlined />,
-      label: '销售管理(测试)',
-      style: { backgroundColor: '#fff2e8' }
-    },
-    {
-      key: '/admin/customers',
-      icon: <UserOutlined />,
-      label: '客户管理',
-    },
-    {
-      key: '/admin/customers-optimized',
-      icon: <UserOutlined />,
-      label: '客户管理(优化版)',
-      style: { backgroundColor: '#e6f7ff' }
     },
     {
       key: '/admin/payment-config',
@@ -209,11 +192,8 @@ const AdminDashboardPage = () => {
                   <Route path="dashboard" element={<AdminOverview />} />
                   <Route path="" element={<AdminOverview />} />
                   <Route path="finance" element={<AdminFinance />} />
-                  <Route path="orders" element={<AdminOrders />} />
-                  <Route path="sales" element={<AdminSales />} />
-                  <Route path="sales-test" element={<AdminSalesOptimized />} />
-                  <Route path="customers" element={<AdminCustomers />} />
-                  <Route path="customers-optimized" element={<AdminCustomersOptimized />} />
+                  <Route path="orders" element={<AdminOrdersOptimized />} />
+                  <Route path="sales" element={<AdminSalesOptimized />} />
                   <Route path="payment-config" element={<AdminPaymentConfig />} />
                 </Routes>
               </Suspense>
