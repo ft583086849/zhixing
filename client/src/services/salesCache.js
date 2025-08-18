@@ -211,7 +211,7 @@ class SalesCacheManager {
       sales_type: 'primary',
       total_orders: validDirectOrders.length,
       valid_orders: validDirectOrders.filter(o => confirmedStatuses.includes(o.status)).length,
-      total_amount: Math.round(totalAmount * 100) / 100,
+      total_amount: Math.round((totalAmount + secondaryOrdersAmount) * 100) / 100,
       confirmed_amount: Math.round(confirmedAmount * 100) / 100,
       commission_rate: primaryRate * 100,
       commission_amount: Math.round(totalCommission * 100) / 100,

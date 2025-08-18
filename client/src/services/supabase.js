@@ -724,7 +724,7 @@ export class SupabaseService {
 
   static async createOrder(orderData) {
     const { data, error } = await supabase
-      .from('orders')
+      .from('orders_optimized')
       .insert([orderData])
       .select()
       .single();
@@ -735,7 +735,7 @@ export class SupabaseService {
 
   static async updateOrder(id, updates) {
     const { data, error } = await supabase
-      .from('orders')
+      .from('orders_optimized')
       .update(updates)
       .eq('id', id)
       .select()
@@ -752,7 +752,7 @@ export class SupabaseService {
     };
     
     const { data, error } = await supabase
-      .from('orders')
+      .from('orders_optimized')
       .update(updates)
       .eq('id', orderId)
       .select()
@@ -900,14 +900,17 @@ export class SupabaseService {
           order.effective_time = order.created_at;
           
           // 到期时间计算 - 基于创建时间计算
+          // 支持中文和英文的duration值
           const expiryDate = new Date(createdDate);
-          if (order.duration === '7days') {
+          if (order.duration === '7days' || order.duration === '7天') {
             expiryDate.setDate(expiryDate.getDate() + 7);
-          } else if (order.duration === '1month') {
+          } else if (order.duration === '1month' || order.duration === '1个月') {
             expiryDate.setMonth(expiryDate.getMonth() + 1);
-          } else if (order.duration === '3months') {
+          } else if (order.duration === '3months' || order.duration === '3个月') {
             expiryDate.setMonth(expiryDate.getMonth() + 3);
-          } else if (order.duration === '1year') {
+          } else if (order.duration === '6months' || order.duration === '6个月') {
+            expiryDate.setMonth(expiryDate.getMonth() + 6);
+          } else if (order.duration === '1year' || order.duration === '1年') {
             expiryDate.setFullYear(expiryDate.getFullYear() + 1);
           }
           order.expiry_time = expiryDate.toISOString();
@@ -1028,9 +1031,15 @@ export class SupabaseService {
       query = query.eq('status', params.status);
     }
     
-    // 🔧 新增：按订单金额筛选
+    // 🔧 修复：按订单金额筛选（支持多选）
     if (params.amount !== undefined && params.amount !== null && params.amount !== '') {
-      query = query.eq('amount', params.amount);
+      if (Array.isArray(params.amount) && params.amount.length > 0) {
+        // 多选情况，使用 in 查询
+        query = query.in('amount', params.amount);
+      } else if (!Array.isArray(params.amount)) {
+        // 单个值情况，使用 eq 查询
+        query = query.eq('amount', params.amount);
+      }
     }
     
     // 支付方式过滤

@@ -1884,6 +1884,283 @@ export const AdminAPI = {
         details: error
       };
     }
+  },
+
+  /**
+   * 获取优化后的销售数据（使用 sales_optimized 表）
+   */
+  async getSalesOptimized(params = {}) {
+    try {
+      // 构建查询 - 直接从 sales_optimized 表获取所有数据
+      let query = SupabaseService.supabase
+        .from('sales_optimized')
+        .select('*');
+      
+      // 应用过滤条件
+      if (params.sales_type) {
+        query = query.eq('sales_type', params.sales_type);
+      }
+      
+      if (params.wechat_name) {
+        query = query.ilike('wechat_name', `%${params.wechat_name}%`);
+      }
+      
+      if (params.phone) {
+        query = query.ilike('phone', `%${params.phone}%`);
+      }
+      
+      // 排序
+      query = query.order('created_at', { ascending: false });
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('获取销售数据失败:', error);
+        return {
+          success: false,
+          message: error.message,
+          data: []
+        };
+      }
+      
+      // 数据处理：确保 payment_account 字段有值
+      if (data && data.length > 0) {
+        data.forEach(sale => {
+          // 如果 payment_account 为空，尝试使用 payment_info
+          if (!sale.payment_account && sale.payment_info) {
+            sale.payment_account = sale.payment_info;
+          }
+        });
+      }
+      
+      return {
+        success: true,
+        data: data || [],
+        message: '获取销售数据成功'
+      };
+      
+    } catch (error) {
+      console.error('getSalesOptimized error:', error);
+      return {
+        success: false,
+        message: error.message,
+        data: []
+      };
+    }
+  },
+
+  /**
+   * 更新销售佣金率（优化版）
+   */
+  /**
+   * 重新计算佣金金额
+   */
+  async recalculateCommission(salesId, salesType, newCommissionRate) {
+    try {
+      const { data: salesInfo } = await SupabaseService.supabase
+        .from('sales_optimized')
+        .select('*')
+        .eq('id', salesId)
+        .single();
+        
+      if (!salesInfo) return;
+      
+      // 获取相关订单
+      const { data: orders } = await SupabaseService.supabase
+        .from('orders_optimized')
+        .select('*')
+        .eq('sales_code', salesInfo.sales_code)
+        .neq('status', 'rejected');
+      
+      const updates = {};
+      
+      if (salesType === 'primary') {
+        // 一级销售：重新计算直销佣金
+        let directAmount = 0;
+        orders?.forEach(order => {
+          directAmount += order.amount || 0;
+        });
+        
+        updates.primary_commission_amount = directAmount * newCommissionRate;
+        updates.total_direct_amount = directAmount;
+        
+        // 团队差价保持不变（除非二级的佣金率变化）
+        updates.total_commission = updates.primary_commission_amount + (salesInfo.secondary_commission_amount || 0);
+        
+      } else {
+        // 二级销售：重新计算自己的佣金，并更新上级的差价
+        let totalAmount = 0;
+        orders?.forEach(order => {
+          totalAmount += order.amount || 0;
+        });
+        
+        const newCommission = totalAmount * newCommissionRate;
+        updates.primary_commission_amount = newCommission;
+        updates.total_commission = newCommission;
+        updates.total_amount = totalAmount;
+        
+        // 如果有上级，还需要更新上级的团队差价
+        if (salesInfo.parent_sales_code) {
+          // 获取上级信息
+          const { data: parentSales } = await SupabaseService.supabase
+            .from('sales_optimized')
+            .select('*')
+            .eq('sales_code', salesInfo.parent_sales_code)
+            .single();
+            
+          if (parentSales) {
+            // 重新计算上级的团队差价
+            const parentRate = parentSales.commission_rate || 0.4;
+            const newDifference = totalAmount * (parentRate - newCommissionRate);
+            
+            // 获取上级的所有团队订单，重新计算总差价
+            const { data: allTeamMembers } = await SupabaseService.supabase
+              .from('sales_optimized')
+              .select('sales_code, commission_rate')
+              .eq('parent_sales_code', salesInfo.parent_sales_code);
+              
+            let totalTeamAmount = 0;
+            let totalTeamDifference = 0;
+            
+            for (const member of allTeamMembers || []) {
+              const { data: memberOrders } = await SupabaseService.supabase
+                .from('orders_optimized')
+                .select('amount')
+                .eq('sales_code', member.sales_code)
+                .neq('status', 'rejected');
+                
+              const memberAmount = memberOrders?.reduce((sum, o) => sum + o.amount, 0) || 0;
+              totalTeamAmount += memberAmount;
+              
+              // 使用新的佣金率（如果是当前修改的销售）或原佣金率
+              const memberRate = member.sales_code === salesInfo.sales_code ? newCommissionRate : member.commission_rate;
+              totalTeamDifference += memberAmount * (parentRate - memberRate);
+            }
+            
+            // 更新上级的团队数据
+            await SupabaseService.supabase
+              .from('sales_optimized')
+              .update({
+                total_team_amount: totalTeamAmount,
+                secondary_commission_amount: totalTeamDifference,
+                total_commission: parentSales.primary_commission_amount + totalTeamDifference,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', parentSales.id);
+          }
+        }
+      }
+      
+      // 更新当前销售的数据
+      await SupabaseService.supabase
+        .from('sales_optimized')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', salesId);
+        
+    } catch (error) {
+      console.error('recalculateCommission error:', error);
+    }
+  },
+  
+  async updateSalesCommission(salesId, commissionRate, effectiveDate = null, changeReason = '') {
+    try {
+      // 先获取销售信息，确定类型
+      const { data: salesInfo, error: fetchError } = await SupabaseService.supabase
+        .from('sales_optimized')
+        .select('sales_type, original_table, original_id, sales_code, commission_rate')
+        .eq('id', salesId)
+        .single();
+        
+      if (fetchError) {
+        console.error('获取销售信息失败:', fetchError);
+        return {
+          success: false,
+          message: '获取销售信息失败'
+        };
+      }
+      
+      // 记录佣金率变更历史
+      const historyData = {
+        sales_code: salesInfo.sales_code,
+        sales_type: salesInfo.sales_type,
+        old_rate: salesInfo.commission_rate,
+        new_rate: commissionRate,
+        effective_date: effectiveDate || new Date().toISOString(),
+        changed_by: '管理员', // TODO: 从登录信息获取
+        change_reason: changeReason || '佣金率调整'
+      };
+      
+      // 先检查表是否存在（临时处理）
+      try {
+        await SupabaseService.supabase
+          .from('commission_rate_history')
+          .insert(historyData);
+      } catch (historyError) {
+        console.log('佣金率历史记录失败（表可能不存在）:', historyError);
+        // 继续执行，不中断流程
+      }
+      
+      // 更新 sales_optimized 表
+      const { data, error } = await SupabaseService.supabase
+        .from('sales_optimized')
+        .update({ 
+          commission_rate: commissionRate,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', salesId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('更新sales_optimized失败:', error);
+        return {
+          success: false,
+          message: error.message
+        };
+      }
+      
+      // 同步更新原始表
+      if (salesInfo.original_table && salesInfo.original_id) {
+        const { error: syncError } = await SupabaseService.supabase
+          .from(salesInfo.original_table)
+          .update({ 
+            commission_rate: commissionRate,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', salesInfo.original_id);
+          
+        if (syncError) {
+          console.error(`更新${salesInfo.original_table}失败:`, syncError);
+          // 不中断流程，但记录错误
+        }
+      }
+      
+      // 实时重新计算佣金金额
+      await this.recalculateCommission(salesId, salesInfo.sales_type, commissionRate);
+      
+      // 重新获取更新后的数据
+      const { data: updatedData } = await SupabaseService.supabase
+        .from('sales_optimized')
+        .select('*')
+        .eq('id', salesId)
+        .single();
+      
+      return {
+        success: true,
+        data: updatedData || data,
+        message: '佣金率更新成功'
+      };
+      
+    } catch (error) {
+      console.error('updateSalesCommission error:', error);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
   }
 };
 
