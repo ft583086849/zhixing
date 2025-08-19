@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag } from 'antd';
+import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag, Select, Button, message } from 'antd';
 import { 
   ShoppingCartOutlined, 
   DollarOutlined, 
@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import { getStats, getSales } from '../../store/slices/adminSlice';
 import { parallelLoad } from '../../utils/performance';
+import ConversionRateTable from './ConversionRateTable';
 
 
 const { Title } = Typography;
@@ -28,6 +29,12 @@ const AdminOverview = () => {
   const [timeRange, setTimeRange] = useState('all'); // 默认显示所有数据
   const [customRange, setCustomRange] = useState([]);
   const [top5Sales, setTop5Sales] = useState([]);
+  // 临时筛选状态（未确认的）
+  const [tempSalesTypeFilter, setTempSalesTypeFilter] = useState(null);
+  const [tempSalesNameFilter, setTempSalesNameFilter] = useState(null);
+  // 实际应用的筛选状态（确认后的）
+  const [salesTypeFilter, setSalesTypeFilter] = useState(null); 
+  const [salesNameFilter, setSalesNameFilter] = useState(null);
 
   // 加载数据的函数 - 使用并行加载优化
   const loadData = async () => {
@@ -42,11 +49,12 @@ const AdminOverview = () => {
     
     // 并行加载统计数据和销售数据
     const loaders = [
-      // 统计数据加载
+      // 统计数据加载 - 不使用筛选参数，只用时间范围
       () => {
-        const params = timeRange === 'custom' && customRange.length > 0
-          ? { timeRange: 'custom', customRange, usePaymentTime: true }
-          : { timeRange, usePaymentTime: true };
+        const params = {
+          timeRange: 'all',  // 主数据始终显示全部
+          usePaymentTime: true
+        };
         
         return dispatch(getStats(params)).then(result => {
           if (!result.payload) {
@@ -56,9 +64,14 @@ const AdminOverview = () => {
           return result;
         });
       },
-      // 销售数据加载
+      // 销售数据加载 - 不使用筛选参数
       () => {
-        return dispatch(getSales()).then(result => {
+        const salesParams = {
+          timeRange: 'all',  // 主数据始终显示全部
+          usePaymentTime: true
+        };
+        
+        return dispatch(getSales(salesParams)).then(result => {
           if (result.payload && Array.isArray(result.payload)) {
             // 计算总销售额
             const totalSalesAmount = result.payload.reduce((sum, sale) => 
@@ -76,24 +89,28 @@ const AdminOverview = () => {
             
             allSales.forEach(sale => {
               // 如果是二级销售
-              if (sale.sales_type === 'secondary' && sale.sales?.primary_sales_id) {
+              if (sale.sales_type === 'secondary' && sale.parent_sales_id) {
                 // 查找其一级销售
                 const primarySales = allSales.find(s => 
                   s.sales_type === 'primary' && 
-                  s.sales?.id === sale.sales?.primary_sales_id
+                  s.id === sale.parent_sales_id
                 );
                 
                 if (primarySales) {
                   // 如果二级销售金额 >= 一级销售自营金额，只显示二级销售
                   if (sale.total_amount >= (primarySales.total_amount || 0)) {
-                    processedPrimaryIds.add(primarySales.sales?.id);
-                    sale.primary_sales_name = primarySales.sales?.wechat_name || primarySales.sales?.name || '-';
+                    processedPrimaryIds.add(primarySales.id);
+                    sale.primary_sales_name = primarySales.wechat_name || primarySales.name || '-';
                   }
                 }
                 processedSales.push(sale);
               } 
               // 如果是一级销售且未被二级销售覆盖
-              else if (sale.sales_type === 'primary' && !processedPrimaryIds.has(sale.sales?.id)) {
+              else if (sale.sales_type === 'primary' && !processedPrimaryIds.has(sale.id)) {
+                processedSales.push(sale);
+              }
+              // 如果是独立销售
+              else if (sale.sales_type === 'independent') {
                 processedSales.push(sale);
               }
             });
@@ -102,14 +119,14 @@ const AdminOverview = () => {
             const top5 = processedSales
               .slice(0, 5)
               .map((sale, index) => ({
-                key: sale.sales?.id || index,
+                key: sale.id || index,
                 rank: index + 1,
                 sales_type: sale.sales_type === 'primary' ? '一级销售' : 
-                           (sale.sales?.primary_sales_id ? '二级销售' : '独立销售'),
-                sales_name: sale.sales?.wechat_name || sale.sales?.name || '-',
-                primary_sales_name: sale.primary_sales_name || '-',  // 所属一级销售
+                           (sale.sales_type === 'secondary' ? '二级销售' : '独立销售'),
+                sales_name: sale.sales?.wechat_name || sale.wechat_name || sale.sales?.name || sale.name || '-',
+                primary_sales_name: sale.parent_sales_name || sale.primary_sales_name || sale.sales?.parent_sales_name || '-',  // 所属一级销售
                 total_amount: sale.total_amount || 0,
-                commission_amount: sale.commission_amount || 0,
+                commission_amount: sale.total_commission || 0,
                 // 计算占比
                 percentage: totalSalesAmount > 0 
                   ? ((sale.total_amount || 0) / totalSalesAmount * 100).toFixed(2)
@@ -129,7 +146,7 @@ const AdminOverview = () => {
 
   useEffect(() => {
     loadData();
-  }, [dispatch, timeRange, customRange]); // 移除admin依赖，避免循环
+  }, [dispatch]); // 只在组件加载时获取一次主数据
 
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
@@ -173,6 +190,16 @@ const AdminOverview = () => {
                 onChange={handleCustomRangeChange}
                 placeholder={['开始日期', '结束日期']}
               />
+              <Button 
+                type="primary" 
+                icon={<CheckCircleOutlined />}
+                onClick={() => {
+                  message.success('数据已确认');
+                }}
+                style={{ marginLeft: 16 }}
+              >
+                确认数据
+              </Button>
             </Space>
           </Card>
 
@@ -502,6 +529,7 @@ const AdminOverview = () => {
               Top5销售排行榜
             </Space>
           </Divider>
+          
           <Card>
             <Table
               dataSource={top5Sales}
@@ -603,6 +631,96 @@ const AdminOverview = () => {
                   )
                 }
               ]}
+            />
+          </Card>
+
+          {/* 销售搜索筛选 */}
+          <Card style={{ marginTop: 24, marginBottom: 16 }}>
+            <Row gutter={[16, 16]} align="middle">
+              <Col span={6}>
+                <Select
+                  value={tempSalesTypeFilter}
+                  placeholder="选择销售类型"
+                  allowClear
+                  style={{ width: '100%' }}
+                  onChange={(value) => {
+                    console.log('临时销售类型筛选:', value);
+                    setTempSalesTypeFilter(value);
+                  }}
+                >
+                  <Select.Option value="primary">一级销售</Select.Option>
+                  <Select.Option value="secondary">二级销售</Select.Option>
+                  <Select.Option value="independent">独立销售</Select.Option>
+                </Select>
+              </Col>
+              <Col span={6}>
+                <Select
+                  value={tempSalesNameFilter}
+                  placeholder="选择销售微信"
+                  allowClear
+                  showSearch
+                  style={{ width: '100%' }}
+                  filterOption={(input, option) =>
+                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }
+                  onChange={(value) => {
+                    console.log('临时销售微信筛选:', value);
+                    setTempSalesNameFilter(value);
+                  }}
+                >
+                  {sales?.map(sale => (
+                    <Select.Option key={sale.id || sale.sales_code} value={sale.sales?.wechat_name || sale.wechat_name || sale.sales?.name || sale.name}>
+                      {sale.sales?.wechat_name || sale.wechat_name || sale.sales?.name || sale.name || '-'}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col span={6}>
+                <Space>
+                  <Button 
+                    type="primary" 
+                    icon={<CheckCircleOutlined />}
+                    onClick={() => {
+                      // 将临时筛选条件应用到实际筛选条件
+                      setSalesTypeFilter(tempSalesTypeFilter);
+                      setSalesNameFilter(tempSalesNameFilter);
+                      message.success('筛选条件已确认');
+                      // loadData会在useEffect中自动触发
+                    }}
+                  >
+                    确认
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      // 重置所有筛选条件
+                      setTempSalesTypeFilter(null);
+                      setTempSalesNameFilter(null);
+                      setSalesTypeFilter(null);
+                      setSalesNameFilter(null);
+                      message.info('筛选条件已重置');
+                      // loadData会在useEffect中自动触发
+                    }}
+                  >
+                    重置
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* 转化率统计 - 紧凑设计 */}
+          <Divider orientation="left">
+            <Space>
+              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+              转化率统计
+            </Space>
+          </Divider>
+          <Card size="small" style={{ background: '#fafafa' }}>
+            <ConversionRateTable 
+              timeRange={timeRange}
+              customRange={customRange}
+              salesTypeFilter={salesTypeFilter}
+              salesNameFilter={salesNameFilter}
             />
           </Card>
         </>
