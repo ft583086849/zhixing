@@ -1,12 +1,13 @@
 /**
  * 统一API业务逻辑层
  * 提供高级业务接口，封装复杂的数据操作逻辑
- * v2.12.0 - Force cache clear - 2025-01-10 15:55
+ * v2.13.0 - Added excluded sales filtering - 2025-01-20
  */
 
 import { message } from 'antd';
 import { SupabaseService } from './supabase.js';
 import { AuthService } from './auth.js';
+import ExcludedSalesService from './excludedSalesService.js';
 
 /**
  * 统一错误处理
@@ -191,9 +192,30 @@ export const AdminAPI = {
 
     try {
       console.log('📋 getOrders 参数:', params);
+      
+      // 🚫 获取排除的销售代码（只在管理员查看时应用）
+      const isAdminView = !params.skipExclusion; // 默认应用排除
+      let excludedSalesCodes = [];
+      
+      if (isAdminView) {
+        try {
+          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          if (excludedSalesCodes.length > 0) {
+            console.log(`🚫 getOrders将排除 ${excludedSalesCodes.length} 个销售的订单`);
+          }
+        } catch (err) {
+          console.warn('获取排除名单失败，继续执行:', err);
+        }
+      }
+      
+      // 添加排除条件到参数中
+      const queryParams = excludedSalesCodes.length > 0 
+        ? { ...params, excludedSalesCodes }
+        : params;
+      
       // 根据是否有参数决定查询方式
-      const orders = Object.keys(params).length > 0 
-        ? await SupabaseService.getOrdersWithFilters(params)
+      const orders = Object.keys(queryParams).length > 0 
+        ? await SupabaseService.getOrdersWithFilters(queryParams)
         : await SupabaseService.getOrders();
       
       // 获取销售数据用于关联
@@ -240,11 +262,31 @@ export const AdminAPI = {
       // 0. 首先尝试同步销售微信号（如果需要）
       await this.syncSalesWechatNames();
       
+      // 🚫 获取排除的销售代码（只在管理员查看时应用）
+      const isAdminView = !params.skipExclusion; // 默认应用排除
+      let excludedSalesCodes = [];
+      
+      if (isAdminView) {
+        try {
+          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          if (excludedSalesCodes.length > 0) {
+            console.log(`🚫 getCustomers将排除 ${excludedSalesCodes.length} 个销售的客户`);
+          }
+        } catch (err) {
+          console.warn('获取排除名单失败，继续执行:', err);
+        }
+      }
+      
       // 🔧 修复：获取订单数据和销售数据用于正确关联
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
       // 构建订单查询
       let ordersQuery = supabaseClient.from('orders_optimized').select('*');
+      
+      // 应用排除过滤
+      if (excludedSalesCodes.length > 0) {
+        ordersQuery = ordersQuery.not('sales_code', 'in', `(${excludedSalesCodes.join(',')})`);
+      }
       
       // 销售微信号搜索
       if (params.sales_wechat) {
@@ -713,11 +755,31 @@ export const AdminAPI = {
       // 构建查询条件
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
+      // 🚫 获取排除的销售（只在管理员统计时应用）
+      const isAdminView = !params.skipExclusion; // 默认应用排除
+      let excludedWechatNames = [];
+      
+      if (isAdminView) {
+        try {
+          excludedWechatNames = await ExcludedSalesService.getExcludedWechatNames();
+          if (excludedWechatNames.length > 0) {
+            console.log(`🚫 getSales将排除 ${excludedWechatNames.length} 个销售`);
+          }
+        } catch (err) {
+          console.warn('获取排除名单失败，继续执行:', err);
+        }
+      }
+      
       // 从 sales_optimized 表获取数据
-      const salesQuery = supabaseClient
+      let salesQuery = supabaseClient
         .from('sales_optimized')
         .select('*')
         .order('total_amount', { ascending: false });
+      
+      // 应用排除过滤
+      if (excludedWechatNames.length > 0) {
+        salesQuery = salesQuery.not('wechat_name', 'in', `(${excludedWechatNames.map(n => `"${n}"`).join(',')})`);
+      }
       
       // 销售类型过滤
       let primarySales = [];
@@ -1317,10 +1379,32 @@ export const AdminAPI = {
         return await this.getStatsFromTable(params, supabaseClient);
       }
       
+      // 🚫 获取排除的销售代码（只在管理员统计时应用）
+      const isAdminStats = !params.skipExclusion; // 默认应用排除
+      let excludedSalesCodes = [];
+      
+      if (isAdminStats) {
+        try {
+          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          if (excludedSalesCodes.length > 0) {
+            console.log(`🚫 将排除 ${excludedSalesCodes.length} 个销售的数据:`, excludedSalesCodes);
+          }
+        } catch (err) {
+          console.warn('获取排除名单失败，继续执行:', err);
+        }
+      }
+      
       // 原有的实时查询逻辑
-      const { data: orders, error } = await supabaseClient
+      let ordersQuery = supabaseClient
         .from('orders_optimized')
         .select('*');
+      
+      // 应用排除过滤
+      if (excludedSalesCodes.length > 0) {
+        ordersQuery = ordersQuery.not('sales_code', 'in', `(${excludedSalesCodes.join(',')})`);
+      }
+      
+      const { data: orders, error } = await ordersQuery;
       
       if (error) {
         console.error('❌ 订单数据获取失败:', error);
@@ -1328,6 +1412,9 @@ export const AdminAPI = {
       }
       
       console.log(`📊 直接查询订单数据: ${orders?.length || 0} 个订单`);
+      if (excludedSalesCodes.length > 0) {
+        console.log(`   （已排除 ${excludedSalesCodes.length} 个销售的订单）`);
+      }
       
       if (!orders || orders.length === 0) {
         console.log('⚠️  订单表确实无数据，返回零值统计');
