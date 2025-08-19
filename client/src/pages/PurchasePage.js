@@ -84,7 +84,7 @@ const PurchasePage = () => {
 
   // 7天免费时自动选择即时购买
   useEffect(() => {
-    if (selectedDuration === '7days') {
+    if (selectedDuration === '7天') {
       setPurchaseType('immediate');
     }
   }, [selectedDuration]);
@@ -111,16 +111,16 @@ const PurchasePage = () => {
     }
 
     switch (selectedDuration) {
-      case '7days':
-        return baseTime.add(7, 'day').add(1, 'day');
-      case '1month':
-        return baseTime.add(1, 'month').add(1, 'day');
-      case '3months':
-        return baseTime.add(3, 'month').add(1, 'day');
-      case '6months':
-        return baseTime.add(6, 'month').add(1, 'day');
-      case '1year':
-        return baseTime.add(1, 'year').add(1, 'day');
+      case '7天':
+        return baseTime.add(7, 'day');
+      case '1个月':
+        return baseTime.add(1, 'month');
+      case '3个月':
+        return baseTime.add(3, 'month');
+      case '6个月':
+        return baseTime.add(6, 'month');
+      case '1年':
+        return baseTime.add(1, 'year');
       case 'lifetime':
         return baseTime.add(100, 'year').add(1, 'day');
       default:
@@ -155,7 +155,7 @@ const PurchasePage = () => {
       }
       
       // 🔧 新增：7天免费订单重复检查
-      if (selectedDuration === '7days') {
+      if (selectedDuration === '7天') {
         try {
           // 检查是否已经提交过7天免费订单
           const { data: existingOrders, error } = await SupabaseService.supabase
@@ -177,7 +177,7 @@ const PurchasePage = () => {
       }
       
       // 免费订单不需要验证付款金额和截图
-      if (selectedDuration !== '7days') {
+      if (selectedDuration !== '7天') {
         // 获取付款金额
         const paymentAmount = values.crypto_amount;
         if (!paymentAmount) {
@@ -198,7 +198,7 @@ const PurchasePage = () => {
       }
 
       // 计算实付金额：对于免费订单为0，对于付费订单使用用户输入的金额
-      const actualPaymentAmount = selectedDuration === '7days' ? 0 : parseFloat(values.crypto_amount) || 0;
+      const actualPaymentAmount = selectedDuration === '7天' ? 0 : parseFloat(values.crypto_amount) || 0;
 
       const formData = {
         sales_code: linkCode, // 使用新的sales_code字段
@@ -209,7 +209,7 @@ const PurchasePage = () => {
         amount: getSelectedPrice(), // 添加金额字段
         actual_payment_amount: actualPaymentAmount, // 实付金额
         payment_method: paymentMethod, // 发送原始值，后端负责映射
-        payment_time: selectedDuration === '7days' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
+        payment_time: selectedDuration === '7天' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
         purchase_type: purchaseType, // 发送原始值，后端负责映射
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
         screenshot_data: screenshotData,
@@ -222,7 +222,7 @@ const PurchasePage = () => {
       dispatch(clearCreatedOrder());
       
       // 根据订单类型显示不同的提示信息
-      if (selectedDuration === '7days') {
+      if (selectedDuration === '7天') {
         // 🔧 新增：7天免费订单特殊提示
         Modal.success({
           title: '订单提交成功',
@@ -321,7 +321,7 @@ const PurchasePage = () => {
 
   // 显示收款信息
   const renderPaymentInfo = () => {
-    if (!currentSales || !paymentMethod || !paymentConfig || selectedDuration === '7days') return null;
+    if (!currentSales || !paymentMethod || !paymentConfig || selectedDuration === '7天') return null;
 
     // 只支持链上地址支付
     if (paymentMethod === 'crypto') {
@@ -663,7 +663,7 @@ const PurchasePage = () => {
             </Form.Item>
 
             {/* 付款金额输入框 - 付费订单都显示 */}
-            {selectedDuration !== '7days' && (
+            {selectedDuration !== '7天' && (
               <Form.Item
                 name="crypto_amount"
                 label="付款金额（美元）"
@@ -682,7 +682,7 @@ const PurchasePage = () => {
             {renderPaymentInfo()}
 
             {/* 付款时间 - 免费订单不显示 */}
-            {selectedDuration !== '7days' && (
+            {selectedDuration !== '7天' && (
               <Form.Item
                 name="payment_time"
                 label="付款时间"
@@ -699,7 +699,7 @@ const PurchasePage = () => {
             )}
 
             {/* 付款截图 - 免费订单不显示 */}
-            {selectedDuration !== '7days' && (
+            {selectedDuration !== '7天' && (
               <Form.Item
                 label="付款截图"
                 required
@@ -778,8 +778,8 @@ const PurchasePage = () => {
                 block
                 disabled={
                   !selectedDuration || 
-                  (selectedDuration !== '7days' && !paymentMethod) || 
-                  (selectedDuration !== '7days' && !form.getFieldValue('crypto_amount')) ||
+                  (selectedDuration !== '7天' && !paymentMethod) || 
+                  (selectedDuration !== '7天' && !form.getFieldValue('crypto_amount')) ||
                   (purchaseType === 'advance' && !effectiveTime)
                 }
                 style={{
