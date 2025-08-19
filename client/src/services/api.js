@@ -2650,6 +2650,7 @@ export const OrdersAPI = {
         try {
           const salesInfo = await this.calculateCommission(processedOrderData.sales_code, processedOrderData.amount);
           processedOrderData.commission_amount = salesInfo.commission;
+          processedOrderData.primary_commission_amount = salesInfo.commission; // 同时设置新字段
           processedOrderData.sales_type = salesInfo.type;
           processedOrderData.commission_rate = salesInfo.commission / processedOrderData.amount;
           
@@ -2663,6 +2664,7 @@ export const OrdersAPI = {
           console.warn('计算佣金失败:', error.message);
           // 免费订单或计算失败时的默认值
           processedOrderData.commission_amount = 0;
+          processedOrderData.primary_commission_amount = 0; // 同时设置新字段
           processedOrderData.commission_rate = 0;
           processedOrderData.primary_sales_id = null;
           processedOrderData.secondary_sales_id = null;
@@ -2670,6 +2672,7 @@ export const OrdersAPI = {
       } else {
         // 免费订单
         processedOrderData.commission_amount = 0;
+        processedOrderData.primary_commission_amount = 0; // 同时设置新字段
         processedOrderData.commission_rate = 0;
         processedOrderData.primary_sales_id = null;
         processedOrderData.secondary_sales_id = null;
