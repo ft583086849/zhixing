@@ -137,6 +137,7 @@ export const AdminAPI = {
     }
   },
 
+
   /**
    * 获取管理员概览数据
    */
@@ -281,6 +282,22 @@ export const AdminAPI = {
         ordersQuery = ordersQuery
           .gte('created_at', params.start_date)
           .lte('created_at', params.end_date + ' 23:59:59');
+      }
+      
+      // 🔧 新增：金额筛选 - 参考订单管理页面的实现
+      // 多选金额筛选
+      if (params.amount && Array.isArray(params.amount) && params.amount.length > 0) {
+        // 转换为数字数组并使用 in 查询
+        const amounts = params.amount.map(a => parseFloat(a));
+        ordersQuery = ordersQuery.in('amount', amounts);
+      }
+      
+      // 金额范围筛选
+      if (params.min_amount !== undefined && params.min_amount !== '') {
+        ordersQuery = ordersQuery.gte('amount', parseFloat(params.min_amount));
+      }
+      if (params.max_amount !== undefined && params.max_amount !== '') {
+        ordersQuery = ordersQuery.lte('amount', parseFloat(params.max_amount));
       }
       
       // 执行查询
@@ -696,19 +713,27 @@ export const AdminAPI = {
       // 构建查询条件
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
-      // 获取一级销售查询
-      const primaryQuery = supabaseClient.from('primary_sales').select('*');
-      const secondaryQuery = supabaseClient.from('secondary_sales').select('*');
+      // 从 sales_optimized 表获取数据
+      const salesQuery = supabaseClient
+        .from('sales_optimized')
+        .select('*')
+        .order('total_amount', { ascending: false });
       
       // 销售类型过滤
       let primarySales = [];
       let secondarySales = [];
       
-      // 先获取所有数据
-      const [allPrimary, allSecondary] = await Promise.all([
-        primaryQuery.then(result => result.data || []),
-        secondaryQuery.then(result => result.data || [])
-      ]);
+      // 执行查询
+      const { data: salesData, error } = await salesQuery;
+      
+      if (error) {
+        console.error('获取销售数据失败:', error);
+        throw error;
+      }
+      
+      // 分离一级和二级销售
+      const allPrimary = salesData?.filter(s => s.sales_type === 'primary') || [];
+      const allSecondary = salesData?.filter(s => s.sales_type === 'secondary') || [];
       
       if (params.sales_type === 'primary') {
         // 只获取一级销售
@@ -1283,9 +1308,9 @@ export const AdminAPI = {
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
       // ✨ 新功能：检查是否启用新的统计表
-      const useNewStats = process.env.REACT_APP_ENABLE_NEW_STATS === 'true';
+      // 强制使用旧的统计方式，因为overview_stats表不存在
+      const useNewStats = false; // 强制禁用新统计表
       console.log(`📊 使用${useNewStats ? '新' : '旧'}的统计方式`);
-      console.log('REACT_APP_ENABLE_NEW_STATS值:', process.env.REACT_APP_ENABLE_NEW_STATS);
       
       if (useNewStats) {
         // 使用新的overview_stats表
@@ -1437,10 +1462,12 @@ export const AdminAPI = {
       // 销售返佣金额 = SUM(每个销售的应返佣金额)
       // 待返佣金额 = SUM(每个销售的待返佣金额)
       const salesResponse = await this.getSales();
-      if (salesResponse.success && salesResponse.data) {
-        salesResponse.data.forEach(sale => {
-          // 汇总应返佣金
-          const commissionAmount = sale.commission_amount || 0;
+      // 修复：getSales现在直接返回数组，不是{success, data}格式
+      const salesData = Array.isArray(salesResponse) ? salesResponse : (salesResponse?.data || []);
+      if (salesData && salesData.length > 0) {
+        salesData.forEach(sale => {
+          // 汇总应返佣金 - 修复：使用正确的字段名total_commission
+          const commissionAmount = sale.total_commission || sale.commission_amount || 0;
           total_commission += commissionAmount;
           
           // 汇总已返佣金
@@ -1524,15 +1551,21 @@ export const AdminAPI = {
       
       ordersToProcess.forEach(order => {
         const duration = order.duration;
-        if (duration === 'free' || duration === '7days' || duration === 'trial') {
+        // 同时匹配中文和英文的duration值
+        if (duration === 'free' || duration === '7days' || duration === 'trial' || 
+            duration === '7天' || duration === '7日' || duration === '七天') {
           orderDurationStats.free_trial_orders++;
-        } else if (duration === '1month' || duration === 'month') {
+        } else if (duration === '1month' || duration === 'month' || 
+                   duration === '1个月' || duration === '一个月') {
           orderDurationStats.one_month_orders++;
-        } else if (duration === '3months') {
+        } else if (duration === '3months' || 
+                   duration === '3个月' || duration === '三个月') {
           orderDurationStats.three_month_orders++;
-        } else if (duration === '6months') {
+        } else if (duration === '6months' || 
+                   duration === '6个月' || duration === '六个月' || duration === '半年') {
           orderDurationStats.six_month_orders++;
-        } else if (duration === '1year' || duration === 'yearly' || duration === 'annual') {
+        } else if (duration === '1year' || duration === 'yearly' || duration === 'annual' || 
+                   duration === '1年' || duration === '一年' || duration === '年费') {
           orderDurationStats.yearly_orders++;
         }
       });
@@ -1570,11 +1603,15 @@ export const AdminAPI = {
       });
       
       // 🔧 修复：排除已拒绝的订单计算总订单数
+      // 修复：正确计算订单统计
       const non_rejected_orders = ordersToProcess.filter(order => order.status !== 'rejected');
+      const valid_orders = ordersToProcess.filter(order => 
+        ['confirmed_payment', 'confirmed_config', 'active', 'confirmed'].includes(order.status)
+      );
       
       const stats = {
-        total_orders: non_rejected_orders.length,  // 🔧 修复：不包含已拒绝的订单
-        valid_orders: non_rejected_orders.length,  // 生效订单数 = 总订单 - 已拒绝
+        total_orders: ordersToProcess.length,  // 修复：总订单数应该包含所有状态的订单
+        valid_orders: valid_orders.length,     // 修复：生效订单数只包含已确认状态的订单
         rejected_orders: ordersToProcess.filter(o => o.status === 'rejected').length,
         total_amount: Math.round(total_amount * 100) / 100,
         confirmed_amount: Math.round(confirmed_amount * 100) / 100,  // 🔧 新增：已确认订单实付金额
@@ -1822,6 +1859,7 @@ export const AdminAPI = {
     
     return this.getEmptyStats(); // 临时返回，需要补充完整逻辑
   },
+
 
   /**
    * 获取空统计数据 - 统一的空数据结构
@@ -2168,6 +2206,274 @@ export const AdminAPI = {
       return {
         success: false,
         message: error.message
+      };
+    }
+  },
+
+  /**
+   * 获取销售转化率统计列表
+   */
+  async getSalesConversionStats(params = {}) {
+    try {
+      console.log('📊 获取销售转化率统计列表，参数:', params);
+      
+      const supabaseClient = SupabaseService.supabase || window.supabaseClient;
+      
+      // 1. 获取销售列表
+      let salesQuery = supabaseClient
+        .from('sales_optimized')
+        .select('*');
+      
+      // 应用销售筛选
+      if (params.sales_type) {
+        salesQuery = salesQuery.eq('sales_type', params.sales_type);
+      }
+      if (params.wechat_name) {
+        salesQuery = salesQuery.eq('wechat_name', params.wechat_name);
+      }
+      
+      const { data: salesList, error: salesError } = await salesQuery;
+      
+      if (salesError) {
+        console.error('获取销售列表失败:', salesError);
+        return [];
+      }
+      
+      // 2. 获取所有订单
+      const { data: allOrders, error: ordersError } = await supabaseClient
+        .from('orders_optimized')
+        .select('*');
+      
+      if (ordersError) {
+        console.error('获取订单数据失败:', ordersError);
+        return [];
+      }
+      
+      // 3. 按销售统计转化率
+      const salesStats = [];
+      const now = new Date();
+      
+      for (const sale of salesList || []) {
+        // 获取该销售的订单
+        let saleOrders = allOrders.filter(o => o.sales_code === sale.sales_code);
+        
+        // 应用时间范围过滤
+        if (params.timeRange && params.timeRange !== 'all') {
+          const usePaymentTime = params.usePaymentTime || false;
+          
+          saleOrders = saleOrders.filter(order => {
+            const timeField = usePaymentTime ? 
+              (order.payment_time || order.updated_at || order.created_at) : 
+              order.created_at;
+            const orderDate = new Date(timeField);
+            
+            switch (params.timeRange) {
+              case 'today':
+                return orderDate.toLocaleDateString() === now.toLocaleDateString();
+              case 'week': {
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                return orderDate >= weekAgo;
+              }
+              case 'month': {
+                const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                return orderDate >= monthAgo;
+              }
+              case 'year': {
+                const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+                return orderDate >= yearAgo;
+              }
+              case 'custom':
+                if (params.customRange && params.customRange.length === 2) {
+                  const [startDate, endDate] = params.customRange;
+                  const start = new Date(startDate);
+                  const end = new Date(endDate);
+                  end.setHours(23, 59, 59, 999);
+                  return orderDate >= start && orderDate <= end;
+                }
+                return true;
+              default:
+                return true;
+            }
+          });
+        }
+        
+        // 统计有效订单和收费订单
+        const validOrders = saleOrders.filter(o => o.status !== 'rejected');
+        const paidOrders = validOrders.filter(o => {
+          const amount = parseFloat(o.amount || 0);
+          const actualAmount = parseFloat(o.actual_payment_amount || 0);
+          return amount > 0 || actualAmount > 0;
+        });
+        
+        // 只添加有订单的销售
+        if (validOrders.length > 0) {
+          salesStats.push({
+            wechat_name: sale.wechat_name,
+            sales_type: sale.sales_type,
+            sales_code: sale.sales_code,
+            total_orders: validOrders.length,
+            paid_orders: paidOrders.length,
+            conversion_rate: validOrders.length > 0 ? 
+              (paidOrders.length / validOrders.length * 100).toFixed(2) : 0
+          });
+        }
+      }
+      
+      // 按转化率排序
+      salesStats.sort((a, b) => parseFloat(b.conversion_rate) - parseFloat(a.conversion_rate));
+      
+      console.log('📊 销售转化率统计结果:', salesStats);
+      return salesStats;
+      
+    } catch (error) {
+      console.error('获取销售转化率统计失败:', error);
+      return [];
+    }
+  },
+
+  /**
+   * 获取转化率统计数据 - 支持时间范围和销售筛选
+   */
+  async getConversionStats(params = {}) {
+    try {
+      console.log('📊 获取转化率统计，参数:', params);
+      
+      const supabaseClient = SupabaseService.supabase || window.supabaseClient;
+      
+      // 获取订单数据
+      let ordersQuery = supabaseClient
+        .from('orders_optimized')
+        .select('*');
+      
+      // 如果有销售筛选，先获取对应的销售代码
+      if (params.sales_type || params.wechat_name) {
+        let salesQuery = supabaseClient
+          .from('sales_optimized')
+          .select('sales_code');
+        
+        if (params.sales_type) {
+          salesQuery = salesQuery.eq('sales_type', params.sales_type);
+        }
+        if (params.wechat_name) {
+          salesQuery = salesQuery.eq('wechat_name', params.wechat_name);
+        }
+        
+        const { data: salesData } = await salesQuery;
+        
+        if (salesData && salesData.length > 0) {
+          const salesCodes = salesData.map(s => s.sales_code);
+          ordersQuery = ordersQuery.in('sales_code', salesCodes);
+        } else {
+          // 没有找到匹配的销售，返回空数据
+          return {
+            total_orders: 0,
+            rejected_orders: 0,
+            confirmed_config_orders: 0
+          };
+        }
+      }
+      
+      const { data: orders, error } = await ordersQuery;
+      
+      if (error) {
+        console.error('获取订单数据失败:', error);
+        throw error;
+      }
+      
+      // 应用时间范围过滤
+      let filteredOrders = orders || [];
+      const now = new Date();
+      const usePaymentTime = params.usePaymentTime || false;
+      
+      if (params.timeRange && params.timeRange !== 'all') {
+        switch (params.timeRange) {
+          case 'today': {
+            filteredOrders = filteredOrders.filter(order => {
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              const orderDate = new Date(timeField);
+              return orderDate.toLocaleDateString() === now.toLocaleDateString();
+            });
+            break;
+          }
+          case 'week': {
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            filteredOrders = filteredOrders.filter(order => {
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              return new Date(timeField) >= weekAgo;
+            });
+            break;
+          }
+          case 'month': {
+            const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            filteredOrders = filteredOrders.filter(order => {
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              return new Date(timeField) >= monthAgo;
+            });
+            break;
+          }
+          case 'year': {
+            const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            filteredOrders = filteredOrders.filter(order => {
+              const timeField = usePaymentTime ? 
+                (order.payment_time || order.updated_at || order.created_at) : 
+                order.created_at;
+              return new Date(timeField) >= yearAgo;
+            });
+            break;
+          }
+          case 'custom': {
+            if (params.customRange && params.customRange.length === 2) {
+              const [startDate, endDate] = params.customRange;
+              const start = new Date(startDate);
+              const end = new Date(endDate);
+              end.setHours(23, 59, 59, 999);
+              
+              filteredOrders = filteredOrders.filter(order => {
+                const timeField = usePaymentTime ? 
+                  (order.payment_time || order.updated_at || order.created_at) : 
+                  order.created_at;
+                const orderDate = new Date(timeField);
+                return orderDate >= start && orderDate <= end;
+              });
+            }
+            break;
+          }
+        }
+      }
+      
+      // 统计数据
+      // 有效订单 = 所有订单 - 已拒绝订单
+      const validOrders = filteredOrders.filter(o => o.status !== 'rejected');
+      const rejectedOrders = filteredOrders.filter(o => o.status === 'rejected');
+      
+      // 收费订单 = 有金额的订单（amount > 0 或 actual_payment_amount > 0）
+      const paidOrders = validOrders.filter(o => {
+        const amount = parseFloat(o.amount || 0);
+        const actualAmount = parseFloat(o.actual_payment_amount || 0);
+        return amount > 0 || actualAmount > 0;
+      });
+      
+      const result = {
+        total_orders: validOrders.length,           // 有效订单总数
+        rejected_orders: rejectedOrders.length,     // 已拒绝订单数
+        confirmed_config_orders: paidOrders.length  // 收费订单数（有金额的订单）
+      };
+      
+      console.log('📊 转化率统计结果:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('获取转化率统计失败:', error);
+      return {
+        total_orders: 0,
+        rejected_orders: 0,
+        confirmed_config_orders: 0
       };
     }
   }

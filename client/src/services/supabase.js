@@ -138,16 +138,18 @@ export class SupabaseService {
     return data;
   }
 
-  // 获取一级销售结算数据（修复版：直接从表中查询）
+  // 获取一级销售结算数据（优化版：复用销售管理页面数据）
   static async getPrimarySalesSettlement(params) {
     try {
-      // 1. 直接从一级销售表获取数据（不依赖不存在的视图）
+      console.log('🔍 获取一级销售结算数据，参数:', params);
+      
+      // 1. 从 sales_optimized 表获取一级销售数据
       let salesQuery = supabase
-        .from('primary_sales')
-        .select('*');
+        .from('sales_optimized')
+        .select('*')
+        .eq('sales_type', 'primary');
       
       if (params.wechat_name) {
-        // 精确匹配微信号
         salesQuery = salesQuery.eq('wechat_name', params.wechat_name);
       }
       if (params.sales_code) {
@@ -158,7 +160,7 @@ export class SupabaseService {
       
       if (salesError) {
         console.error('查询一级销售失败:', salesError);
-        throw new Error('未找到匹配的一级销售，请输入完整的微信号（如：一级销售张三）');
+        throw new Error('未找到匹配的一级销售');
       }
       
       // 构建统计数据对象（兼容原有结构）
@@ -463,10 +465,25 @@ export class SupabaseService {
           commission_rate: primaryStats.commission_rate,
           payment_account: primaryStats.payment_account,
           payment_method: primaryStats.payment_method,
-          // 自己的统计
+          
+          // 🚀 v2.0佣金系统字段（复用销售管理页面数据）
+          total_commission: primaryStats.total_commission,  // 总佣金
+          direct_commission: primaryStats.direct_commission,  // 直销佣金
+          secondary_avg_rate: primaryStats.secondary_avg_rate,  // 平均二级佣金率
+          secondary_share_commission: primaryStats.secondary_share_commission,  // 二级佣金收益
+          secondary_orders_amount: primaryStats.secondary_orders_amount,  // 二级销售订单总额
+          
+          // 基础统计
           direct_orders: primaryStats.total_orders,
           direct_amount: primaryStats.total_amount,
-          direct_commission: primaryStats.total_commission
+          
+          // 时间统计（本月/当日）
+          month_commission: primaryStats.month_commission,
+          today_commission: primaryStats.today_commission,
+          month_orders: primaryStats.month_orders,
+          today_orders: primaryStats.today_orders,
+          month_amount: primaryStats.month_amount,
+          today_amount: primaryStats.today_amount
         },
         orders: orders || [],
         secondarySales: secondaryStats || [],
