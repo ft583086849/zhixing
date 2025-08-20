@@ -357,13 +357,6 @@ const SalesReconciliationPage = () => {
       }
     },
     {
-      title: '到期时间',
-      dataIndex: 'expiry_time',
-      key: 'expiry_time',
-      width: 150,
-      render: (time) => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
-    },
-    {
       title: '操作',
       key: 'action',
       width: 100,
@@ -418,16 +411,6 @@ const SalesReconciliationPage = () => {
                     placeholder="请输入微信号" 
                     allowClear
                     aria-label="请输入微信号"
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12} md={8}>
-                <Form.Item name="payment_date" label="付款时间" style={{ marginBottom: 8 }}>
-                  <DatePicker.RangePicker 
-                    style={{ width: '100%' }}
-                    placeholder={['开始日期', '结束日期']}
-                    format="YYYY-MM-DD"
                   />
                 </Form.Item>
               </Col>
@@ -594,24 +577,35 @@ const SalesReconciliationPage = () => {
               title={
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>订单列表</span>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <span style={{ marginRight: 8, fontSize: '14px', color: '#666' }}>订单金额:</span>
-                    <Select 
-                      mode="multiple"
-                      placeholder="选择订单金额（可多选）" 
-                      allowClear
-                      style={{ width: 280 }}
-                      value={amountFilter}
-                      onChange={(values) => {
-                        setAmountFilter(values || []);
-                      }}
-                    >
-                      <Option value="0">免费体验（$0）</Option>
-                      <Option value="188">一个月（$188）</Option>
-                      <Option value="488">三个月（$488）</Option>
-                      <Option value="888">六个月（$888）</Option>
-                      <Option value="1588">一年（$1588）</Option>
-                    </Select>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div>
+                      <span style={{ marginRight: 8, fontSize: '14px', color: '#666' }}>付款时间:</span>
+                      <DatePicker.RangePicker 
+                        style={{ width: 220 }}
+                        placeholder={['开始日期', '结束日期']}
+                        format="YYYY-MM-DD"
+                        allowClear
+                      />
+                    </div>
+                    <div>
+                      <span style={{ marginRight: 8, fontSize: '14px', color: '#666' }}>订单金额:</span>
+                      <Select 
+                        mode="multiple"
+                        placeholder="选择订单金额（可多选）" 
+                        allowClear
+                        style={{ width: 280 }}
+                        value={amountFilter}
+                        onChange={(values) => {
+                          setAmountFilter(values || []);
+                        }}
+                      >
+                        <Option value="0">免费体验（$0）</Option>
+                        <Option value="188">一个月（$188）</Option>
+                        <Option value="488">三个月（$488）</Option>
+                        <Option value="888">六个月（$888）</Option>
+                        <Option value="1588">一年（$1588）</Option>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               }
