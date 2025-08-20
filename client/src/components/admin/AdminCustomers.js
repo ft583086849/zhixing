@@ -40,7 +40,11 @@ const AdminCustomers = () => {
     console.log('📦 AdminCustomers: 组件加载，开始获取客户数据');
     dispatch(getCustomers())
       .then((result) => {
-        if (result.payload && result.payload.length > 0) {
+        console.log('getCustomers返回结果:', result);
+        if (result.error) {
+          console.error('❌ 获取客户数据失败 - Redux错误:', result.error);
+          message.error(`获取客户数据失败: ${result.error}`);
+        } else if (result.payload && result.payload.length > 0) {
           console.log(`✅ 成功加载 ${result.payload.length} 个客户`);
         } else {
           console.warn('⚠️ 没有获取到客户数据');
@@ -49,7 +53,7 @@ const AdminCustomers = () => {
         }
       })
       .catch((error) => {
-        console.error('❌ 获取客户数据失败:', error);
+        console.error('❌ 获取客户数据失败 - Promise错误:', error);
         message.error('获取客户数据失败，请刷新页面重试');
       });
   }, [dispatch]);
@@ -68,12 +72,20 @@ const AdminCustomers = () => {
       is_reminded: searchValues.remind_status,
       reminder_suggestion: searchValues.reminder_suggestion,
       start_date: searchValues.date_range?.[0]?.format('YYYY-MM-DD'),
-      end_date: searchValues.date_range?.[1]?.format('YYYY-MM-DD')
+      end_date: searchValues.date_range?.[1]?.format('YYYY-MM-DD'),
+      // 金额筛选参数
+      amount: searchValues.amount,  // 多选金额数组
+      min_amount: searchValues.min_amount,  // 最小金额
+      max_amount: searchValues.max_amount   // 最大金额
     };
     
-    // 移除空值
+    // 移除空值（优化处理数组和数字）
     Object.keys(apiParams).forEach(key => {
-      if (!apiParams[key]) {
+      const value = apiParams[key];
+      if (value === undefined || 
+          value === null || 
+          value === '' || 
+          (Array.isArray(value) && value.length === 0)) {
         delete apiParams[key];
       }
     });
@@ -156,22 +168,40 @@ const AdminCustomers = () => {
       key: 'reminder_suggestion',
       width: 100,
       render: (_, record) => {
-        // 检查是否需要催单（到期时间在一周内）
-        if (record.expiry_date || record.expiry_time) {
-          const expiryDate = dayjs(record.expiry_date || record.expiry_time);
+        // 使用 expiry_time 字段（订单表的正确字段）
+        if (record.expiry_time) {
+          const expiryDate = dayjs(record.expiry_time);
           const today = dayjs();
           const daysUntilExpiry = expiryDate.diff(today, 'day');
           
-          // 如果在7天内到期且状态不是已完成
-          if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
-              record.status !== 'confirmed_config' && 
-              record.status !== 'active' && 
-              record.status !== 'expired') {
-            return (
-              <Tag color="red" icon={<ExclamationCircleOutlined />}>
-                建议催单
-              </Tag>
-            );
+          // 只催已配置生效且马上到期的订单
+          const isActiveOrder = record.status === 'confirmed_config' || record.status === 'active';
+          
+          if (isActiveOrder) {
+            // 根据金额判断催单时间
+            const hasAmount = record.total_amount > 0 || record.amount > 0;
+            const reminderDays = hasAmount ? 7 : 3; // 有金额7天，无金额3天
+            
+            // 未到期的订单：提前催单
+            if (daysUntilExpiry >= 0 && daysUntilExpiry <= reminderDays) {
+              return (
+                <Tag color="red" icon={<ExclamationCircleOutlined />}>
+                  建议催单({daysUntilExpiry}天到期)
+                </Tag>
+              );
+            }
+            
+            // 已过期的订单：过期1个月内也建议催单
+            if (daysUntilExpiry < 0) {
+              const daysOverdue = Math.abs(daysUntilExpiry);
+              if (daysOverdue <= 30) { // 过期30天内
+                return (
+                  <Tag color="orange" icon={<ExclamationCircleOutlined />}>
+                    建议催单(已过期{daysOverdue}天)
+                  </Tag>
+                );
+              }
+            }
           }
         }
         return <Tag color="default">无需催单</Tag>;
@@ -181,16 +211,29 @@ const AdminCustomers = () => {
         { text: '无需催单', value: 'no_reminder' }
       ],
       onFilter: (value, record) => {
-        if (!record.expiry_date && !record.expiry_time) return value === 'no_reminder';
+        if (!record.expiry_time) return value === 'no_reminder';
         
-        const expiryDate = dayjs(record.expiry_date || record.expiry_time);
+        const expiryDate = dayjs(record.expiry_time);
         const today = dayjs();
         const daysUntilExpiry = expiryDate.diff(today, 'day');
         
-        const needReminder = daysUntilExpiry <= 7 && daysUntilExpiry >= 0 && 
-                            record.status !== 'confirmed_config' && 
-                            record.status !== 'active' && 
-                            record.status !== 'expired';
+        // 只催已配置生效的订单
+        const isActiveOrder = record.status === 'confirmed_config' || record.status === 'active';
+        const hasAmount = record.total_amount > 0 || record.amount > 0;
+        const reminderDays = hasAmount ? 7 : 3;
+        
+        let needReminder = false;
+        
+        if (isActiveOrder) {
+          // 未到期的订单：提前催单
+          if (daysUntilExpiry >= 0 && daysUntilExpiry <= reminderDays) {
+            needReminder = true;
+          }
+          // 已过期的订单：过期30天内也建议催单
+          else if (daysUntilExpiry < 0 && Math.abs(daysUntilExpiry) <= 30) {
+            needReminder = true;
+          }
+        }
         
         return value === 'need_reminder' ? needReminder : !needReminder;
       }
@@ -238,10 +281,10 @@ const AdminCustomers = () => {
     },
     {
       title: '到期时间',
-      dataIndex: 'expiry_date',
-      key: 'expiry_date',
+      dataIndex: 'expiry_time',
+      key: 'expiry_time',
       width: 150,
-      render: (date) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+      render: (time) => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-',
     },
 
   ];
@@ -293,6 +336,56 @@ const AdminCustomers = () => {
                   <Option value="confirmed">已配置确认</Option>
                   <Option value="pending">待配置确认</Option>
                 </Select>
+              </Form.Item>
+            </Col>
+            
+            {/* 金额筛选 - 参考订单管理页面 */}
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item 
+                name="amount" 
+                label="订单金额" 
+                tooltip="按订单套餐价格筛选，可多选"
+              >
+                <Select 
+                  mode="multiple"
+                  placeholder="选择订单金额（可多选）" 
+                  allowClear 
+                  style={{ width: '100%' }}
+                >
+                  <Option value="0">免费体验（$0）</Option>
+                  <Option value="188">一个月（$188）</Option>
+                  <Option value="488">三个月（$488）</Option>
+                  <Option value="888">六个月（$888）</Option>
+                  <Option value="1588">一年（$1588）</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            
+            {/* 金额范围搜索 */}
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item label="金额范围">
+                <Input.Group compact>
+                  <Form.Item
+                    name="min_amount"
+                    noStyle
+                  >
+                    <Input
+                      style={{ width: '50%' }}
+                      placeholder="最小金额"
+                      type="number"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="max_amount"
+                    noStyle
+                  >
+                    <Input
+                      style={{ width: '50%' }}
+                      placeholder="最大金额"
+                      type="number"
+                    />
+                  </Form.Item>
+                </Input.Group>
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>

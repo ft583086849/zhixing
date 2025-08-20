@@ -91,16 +91,37 @@ class ExcludedSalesService {
         };
       }
 
-      // 2. 计算影响的数据量
-      const impact = await this.calculateExclusionImpact(wechat_name, sales_code);
+      // 2. 如果没有提供sales_code，自动从sales_optimized表查找
+      let actualSalesCode = sales_code;
+      let actualSalesType = sales_type;
+      
+      if (!actualSalesCode && wechat_name) {
+        console.log('🔍 自动查找销售代码...');
+        const { data: salesData } = await supabase
+          .from('sales_optimized')
+          .select('sales_code, sales_type')
+          .eq('wechat_name', wechat_name);
+        
+        if (salesData && salesData.length > 0) {
+          // 如果有多个销售记录，取第一个
+          actualSalesCode = salesData[0].sales_code;
+          actualSalesType = salesData[0].sales_type || sales_type;
+          console.log(`✅ 找到销售代码: ${actualSalesCode}`);
+        } else {
+          console.warn(`⚠️ 未找到 ${wechat_name} 的销售代码`);
+        }
+      }
 
-      // 3. 添加到排除名单
+      // 3. 计算影响的数据量
+      const impact = await this.calculateExclusionImpact(wechat_name, actualSalesCode);
+
+      // 4. 添加到排除名单
       const { data, error } = await supabase
         .from('excluded_sales_config')
         .insert({
           wechat_name,
-          sales_code,
-          sales_type,
+          sales_code: actualSalesCode,  // 使用找到的销售代码
+          sales_type: actualSalesType,  // 使用找到的销售类型
           reason,
           excluded_by
         })

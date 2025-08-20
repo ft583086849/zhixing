@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Table, message } from 'antd';
+import { Table, message, Alert } from 'antd';
 import { AdminAPI } from '../../services/api';
+import ExcludedSalesService from '../../services/excludedSalesService';
 
 const ConversionRateTable = ({ timeRange, customRange, salesTypeFilter, salesNameFilter }) => {
   const [loading, setLoading] = useState(false);
   const [conversionData, setConversionData] = useState([]);
+  const [excludedCount, setExcludedCount] = useState(0);
 
   // 加载转化率数据
   const loadConversionData = async () => {
     setLoading(true);
     try {
+      // 获取排除的销售数量
+      try {
+        const excludedList = await ExcludedSalesService.getExcludedSales();
+        setExcludedCount(excludedList.length);
+      } catch (error) {
+        console.error('获取排除列表失败:', error);
+      }
+      
       // 构建参数
       const params = {
         timeRange: timeRange === 'custom' && customRange.length > 0 ? 'custom' : timeRange,
