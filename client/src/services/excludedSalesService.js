@@ -123,7 +123,9 @@ class ExcludedSalesService {
           sales_code: actualSalesCode,  // 使用找到的销售代码
           sales_type: actualSalesType,  // 使用找到的销售类型
           reason,
-          excluded_by
+          excluded_by,
+          is_active: true,  // 🔧 设置为激活状态
+          excluded_at: new Date().toISOString()  // 记录排除时间
         })
         .select()
         .single();

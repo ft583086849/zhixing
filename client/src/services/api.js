@@ -530,10 +530,13 @@ export const AdminAPI = {
           expiryDate.setHours(0, 0, 0, 0);
           const daysDiff = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
           
-          const needReminder = daysDiff <= 7 && daysDiff >= 0 && 
-                              customer.status !== 'confirmed_config' && 
-                              customer.status !== 'active' && 
-                              customer.status !== 'expired';
+          // 🔧 修复：催单逻辑应该针对已生效的订单
+          // 催单条件：1) 状态为confirmed_config或active（已生效）
+          //          2) 即将到期（未来7天）或已过期30天内
+          //          3) 未被催单过
+          const isActiveOrder = customer.status === 'confirmed_config' || customer.status === 'active';
+          const isInReminderTimeRange = (daysDiff <= 7 && daysDiff >= -30); // 未来7天到过去30天
+          const needReminder = isActiveOrder && isInReminderTimeRange && !customer.is_reminded;
           
           return params.reminder_suggestion === 'need_reminder' ? needReminder : !needReminder;
         });
@@ -3067,7 +3070,7 @@ export const SalesAPI = {
         .from('orders_optimized')
         .update({ 
           is_reminded: true,
-          reminder_time: new Date().toISOString(),
+          reminded_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId)
