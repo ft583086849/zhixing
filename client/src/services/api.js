@@ -1548,7 +1548,11 @@ export const AdminAPI = {
       // 🎯 正确的逻辑：从销售数据汇总所有佣金
       // 销售返佣金额 = SUM(每个销售的应返佣金额)
       // 待返佣金额 = SUM(每个销售的待返佣金额)
-      const salesResponse = await this.getSales();
+      // 传递相同的排除参数确保销售数据也被过滤
+      const salesParams = {
+        skipExclusion: params.skipExclusion // 继承排除参数
+      };
+      const salesResponse = await this.getSales(salesParams);
       // 修复：getSales现在直接返回数组，不是{success, data}格式
       const salesData = Array.isArray(salesResponse) ? salesResponse : (salesResponse?.data || []);
       if (salesData && salesData.length > 0) {
@@ -1590,11 +1594,10 @@ export const AdminAPI = {
         }
       });
       
-      // 获取实际销售表数据进行对比
-      const [primarySales, secondarySales] = await Promise.all([
-        SupabaseService.getPrimarySales(),
-        SupabaseService.getSecondarySales()
-      ]);
+      // 获取实际销售表数据进行对比 - 从已过滤的salesData中提取
+      // 不再从旧表获取，确保应用了排除过滤
+      const primarySales = salesData?.filter(s => s.sales_type === 'primary') || [];
+      const secondarySales = salesData?.filter(s => s.sales_type === 'secondary') || [];
       
       // 🔧 修复：区分二级销售和独立销售
       const linkedSecondarySales = secondarySales?.filter(s => s.primary_sales_id) || [];
@@ -2021,6 +2024,51 @@ export const AdminAPI = {
   },
 
   /**
+   * 更新订单催单状态
+   */
+  async updateOrderReminderStatus(orderId, isReminded) {
+    try {
+      console.log('更新订单催单状态:', { orderId, isReminded });
+      
+      const { data, error } = await SupabaseService.supabase
+        .from('orders_optimized')
+        .update({ 
+          is_reminded: isReminded,
+          reminded_at: isReminded ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('更新催单状态失败:', error);
+        return {
+          success: false,
+          message: error.message || '更新催单状态失败'
+        };
+      }
+      
+      // 清除相关缓存
+      CacheManager.remove('admin-orders');
+      CacheManager.remove('admin-customers');
+      
+      return {
+        success: true,
+        data: data,
+        message: '催单状态更新成功'
+      };
+    } catch (error) {
+      console.error('更新催单状态失败 - 详细错误:', error);
+      return {
+        success: false,
+        message: error.message || '更新催单状态失败',
+        error: error
+      };
+    }
+  },
+
+  /**
    * 获取优化后的销售数据（使用 sales_optimized 表）
    */
   async getSalesOptimized(params = {}) {
@@ -2306,6 +2354,21 @@ export const AdminAPI = {
       
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
+      // 检查是否需要应用排除过滤（管理员统计默认排除）
+      const isAdminStats = !params.skipExclusion;
+      let excludedSalesCodes = [];
+      
+      if (isAdminStats) {
+        try {
+          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          if (excludedSalesCodes.length > 0) {
+            console.log('🚫 转化率统计排除销售代码:', excludedSalesCodes);
+          }
+        } catch (error) {
+          console.error('获取排除销售列表失败:', error);
+        }
+      }
+      
       // 1. 获取销售列表
       let salesQuery = supabaseClient
         .from('sales_optimized')
@@ -2319,6 +2382,11 @@ export const AdminAPI = {
         salesQuery = salesQuery.eq('wechat_name', params.wechat_name);
       }
       
+      // 应用排除过滤
+      if (excludedSalesCodes.length > 0) {
+        salesQuery = salesQuery.not('sales_code', 'in', `(${excludedSalesCodes.join(',')})`);
+      }
+      
       const { data: salesList, error: salesError } = await salesQuery;
       
       if (salesError) {
@@ -2326,10 +2394,17 @@ export const AdminAPI = {
         return [];
       }
       
-      // 2. 获取所有订单
-      const { data: allOrders, error: ordersError } = await supabaseClient
+      // 2. 获取所有订单（排除指定销售的订单）
+      let ordersQuery = supabaseClient
         .from('orders_optimized')
         .select('*');
+      
+      // 应用排除过滤到订单查询
+      if (excludedSalesCodes.length > 0) {
+        ordersQuery = ordersQuery.not('sales_code', 'in', `(${excludedSalesCodes.join(',')})`);
+      }
+      
+      const { data: allOrders, error: ordersError } = await ordersQuery;
       
       if (ordersError) {
         console.error('获取订单数据失败:', ordersError);
@@ -2982,12 +3057,40 @@ export const SalesAPI = {
    * 催单
    */
   async urgeOrder(orderId) {
-    // 暂时返回成功
-    return {
-      success: true,
-      data: null,
-      message: '催单成功'
-    };
+    try {
+      console.log('🔔 催单订单:', orderId);
+      
+      // 调用Supabase服务更新订单的催单状态
+      const { SupabaseService } = await import('./supabase');
+      
+      const updatedOrder = await SupabaseService.supabase
+        .from('orders_optimized')
+        .update({ 
+          is_reminded: true,
+          reminder_time: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+      
+      if (updatedOrder.error) {
+        throw new Error(`催单失败: ${updatedOrder.error.message}`);
+      }
+      
+      return {
+        success: true,
+        data: updatedOrder.data,
+        message: `订单 ${orderId} 催单成功，已标记为已催单`
+      };
+    } catch (error) {
+      console.error('催单失败:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: '催单失败，请重试'
+      };
+    }
   }
 };
 
@@ -3181,6 +3284,49 @@ export const API = {
 
 // 向后兼容的导出（小写命名）
 export const adminAPI = AdminAPI;
+// 定义独立的更新催单状态方法
+const updateOrderReminderStatus = async function(orderId, isReminded) {
+  try {
+    console.log('更新订单催单状态:', { orderId, isReminded });
+    
+    const { data, error } = await SupabaseService.supabase
+      .from('orders_optimized')
+      .update({ 
+        is_reminded: isReminded,
+        reminded_at: isReminded ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('更新催单状态失败:', error);
+      return {
+        success: false,
+        message: error.message || '更新催单状态失败'
+      };
+    }
+    
+    // 清除相关缓存
+    CacheManager.remove('admin-orders');
+    CacheManager.remove('admin-customers');
+    
+    return {
+      success: true,
+      data: data,
+      message: '催单状态更新成功'
+    };
+  } catch (error) {
+    console.error('更新催单状态失败 - 详细错误:', error);
+    return {
+      success: false,
+      message: error.message || '更新催单状态失败',
+      error: error
+    };
+  }
+};
+
 export const salesAPI = {
   ...SalesAPI,
   // 向后兼容的别名
@@ -3192,7 +3338,9 @@ export const salesAPI = {
   getPrimarySalesOrders: SalesAPI.getPrimarySalesOrders,
   updateSecondarySalesCommission: SalesAPI.updateSecondarySalesCommission,
   removeSecondarySales: SalesAPI.removeSecondarySales,
-  urgeOrder: SalesAPI.urgeOrder
+  urgeOrder: SalesAPI.urgeOrder,
+  // 添加催单状态更新方法
+  updateOrderReminderStatus: updateOrderReminderStatus
 };
 export const ordersAPI = OrdersAPI;
 export const authAPI = {

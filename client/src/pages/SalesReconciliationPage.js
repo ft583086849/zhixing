@@ -15,7 +15,8 @@ import {
   Alert,
   Divider,
   DatePicker,
-  Tooltip
+  Tooltip,
+  Select
 } from 'antd';
 import { 
   SearchOutlined,
@@ -30,6 +31,7 @@ import dayjs from 'dayjs';
 import { salesAPI } from '../services/api';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 const SalesReconciliationPage = () => {
   const [form] = Form.useForm();
@@ -46,9 +48,34 @@ const SalesReconciliationPage = () => {
     pendingReminderCount: 0
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [amountFilter, setAmountFilter] = useState([]); // 订单金额筛选
+  const [filteredOrders, setFilteredOrders] = useState([]); // 筛选后的订单
   
   // 保存上次查询参数
   const lastSearchParams = useRef(null);
+  
+  // 处理订单金额筛选
+  useEffect(() => {
+    if (!orders || orders.length === 0) {
+      setFilteredOrders([]);
+      return;
+    }
+    
+    // 如果没有选择金额筛选，显示所有订单
+    if (!amountFilter || amountFilter.length === 0) {
+      setFilteredOrders(orders);
+      return;
+    }
+    
+    // 筛选订单
+    const filtered = orders.filter(order => {
+      // 将筛选值转为数字进行比较
+      const filterValues = amountFilter.map(v => Number(v));
+      return filterValues.includes(Number(order.amount));
+    });
+    
+    setFilteredOrders(filtered);
+  }, [orders, amountFilter]);
   
   // 自动刷新（每30秒）
   useEffect(() => {
@@ -95,8 +122,8 @@ const SalesReconciliationPage = () => {
   };
 
   const handleSearch = async (values) => {
-    if (!values.wechat_name && !values.payment_date_range) {
-      message.error('请输入微信号或选择付款时间');
+    if (!values.wechat_name) {
+      message.error('请输入微信号');
       return;
     }
 
@@ -109,9 +136,10 @@ const SalesReconciliationPage = () => {
         params.wechat_name = values.wechat_name;
       }
       
-      if (values.payment_date_range && values.payment_date_range.length === 2) {
-        const [startDate, endDate] = values.payment_date_range;
-        params.payment_date_range = `${startDate.format('YYYY-MM-DD')},${endDate.format('YYYY-MM-DD')}`;
+      // 添加付款时间范围参数
+      if (values.payment_date && values.payment_date.length === 2) {
+        params.start_date = values.payment_date[0].format('YYYY-MM-DD');
+        params.end_date = values.payment_date[1].format('YYYY-MM-DD');
       }
       
       // 保存查询参数供刷新使用
@@ -145,7 +173,9 @@ const SalesReconciliationPage = () => {
     form.resetFields();
     setSalesData(null);
     setOrders([]);
+    setFilteredOrders([]);
     setReminderOrders([]);
+    setAmountFilter([]);
     setStats({
       totalOrders: 0,
       totalAmount: 0,
@@ -159,26 +189,21 @@ const SalesReconciliationPage = () => {
   // 处理催单操作（记录线下已联系用户）
   const handleUrgeOrder = async (order) => {
     try {
-      // 记录催单操作
-      console.log('催单记录:', {
-        orderId: order.id,
-        customer: order.customer_wechat,
-        tradingview: order.tradingview_username,
-        expiryTime: order.expiry_time,
-        urgedAt: new Date().toISOString()
-      });
+      // 调用API更新催单状态
+      const response = await salesAPI.updateOrderReminderStatus(order.id, true);
       
-      // TODO: 调用API记录催单状态
-      // await salesAPI.recordUrgeOrder(order.id);
-      
-      // 显示成功消息
-      message.success({
-        content: `已记录：已线下联系用户 ${order.customer_wechat}`,
-        duration: 3
-      });
-      
-      // 可选：刷新数据以更新催单状态
-      // handleRefresh();
+      if (response.success) {
+        // 显示成功消息
+        message.success({
+          content: `已记录：已线下联系用户 ${order.customer_wechat}`,
+          duration: 3
+        });
+        
+        // 刷新数据以更新催单状态
+        handleRefresh();
+      } else {
+        message.error(response.message || '记录催单操作失败');
+      }
     } catch (error) {
       console.error('记录催单失败:', error);
       message.error('记录催单操作失败');
@@ -290,52 +315,53 @@ const SalesReconciliationPage = () => {
         return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
       }
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 100,
-      render: (_, record) => {
-        // 计算剩余天数
-        const daysLeft = record.expiry_time ? 
-          dayjs(record.expiry_time).diff(dayjs(), 'day') : null;
-        
-        // 只在即将到期或已过期时显示催单按钮
-        if (daysLeft !== null && daysLeft <= 7) {
-          return (
-            <Tooltip title="请您联系客户咨询是否复购">
-              <Button 
-                type="link" 
-                size="small"
-                danger={daysLeft <= 0}
-                onClick={() => handleUrgeOrder(record)}
-              >
-                催单
-              </Button>
-            </Tooltip>
-          );
-        }
-        return '-';
-      }
-    }
   ];
 
-  // 待催单客户列表列定义（移除重复的操作列，因为orderColumns已经包含了）
+  // 待催单客户列表列定义（统一客户管理页面逻辑）
   const reminderColumns = [
     ...orderColumns.filter(col => col.key !== 'action'), // 移除原有的操作列
     {
-      title: '剩余天数',
-      dataIndex: 'daysUntilExpiry',
-      key: 'daysUntilExpiry',
-      width: 100,
-      render: (days) => {
-        if (days <= 0) {
-          return <Tag color="error">已过期</Tag>;
-        } else if (days <= 3) {
-          return <Tag color="warning">{days}天</Tag>;
-        } else {
-          return <Tag color="processing">{days}天</Tag>;
+      title: '催单建议',
+      key: 'reminder_suggestion',
+      width: 150,
+      render: (_, record) => {
+        if (record.expiry_time) {
+          const daysUntilExpiry = record.daysUntilExpiry;
+          
+          // 判断是否有金额（与客户管理页面逻辑一致）
+          const hasAmount = (record.total_amount || record.amount || 0) > 0;
+          const reminderDays = hasAmount ? 7 : 3; // 有金额7天，无金额3天
+          
+          // 未过期的催单
+          if (daysUntilExpiry >= 0 && daysUntilExpiry <= reminderDays) {
+            return (
+              <Tag color="red" icon={<ExclamationCircleOutlined />}>
+                建议催单({daysUntilExpiry}天)
+              </Tag>
+            );
+          }
+          
+          // 已过期但在30天内的催单
+          if (daysUntilExpiry < 0) {
+            const daysOverdue = Math.abs(daysUntilExpiry);
+            if (daysOverdue <= 30) {
+              return (
+                <Tag color="orange" icon={<ExclamationCircleOutlined />}>
+                  建议催单(已过期{daysOverdue}天)
+                </Tag>
+              );
+            }
+          }
         }
+        return <Tag color="default">无需催单</Tag>;
       }
+    },
+    {
+      title: '到期时间',
+      dataIndex: 'expiry_time',
+      key: 'expiry_time',
+      width: 150,
+      render: (time) => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
     },
     {
       title: '操作',
@@ -378,7 +404,7 @@ const SalesReconciliationPage = () => {
           marginBottom: '32px',
           color: '#2c3e50'
         }}>
-          二级销售对账页面
+          销售对账页面
         </Title>
 
         {/* 搜索表单 */}
@@ -397,16 +423,16 @@ const SalesReconciliationPage = () => {
               </Col>
 
               <Col xs={24} sm={12} md={8}>
-                <Form.Item name="payment_date_range" label="付款时间" style={{ marginBottom: 8 }}>
+                <Form.Item name="payment_date" label="付款时间" style={{ marginBottom: 8 }}>
                   <DatePicker.RangePicker 
                     style={{ width: '100%' }}
-                    placeholder={['开始时间', '结束时间']}
+                    placeholder={['开始日期', '结束日期']}
                     format="YYYY-MM-DD"
                   />
                 </Form.Item>
               </Col>
 
-              <Col xs={24} sm={24} md={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item style={{ marginBottom: 8 }}>
                   <Space wrap>
                     <Button 
@@ -555,7 +581,7 @@ const SalesReconciliationPage = () => {
                 <Card hoverable style={{ height: '100%' }}>
                   <Statistic
                     title="佣金比率"
-                    value={salesData.commission_rate || 25}
+                    value={(salesData.commission_rate * 100) || 25}
                     suffix="%"
                     valueStyle={{ color: '#52c41a' }}
                   />
@@ -569,17 +595,23 @@ const SalesReconciliationPage = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>订单列表</span>
                   <div style={{ marginLeft: 'auto' }}>
-                    <span style={{ marginRight: 8, fontSize: '14px', color: '#666' }}>付款时间:</span>
-                    <DatePicker.RangePicker 
-                      style={{ width: 240 }}
-                      placeholder={['开始时间', '结束时间']}
-                      format="YYYY-MM-DD"
-                      aria-label="选择付款时间范围"
-                      onChange={(dates) => {
-                        // 这里可以添加时间过滤逻辑
-                        console.log('付款时间范围:', dates);
+                    <span style={{ marginRight: 8, fontSize: '14px', color: '#666' }}>订单金额:</span>
+                    <Select 
+                      mode="multiple"
+                      placeholder="选择订单金额（可多选）" 
+                      allowClear
+                      style={{ width: 280 }}
+                      value={amountFilter}
+                      onChange={(values) => {
+                        setAmountFilter(values || []);
                       }}
-                    />
+                    >
+                      <Option value="0">免费体验（$0）</Option>
+                      <Option value="188">一个月（$188）</Option>
+                      <Option value="488">三个月（$488）</Option>
+                      <Option value="888">六个月（$888）</Option>
+                      <Option value="1588">一年（$1588）</Option>
+                    </Select>
                   </div>
                 </div>
               }
@@ -588,7 +620,7 @@ const SalesReconciliationPage = () => {
             >
               <Table
                 columns={orderColumns}
-                dataSource={orders}
+                dataSource={filteredOrders}
                 rowKey="id"
                 pagination={{
                   pageSize: 10,
@@ -601,28 +633,46 @@ const SalesReconciliationPage = () => {
               />
             </Card>
 
-            {/* 待催单客户统计 */}
-            {stats.pendingReminderCount > 0 && (
-              <Card title="待催单客户统计" style={{ marginBottom: 24 }} role="region">
-                <Alert
-                  message={`有 ${stats.pendingReminderCount} 个客户需要催单`}
-                  description="以下客户的服务即将到期或已过期，建议及时联系"
-                  type="warning"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-                <Statistic
-                  title="待催单客户数"
-                  value={stats.pendingReminderCount}
-                  prefix={<ExclamationCircleOutlined />}
-                  valueStyle={{ color: '#faad14' }}
-                />
-              </Card>
-            )}
+            {/* 待催单客户统计 - 总是显示 */}
+            <Card title="待催单客户统计" style={{ marginBottom: 24 }} role="region">
+              {stats.pendingReminderCount > 0 ? (
+                <>
+                  <Alert
+                    message={`有 ${stats.pendingReminderCount} 个客户需要催单`}
+                    description="以下客户的服务即将到期或已过期，建议及时联系"
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Statistic
+                    title="待催单客户数"
+                    value={stats.pendingReminderCount}
+                    prefix={<ExclamationCircleOutlined />}
+                    valueStyle={{ color: '#faad14' }}
+                  />
+                </>
+              ) : (
+                <>
+                  <Alert
+                    message="暂无需要催单的客户"
+                    description="所有客户的服务状态正常"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Statistic
+                    title="待催单客户数"
+                    value={0}
+                    prefix={<ExclamationCircleOutlined />}
+                    valueStyle={{ color: '#d9d9d9' }}
+                  />
+                </>
+              )}
+            </Card>
 
-            {/* 待催单客户订单列表 */}
-            {stats.pendingReminderCount > 0 && (
-              <Card title="待催单客户订单列表" role="region">
+            {/* 待催单客户订单列表 - 总是显示 */}
+            <Card title="待催单客户订单列表" role="region">
+              {reminderOrders.length > 0 ? (
                 <Table
                   columns={reminderColumns}
                   dataSource={reminderOrders}
@@ -635,8 +685,16 @@ const SalesReconciliationPage = () => {
                   }}
                   scroll={{ x: 1100 }}
                 />
-              </Card>
-            )}
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <ExclamationCircleOutlined style={{ fontSize: '48px', color: '#d9d9d9', marginBottom: '16px' }} />
+                  <div style={{ color: '#999', fontSize: '14px' }}>暂无待催单客户</div>
+                  <div style={{ color: '#ccc', fontSize: '12px', marginTop: '8px' }}>
+                    当客户服务即将到期或已过期时，会在此显示
+                  </div>
+                </div>
+              )}
+            </Card>
           </>
         )}
 

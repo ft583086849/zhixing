@@ -163,23 +163,27 @@ export class SupabaseService {
         throw new Error('未找到匹配的一级销售');
       }
       
-      // 构建统计数据对象（兼容原有结构）
+      // 构建统计数据对象（保持数据库中的真实值）
       const primaryStats = {
         ...primarySale,
-        total_orders: 0,
-        total_amount: 0,
-        total_commission: 0,
-        month_orders: 0,
-        month_amount: 0,
-        month_commission: 0
+        // 🔧 修复：不要覆盖数据库中的真实数据，只设置缺失的字段
+        total_orders: primarySale.total_orders || 0,
+        total_amount: primarySale.total_amount || 0,
+        total_commission: primarySale.total_commission || 0,
+        month_orders: primarySale.month_orders || 0,
+        month_amount: primarySale.month_amount || 0,
+        month_commission: primarySale.month_commission || 0,
+        today_orders: primarySale.today_orders || 0,
+        today_amount: primarySale.today_amount || 0,
+        today_commission: primarySale.today_commission || 0
       };
       
       // 2. 获取该一级销售的所有二级销售（直接从表查询）
       // 🔧 修复：显示所有二级销售，不管有没有订单
       const { data: secondarySales, error: secondaryError } = await supabase
-        .from('secondary_sales')
+        .from('sales_optimized')
         .select('*')
-        .eq('primary_sales_id', primaryStats.id)
+        .eq('parent_sales_code', primaryStats.sales_code)
         .order('created_at', { ascending: false });
       
       if (secondaryError) {
@@ -277,13 +281,92 @@ export class SupabaseService {
         console.error('查询订单失败:', ordersError);
       }
       
-      // 4. 获取待催单订单
-      const { data: reminderOrders } = await supabase
+      // 4. 获取待催单订单（已生效但即将到期的订单）
+      const { data: allActiveOrders } = await supabase
         .from('orders_optimized')
         .select('*')
         .in('sales_code', allSalesCodes)
-        .in('status', ['pending_payment', 'pending_config'])
+        .in('status', ['confirmed_config', 'active'])
         .order('created_at', { ascending: false });
+      
+      // 为订单计算到期时间并筛选需要催单的
+      let reminderOrders = [];
+      if (allActiveOrders && allActiveOrders.length > 0) {
+        // 计算到期时间
+        const calculateExpiryTime = (order) => {
+          if (!order.effective_time && !order.created_at) return null;
+          
+          const startDate = new Date(order.effective_time || order.created_at);
+          const expiryDate = new Date(startDate);
+          
+          // 根据购买时长计算到期时间
+          switch(order.duration) {
+            case '7天':
+            case '7days':
+              expiryDate.setDate(expiryDate.getDate() + 7);
+              break;
+            case '1个月':
+            case '1month':
+              expiryDate.setMonth(expiryDate.getMonth() + 1);
+              break;
+            case '3个月':
+            case '3months':
+              expiryDate.setMonth(expiryDate.getMonth() + 3);
+              break;
+            case '6个月':
+            case '6months':
+              expiryDate.setMonth(expiryDate.getMonth() + 6);
+              break;
+            case '1年':
+            case '1year':
+              expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+              break;
+            default:
+              return null;
+          }
+          
+          return expiryDate.toISOString();
+        };
+        
+        // 为所有已生效订单添加到期时间
+        allActiveOrders.forEach(order => {
+          order.expiry_time = calculateExpiryTime(order);
+        });
+        
+        // 筛选需要催单的订单（复用客户管理页面逻辑）
+        reminderOrders = allActiveOrders.filter(order => {
+          if (!order.expiry_time) return false;
+          
+          const now = new Date();
+          const expiry = new Date(order.expiry_time);
+          const diffTime = expiry - now;
+          const daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          // 判断是否有金额（与客户管理页面逻辑一致）
+          const hasAmount = (order.total_amount || order.amount || 0) > 0;
+          const reminderDays = hasAmount ? 7 : 3; // 有金额7天，无金额3天
+          
+          // 催单条件：即将到期 + 已过期30天内
+          const needReminder = (daysUntilExpiry >= 0 && daysUntilExpiry <= reminderDays) || // 即将到期
+                              (daysUntilExpiry < 0 && Math.abs(daysUntilExpiry) <= 30); // 已过期30天内
+          
+          // 排除已催单的订单
+          const isNotReminded = !order.is_reminded;
+          
+          if (needReminder && isNotReminded) {
+            // 计算剩余天数供前端显示
+            order.daysUntilExpiry = daysUntilExpiry;
+            // 为催单功能添加客户信息
+            order.customer_wechat = order.customer_wechat || order.wechat_name;
+            order.parent_sales_code = order.parent_sales_code || (
+              // 判断是否是二级销售的订单
+              secondaryStats.find(s => s.sales_code === order.sales_code)?.parent_sales_code || null
+            );
+          }
+          
+          return needReminder && isNotReminded;
+        });
+      }
       
       // 5. 计算一级销售的订单统计
       const { data: primaryOrders } = await supabase
@@ -435,7 +518,7 @@ export class SupabaseService {
       
       // 6. 计算综合统计（一级 + 所有二级）
       const totalStats = {
-        // 🔧 修复：总计应包含一级自己的订单 + 所有二级的订单（不重复计算）
+        // 🔧 一二级总订单数：包含一级自己的订单 + 所有二级的订单
         totalOrders: (primaryStats.total_orders || 0) + secondaryTotalOrders,
         totalAmount: (primaryStats.total_amount || 0) + secondaryTotalAmount,
         // 🚀 使用动态佣金率计算的总佣金（如果有二级销售）
@@ -466,20 +549,20 @@ export class SupabaseService {
           payment_account: primaryStats.payment_account,
           payment_method: primaryStats.payment_method,
           
-          // 🚀 v2.0佣金系统字段（复用销售管理页面数据）
-          total_commission: primaryStats.total_commission,  // 总佣金
-          direct_commission: primaryStats.direct_commission,  // 直销佣金
-          secondary_avg_rate: primaryStats.secondary_avg_rate,  // 平均二级佣金率
-          secondary_share_commission: primaryStats.secondary_share_commission,  // 二级佣金收益
-          secondary_orders_amount: primaryStats.secondary_orders_amount,  // 二级销售订单总额
+          // 🚀 v2.0佣金系统字段（从计算结果获取，兼容数据库字段不存在的情况）
+          total_commission: primaryStats.total_commission || 0,  // 总佣金
+          direct_commission: primaryStats.direct_commission || primaryStats.total_amount * 0.4 || 0,  // 直销佣金
+          secondary_avg_rate: primaryStats.secondary_avg_rate || secondaryAvgRate || 0,  // 平均二级佣金率
+          secondary_share_commission: primaryStats.secondary_share_commission || secondaryShareCommission || 0,  // 二级佣金收益
+          secondary_orders_amount: primaryStats.secondary_orders_amount || secondaryTotalAmount || 0,  // 二级销售订单总额
           
           // 基础统计
           direct_orders: primaryStats.total_orders,
           direct_amount: primaryStats.total_amount,
           
           // 时间统计（本月/当日）
-          month_commission: primaryStats.month_commission,
-          today_commission: primaryStats.today_commission,
+          month_commission: primaryStats.month_commission || (primaryStats.month_amount * 0.4 || 0),
+          today_commission: primaryStats.today_commission || (primaryStats.today_amount * 0.4 || 0),
           month_orders: primaryStats.month_orders,
           today_orders: primaryStats.today_orders,
           month_amount: primaryStats.month_amount,
@@ -499,10 +582,11 @@ export class SupabaseService {
   // 获取二级销售结算数据（修复版：直接从表中查询）
   static async getSecondarySalesSettlement(params) {
     try {
-      // 1. 直接从二级销售表获取数据（不依赖不存在的视图）
+      // 1. 从sales_optimized表获取二级销售数据
       let salesQuery = supabase
-        .from('secondary_sales')
-        .select('*');
+        .from('sales_optimized')
+        .select('*')
+        .eq('sales_type', 'secondary');
       
       if (params.wechat_name) {
         // 精确匹配微信号
@@ -577,10 +661,22 @@ export class SupabaseService {
         .select('*')
         .eq('sales_code', salesStats.sales_code)
         .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'])  // 只获取确认的订单
-        .order('created_at', { ascending: false })
-        .limit(50);  // 限制返回数量，提高性能
+        .order('created_at', { ascending: false });
       
-      // 添加日期筛选
+      // 添加付款时间筛选
+      if (params.start_date && params.end_date) {
+        // 将结束日期设置为当天的23:59:59
+        const endDate = new Date(params.end_date);
+        endDate.setHours(23, 59, 59, 999);
+        
+        ordersQuery = ordersQuery
+          .gte('payment_time', params.start_date)
+          .lte('payment_time', endDate.toISOString());
+      }
+      
+      ordersQuery = ordersQuery.limit(50);  // 限制返回数量，提高性能
+      
+      // 添加日期筛选（旧代码，保留兼容性）
       if (params.payment_date_range) {
         const [startDate, endDate] = params.payment_date_range.split(',');
         ordersQuery = ordersQuery
@@ -594,13 +690,14 @@ export class SupabaseService {
         console.error('查询订单失败:', ordersError);
       }
       
-      // 3. 获取待催单（未确认的订单）
-      const { data: reminderOrders } = await supabase
+      // 3. 获取待催单订单（统一客户管理页面逻辑）
+      // 查询已生效的订单，然后筛选需要催单的
+      const { data: allActiveOrders } = await supabase
         .from('orders_optimized')
         .select('*')
         .eq('sales_code', salesStats.sales_code)
-        .in('status', ['pending_payment', 'pending_config'])
-        .order('created_at', { ascending: false });
+        .in('status', ['confirmed_config', 'active'])
+        .order('created_at', { ascending: false});
       
       // 为订单计算到期时间
       const calculateExpiryTime = (order) => {
@@ -609,21 +706,26 @@ export class SupabaseService {
         const startDate = new Date(order.effective_time || order.created_at);
         const expiryDate = new Date(startDate);
         
-        // 根据购买时长计算到期时间
+        // 根据购买时长计算到期时间（支持中文和英文）
         switch(order.duration) {
           case '7days':
+          case '7天':
             expiryDate.setDate(expiryDate.getDate() + 7);
             break;
           case '1month':
+          case '1个月':
             expiryDate.setMonth(expiryDate.getMonth() + 1);
             break;
           case '3months':
+          case '3个月':
             expiryDate.setMonth(expiryDate.getMonth() + 3);
             break;
           case '6months':
+          case '6个月':
             expiryDate.setMonth(expiryDate.getMonth() + 6);
             break;
           case '1year':
+          case '1年':
             expiryDate.setFullYear(expiryDate.getFullYear() + 1);
             break;
           default:
@@ -636,21 +738,47 @@ export class SupabaseService {
       // 为所有订单添加到期时间
       if (confirmedOrders) {
         confirmedOrders.forEach(order => {
-          order.expiry_time = calculateExpiryTime(order);
+          // 如果数据库没有expiry_time，则计算它
+          if (!order.expiry_time) {
+            order.expiry_time = calculateExpiryTime(order);
+          }
         });
       }
       
-      if (reminderOrders) {
-        reminderOrders.forEach(order => {
+      // 筛选需要催单的订单（复用客户管理页面逻辑）
+      let reminderOrders = [];
+      if (allActiveOrders && allActiveOrders.length > 0) {
+        // 为所有已生效订单添加到期时间
+        allActiveOrders.forEach(order => {
           order.expiry_time = calculateExpiryTime(order);
-          // 计算剩余天数
-          if (order.expiry_time) {
-            const now = new Date();
-            const expiry = new Date(order.expiry_time);
-            const diffTime = expiry - now;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            order.daysUntilExpiry = diffDays;
+        });
+        
+        // 筛选需要催单的订单
+        reminderOrders = allActiveOrders.filter(order => {
+          if (!order.expiry_time) return false;
+          
+          const now = new Date();
+          const expiry = new Date(order.expiry_time);
+          const diffTime = expiry - now;
+          const daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          // 判断是否有金额（与客户管理页面逻辑一致）
+          const hasAmount = (order.total_amount || order.amount || 0) > 0;
+          const reminderDays = hasAmount ? 7 : 3; // 有金额7天，无金额3天
+          
+          // 催单条件：即将到期 + 已过期30天内
+          const needReminder = (daysUntilExpiry >= 0 && daysUntilExpiry <= reminderDays) || // 即将到期
+                              (daysUntilExpiry < 0 && Math.abs(daysUntilExpiry) <= 30); // 已过期30天内
+          
+          // 排除已催单的客户：如果订单标记为已催单，则不显示在催单列表中
+          const isNotReminded = !order.is_reminded; // 只显示未催单的客户
+          
+          if (needReminder && isNotReminded) {
+            // 计算剩余天数供前端显示
+            order.daysUntilExpiry = daysUntilExpiry;
           }
+          
+          return needReminder && isNotReminded;
         });
       }
       
@@ -862,7 +990,7 @@ export class SupabaseService {
       if (salesCodes.length > 0) {
         queries.push(
           supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes),
-          supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes)
+          supabase.from('sales_optimized').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes)
         );
       }
       
@@ -875,7 +1003,7 @@ export class SupabaseService {
       
       if (secondarySalesIds.length > 0) {
         queries.push(
-          supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone').in('id', secondarySalesIds)
+          supabase.from('sales_optimized').select('id, sales_code, name, wechat_name, phone').in('id', secondarySalesIds)
         );
       }
       
@@ -996,6 +1124,12 @@ export class SupabaseService {
     let query = supabase
       .from('orders_optimized')
       .select('*');
+    
+    // 🚫 应用排除的销售代码
+    if (params.excludedSalesCodes && params.excludedSalesCodes.length > 0) {
+      query = query.not('sales_code', 'in', `(${params.excludedSalesCodes.join(',')})`);
+      console.log('📊 SupabaseService: 应用排除过滤，排除销售代码:', params.excludedSalesCodes);
+    }
     
     // 销售类型过滤
     let salesCodesToFilter = [];
@@ -1175,7 +1309,7 @@ export class SupabaseService {
     if (salesCodes.length > 0) {
       queries.push(
         supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes),
-        supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('sales_code', salesCodes)
+        supabase.from('sales_optimized').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('sales_code', salesCodes)
       );
     }
     
@@ -1187,7 +1321,7 @@ export class SupabaseService {
     
     if (secondarySalesIds.length > 0) {
       queries.push(
-        supabase.from('secondary_sales').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('id', secondarySalesIds)
+        supabase.from('sales_optimized').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('id', secondarySalesIds)
       );
     }
     
