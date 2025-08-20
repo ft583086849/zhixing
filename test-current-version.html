@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试当前版本</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #1890ff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #1890ff;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .error {
+            background: #fff2e8;
+            border: 1px solid #ffbb96;
+            color: #fa8c16;
+        }
+        .info {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            color: #1890ff;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        pre {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 版本检测工具</h1>
+        
+        <div class="test-section">
+            <h2>测试目标</h2>
+            <p>检测当前运行的代码是否使用 orders_optimized 表</p>
+        </div>
+
+        <div class="test-section">
+            <h2>测试步骤</h2>
+            <button onclick="testLocalhost()">1. 测试 localhost:3000</button>
+            <button onclick="testProduction()">2. 测试生产环境</button>
+            <button onclick="checkLatestOrder()">3. 检查最新订单</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://itvmeamoqthfqtkpubdv.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0dm1lYW1vcXRoZnF0a3B1YmR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0ODEyMzUsImV4cCI6MjA3MDA1NzIzNX0.ypBF3lJJTJtSPLEu1zWXqPorS-FDSZzRUy_0ge_Y-r0';
+
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const result = document.createElement('div');
+            result.className = `result ${type}`;
+            result.innerHTML = message;
+            results.appendChild(result);
+        }
+
+        async function testLocalhost() {
+            addResult('正在测试 localhost:3000...', 'info');
+            
+            try {
+                // 尝试访问本地服务器
+                const response = await fetch('http://localhost:3000/manifest.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ localhost:3000 正在运行<br>应用名称: ${data.name}`, 'success');
+                    
+                    // 检查构建时间
+                    addResult('提示: 访问 <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> 查看实际页面', 'info');
+                } else {
+                    addResult('❌ localhost:3000 无法访问', 'error');
+                }
+            } catch (error) {
+                addResult(`❌ localhost:3000 连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testProduction() {
+            addResult('检查可能的生产环境...', 'info');
+            
+            // 列出可能的生产域名
+            const domains = [
+                'w.vercel.app',
+                'w.netlify.app',
+                // 添加其他可能的域名
+            ];
+            
+            addResult('请提供生产环境域名进行测试', 'info');
+        }
+
+        async function checkLatestOrder() {
+            addResult('正在检查最新订单...', 'info');
+            
+            try {
+                // 直接查询数据库
+                const ordersResponse = await fetch(`${supabaseUrl}/rest/v1/orders?select=*&order=created_at.desc&limit=1`, {
+                    headers: {
+                        'apikey': supabaseAnonKey,
+                        'Authorization': `Bearer ${supabaseAnonKey}`
+                    }
+                });
+                
+                const optimizedResponse = await fetch(`${supabaseUrl}/rest/v1/orders_optimized?select=*&order=created_at.desc&limit=1`, {
+                    headers: {
+                        'apikey': supabaseAnonKey,
+                        'Authorization': `Bearer ${supabaseAnonKey}`
+                    }
+                });
+                
+                if (ordersResponse.ok && optimizedResponse.ok) {
+                    const ordersData = await ordersResponse.json();
+                    const optimizedData = await optimizedResponse.json();
+                    
+                    if (ordersData.length > 0) {
+                        const latestOrder = ordersData[0];
+                        addResult(`<strong>orders表最新订单:</strong><br>
+                            ID: ${latestOrder.id}<br>
+                            用户: ${latestOrder.tradingview_username}<br>
+                            时间: ${new Date(latestOrder.created_at).toLocaleString('zh-CN')}`, 'info');
+                    }
+                    
+                    if (optimizedData.length > 0) {
+                        const latestOptimized = optimizedData[0];
+                        addResult(`<strong>orders_optimized表最新订单:</strong><br>
+                            ID: ${latestOptimized.id}<br>
+                            用户: ${latestOptimized.tradingview_username}<br>
+                            时间: ${new Date(latestOptimized.created_at).toLocaleString('zh-CN')}`, 'info');
+                    }
+                    
+                    // 比较两表
+                    if (ordersData.length > 0 && optimizedData.length > 0) {
+                        const ordersTime = new Date(ordersData[0].created_at);
+                        const optimizedTime = new Date(optimizedData[0].created_at);
+                        
+                        if (ordersTime > optimizedTime) {
+                            addResult('⚠️ orders表有更新的数据，说明还在使用旧代码！', 'error');
+                        } else if (ordersData[0].id === optimizedData[0].id) {
+                            addResult('✅ 两表数据一致，触发器正在工作', 'success');
+                        }
+                    }
+                }
+            } catch (error) {
+                addResult(`查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动检查
+        window.onload = function() {
+            addResult('版本检测工具已加载', 'success');
+            addResult(`当前时间: ${new Date().toLocaleString('zh-CN')}`, 'info');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# 项目记忆记录
+.project-memory/*.log
+.env
+node_modules/
+
+# 项目记忆记录
+.project-memory/*.log
+.project-memory/memory-db.json
+.env
+
+# 项目记忆记录
+.project-memory/*.log
+.project-memory/memory-db.json
+.env

@@ -70,13 +70,10 @@ const AdminCustomers = () => {
       customer_wechat: searchValues.customer_wechat,
       sales_wechat: searchValues.sales_wechat,
       is_reminded: searchValues.remind_status,
-      reminder_suggestion: searchValues.reminder_suggestion,
       start_date: searchValues.date_range?.[0]?.format('YYYY-MM-DD'),
       end_date: searchValues.date_range?.[1]?.format('YYYY-MM-DD'),
       // 金额筛选参数
-      amount: searchValues.amount,  // 多选金额数组
-      min_amount: searchValues.min_amount,  // 最小金额
-      max_amount: searchValues.max_amount   // 最大金额
+      amount: searchValues.amount  // 多选金额数组
     };
     
     // 移除空值（优化处理数组和数字）
@@ -164,9 +161,23 @@ const AdminCustomers = () => {
       }
     },
     {
+      title: '催单状态',
+      dataIndex: 'is_reminded',
+      key: 'is_reminded',
+      width: 100,
+      render: (isReminded) => {
+        const statusMap = {
+          false: { text: '未催单', color: 'orange' },
+          true: { text: '已催单', color: 'green' }
+        };
+        const statusInfo = statusMap[isReminded] || { text: isReminded ? '已催单' : '未催单', color: 'default' };
+        return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
+      }
+    },
+    {
       title: '催单建议',
       key: 'reminder_suggestion',
-      width: 100,
+      width: 150,
       render: (_, record) => {
         // 使用 expiry_time 字段（订单表的正确字段）
         if (record.expiry_time) {
@@ -239,20 +250,6 @@ const AdminCustomers = () => {
       }
     },
     {
-      title: '催单状态',
-      dataIndex: 'is_reminded',
-      key: 'is_reminded',
-      width: 100,
-      render: (isReminded) => {
-        const statusMap = {
-          false: { text: '未催单', color: 'orange' },
-          true: { text: '已催单', color: 'green' }
-        };
-        const statusInfo = statusMap[isReminded] || { text: isReminded ? '已催单' : '未催单', color: 'default' };
-        return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
-      }
-    },
-    {
       title: '总订单数',
       dataIndex: 'total_orders',
       key: 'total_orders',
@@ -309,14 +306,6 @@ const AdminCustomers = () => {
             </Col>
 
             <Col xs={24} sm={12} md={6}>
-              <Form.Item name="reminder_suggestion" label="催单建议">
-                <Select placeholder="请选择催单状态" allowClear>
-                  <Option value="need_reminder">建议催单</Option>
-                  <Option value="no_reminder">无需催单</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
               <Form.Item name="remind_status" label="催单状态">
                 <Select placeholder="请选择状态" allowClear>
                   <Option value="false">未催单</Option>
@@ -329,17 +318,7 @@ const AdminCustomers = () => {
                 <RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item name="config_confirmed_filter" label="配置确认状态">
-                <Select placeholder="选择配置确认状态" allowClear>
-                  <Option value="all">全部订单</Option>
-                  <Option value="confirmed">已配置确认</Option>
-                  <Option value="pending">待配置确认</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            
-            {/* 金额筛选 - 参考订单管理页面 */}
+            {/* 订单金额筛选 - 参考订单管理页面 */}
             <Col xs={24} sm={12} md={6}>
               <Form.Item 
                 name="amount" 
@@ -353,39 +332,12 @@ const AdminCustomers = () => {
                   style={{ width: '100%' }}
                 >
                   <Option value="0">免费体验（$0）</Option>
-                  <Option value="188">一个月（$188）</Option>
-                  <Option value="488">三个月（$488）</Option>
-                  <Option value="888">六个月（$888）</Option>
-                  <Option value="1588">一年（$1588）</Option>
+                  <Option value="100">$100</Option>
+                  <Option value="188">$188</Option>
+                  <Option value="488">$488</Option>
+                  <Option value="888">$888</Option>
+                  <Option value="1588">$1588</Option>
                 </Select>
-              </Form.Item>
-            </Col>
-            
-            {/* 金额范围搜索 */}
-            <Col xs={24} sm={12} md={6}>
-              <Form.Item label="金额范围">
-                <Input.Group compact>
-                  <Form.Item
-                    name="min_amount"
-                    noStyle
-                  >
-                    <Input
-                      style={{ width: '50%' }}
-                      placeholder="最小金额"
-                      type="number"
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    name="max_amount"
-                    noStyle
-                  >
-                    <Input
-                      style={{ width: '50%' }}
-                      placeholder="最大金额"
-                      type="number"
-                    />
-                  </Form.Item>
-                </Input.Group>
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>

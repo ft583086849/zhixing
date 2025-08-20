@@ -549,12 +549,12 @@ export class SupabaseService {
           payment_account: primaryStats.payment_account,
           payment_method: primaryStats.payment_method,
           
-          // 🚀 v2.0佣金系统字段（从计算结果获取，兼容数据库字段不存在的情况）
-          total_commission: primaryStats.total_commission || 0,  // 总佣金
-          direct_commission: primaryStats.direct_commission || primaryStats.total_amount * 0.4 || 0,  // 直销佣金
-          secondary_avg_rate: primaryStats.secondary_avg_rate || secondaryAvgRate || 0,  // 平均二级佣金率
-          secondary_share_commission: primaryStats.secondary_share_commission || secondaryShareCommission || 0,  // 二级佣金收益
-          secondary_orders_amount: primaryStats.secondary_orders_amount || secondaryTotalAmount || 0,  // 二级销售订单总额
+          // 🚀 v2.0佣金系统字段（直接使用数据库值）
+          total_commission: primaryStats.total_commission ?? 0,  // 总佣金
+          direct_commission: primaryStats.direct_commission ?? 0,  // 直销佣金（直接取数据库值）
+          secondary_avg_rate: primaryStats.secondary_avg_rate ?? 0,  // 平均二级佣金率（直接取数据库值）
+          secondary_share_commission: primaryStats.secondary_share_commission ?? 0,  // 二级佣金收益（直接取数据库值）
+          secondary_orders_amount: primaryStats.secondary_orders_amount ?? 0,  // 二级销售订单总额（直接取数据库值）
           
           // 基础统计
           direct_orders: primaryStats.total_orders,

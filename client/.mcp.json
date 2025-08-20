@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "graphiti": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "graph-memory-mcp-server@latest",
+        "--db-name",
+        "project-client"
+      ],
+      "env": {
+        "PROJECT_NAME": "client",
+        "STORAGE_TYPE": "file",
+        "PROJECT_ROOT": "/Users/zzj/Documents/w/client"
+      }
+    }
+  }
+}

@@ -480,8 +480,8 @@ const AdminOrders = () => {
     // 🚀 佣金系统v2.0 - 新增佣金拆分列
     {
       title: '一级销售佣金额',
-      dataIndex: 'primary_commission_amount',
-      key: 'primary_commission_amount',
+      dataIndex: 'commission_amount_primary',
+      key: 'commission_amount_primary',
       width: 140,
       render: (commission) => {
         // 如果数据库字段存在，直接使用
@@ -889,11 +889,40 @@ const AdminOrders = () => {
                   style={{ width: '100%' }}
                 >
                   <Option value="0">免费体验（$0）</Option>
-                  <Option value="188">一个月（$188）</Option>
-                  <Option value="488">三个月（$488）</Option>
-                  <Option value="888">六个月（$888）</Option>
-                  <Option value="1588">一年（$1588）</Option>
+                  <Option value="100">$100</Option>
+                  <Option value="188">$188</Option>
+                  <Option value="488">$488</Option>
+                  <Option value="888">$888</Option>
+                  <Option value="1588">$1588</Option>
                 </Select>
+              </Form.Item>
+            </Col>
+            
+            {/* 添加金额范围搜索 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item label="金额范围" style={{ marginBottom: 0 }}>
+                <Input.Group compact>
+                  <Form.Item
+                    name="min_amount"
+                    noStyle
+                  >
+                    <Input
+                      style={{ width: '50%' }}
+                      placeholder="最小金额"
+                      type="number"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="max_amount"
+                    noStyle
+                  >
+                    <Input
+                      style={{ width: '50%' }}
+                      placeholder="最大金额"
+                      type="number"
+                    />
+                  </Form.Item>
+                </Input.Group>
               </Form.Item>
             </Col>
             

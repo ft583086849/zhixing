@@ -200,7 +200,7 @@ const AdminDashboardPage = () => {
                   <Route path="finance" element={<AdminFinance />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="sales" element={<AdminSalesOptimized />} />
-                  <Route path="customers" element={<AdminCustomersOptimized />} />
+                  <Route path="customers" element={<AdminCustomers />} />
                   <Route path="payment-config" element={<AdminPaymentConfig />} />
                 </Routes>
               </Suspense>

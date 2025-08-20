@@ -19,12 +19,12 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "CI=false react-scripts build",
-    "test": "react-scripts test",
+    "start": "TZ=Asia/Shanghai react-scripts start",
+    "build": "TZ=Asia/Shanghai CI=false react-scripts build",
+    "test": "TZ=Asia/Shanghai react-scripts test",
     "eject": "react-scripts eject",
-    "build:optimized": "GENERATE_SOURCEMAP=false npm run build",
-    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js"
+    "build:optimized": "TZ=Asia/Shanghai GENERATE_SOURCEMAP=false npm run build",
+    "analyze": "TZ=Asia/Shanghai npm run build && npx webpack-bundle-analyzer build/static/js/*.js"
   },
   "eslintConfig": {
     "extends": [

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试转化率统计</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>转化率统计测试</h1>
+    <div id="result"></div>
+    
+    <script>
+        // 这个脚本需要在登录后的管理后台页面执行
+        // 访问 http://localhost:3000/admin/overview 后，打开浏览器控制台运行
+        
+        console.log('请在浏览器控制台执行以下代码:');
+        console.log(`
+// 测试转化率统计逻辑
+async function testConversionLogic() {
+    // 使用页面上的AdminAPI
+    if (window.AdminAPI && window.AdminAPI.getConversionStats) {
+        console.log('=== 测试转化率统计 ===');
+        
+        // 测试Yi111111的数据
+        const result = await window.AdminAPI.getConversionStats({ 
+            wechat_name: 'Yi111111____' 
+        });
+        
+        console.log('Yi111111____ 的统计结果:');
+        console.log('- 有效订单数:', result.total_orders);
+        console.log('- 收费订单数:', result.confirmed_config_orders);
+        console.log('- 拒绝订单数:', result.rejected_orders);
+        
+        const conversionRate = result.total_orders > 0 
+            ? (result.confirmed_config_orders / result.total_orders * 100).toFixed(2)
+            : 0;
+        console.log('- 转化率:', conversionRate + '%');
+        
+        // 验证是否匹配用户说的数据
+        if (result.total_orders === 27 && result.confirmed_config_orders === 3) {
+            console.log('✅ 数据正确！匹配用户提供的数据（27笔有效订单，3笔收费）');
+        } else {
+            console.log('⚠️ 数据不匹配，请检查');
+            console.log('用户说: 27笔有效订单，3笔收费');
+            console.log('实际:', result.total_orders + '笔有效订单，' + result.confirmed_config_orders + '笔收费');
+        }
+        
+        // 测试全部数据
+        console.log('\\n=== 测试全部数据 ===');
+        const allResult = await window.AdminAPI.getConversionStats();
+        console.log('全部订单统计:');
+        console.log('- 有效订单数:', allResult.total_orders);
+        console.log('- 收费订单数:', allResult.confirmed_config_orders);
+        console.log('- 转化率:', (allResult.confirmed_config_orders / allResult.total_orders * 100).toFixed(2) + '%');
+        
+        return result;
+    } else {
+        console.error('AdminAPI.getConversionStats 不可用，请确保在管理后台页面');
+    }
+}
+
+testConversionLogic();
+        `);
+    </script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>调试AdminOverview数据</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f5f5f5; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 调试AdminOverview数据显示问题</h1>
+    
+    <div class="section">
+        <h2>1. 环境变量检查</h2>
+        <p>访问: <a href="http://localhost:3000/test-env" target="_blank">http://localhost:3000/test-env</a></p>
+        <p>应该显示: REACT_APP_ENABLE_NEW_STATS: true</p>
+    </div>
+    
+    <div class="section">
+        <h2>2. 数据库数据</h2>
+        <pre id="db-data">加载中...</pre>
+    </div>
+    
+    <div class="section">
+        <h2>3. 浏览器控制台检查</h2>
+        <p>1. 打开 <a href="http://localhost:3000/admin/dashboard" target="_blank">http://localhost:3000/admin/dashboard</a></p>
+        <p>2. 按F12打开控制台</p>
+        <p>3. 在控制台执行以下命令:</p>
+        <pre>
+// 检查Redux store中的数据
+const state = window.store?.getState();
+console.log('Stats数据:', state?.admin?.stats);
+
+// 检查环境变量
+console.log('环境变量:', process.env.REACT_APP_ENABLE_NEW_STATS);
+        </pre>
+    </div>
+    
+    <div class="section">
+        <h2>4. 解决方案</h2>
+        <div id="solution"></div>
+    </div>
+    
+    <script>
+        // 加载数据库数据
+        fetch('http://localhost:3000/test-env')
+            .then(r => r.text())
+            .then(html => {
+                const envMatch = html.match(/REACT_APP_ENABLE_NEW_STATS: (\w+)/);
+                const env = envMatch ? envMatch[1] : 'undefined';
+                
+                document.getElementById('db-data').innerHTML = `
+数据库中的实际数据:
+- 总订单: 286
+- 活跃订单: 205  
+- 总金额: $3,392
+- 总佣金: $752.20
+
+前端环境变量:
+- REACT_APP_ENABLE_NEW_STATS: ${env}
+- 状态: ${env === 'true' ? '✅ 正确' : '❌ 错误'}
+                `;
+                
+                // 显示解决方案
+                const solutions = [];
+                
+                if (env !== 'true') {
+                    solutions.push(`
+                        <div class="error">
+                            <h3>❌ 环境变量未正确设置</h3>
+                            <p>1. 编辑 client/.env 文件</p>
+                            <p>2. 确保包含: REACT_APP_ENABLE_NEW_STATS=true</p>
+                            <p>3. 重启服务: npm start</p>
+                        </div>
+                    `);
+                }
+                
+                solutions.push(`
+                    <div>
+                        <h3>🔧 手动更新数据</h3>
+                        <p>在项目根目录运行:</p>
+                        <pre>node update-stats-final.js</pre>
+                    </div>
+                `);
+                
+                solutions.push(`
+                    <div>
+                        <h3>🔄 清除缓存</h3>
+                        <p>1. 打开浏览器控制台(F12)</p>
+                        <p>2. 右键刷新按钮，选择"清空缓存并硬性重新加载"</p>
+                        <p>3. 或执行: localStorage.clear()</p>
+                    </div>
+                `);
+                
+                document.getElementById('solution').innerHTML = solutions.join('');
+            })
+            .catch(err => {
+                document.getElementById('db-data').innerHTML = '❌ 加载失败: ' + err.message;
+            });
+    </script>
+</body>
+</html>

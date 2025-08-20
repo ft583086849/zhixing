@@ -1,0 +1,52 @@
+{
+  "mcpServers": {
+    "auto-memory": {
+      "command": "node",
+      "args": [
+        "-e",
+        "const fs = require('fs'); const path = require('path'); const { execSync } = require('child_process'); process.stdin.on('data', (data) => { const input = data.toString().trim(); if (input.includes('请记录这次对话') || input.includes('请记录当前状态') || input.includes('请搜索之前的记录') || input.includes('请读取历史') || input.includes('请回顾历史') || input.includes('请查看历史') || input.includes('请读取记忆') || input.includes('请查看记忆') || input.includes('小R') || input.includes('小r')) { try { const projectRoot = process.cwd(); const autoRecordScript = path.join(projectRoot, 'auto-record-enhanced.sh'); if (fs.existsSync(autoRecordScript)) { if (input.includes('对话')) { execSync(\`\"\${autoRecordScript}\" auto-conversation \"\${input}\"\`, { cwd: projectRoot }); } else if (input.includes('状态')) { execSync(\`\"\${autoRecordScript}\" auto-status\`, { cwd: projectRoot }); } else if (input.includes('搜索')) { execSync(\`\"\${autoRecordScript}\" search \"\${input}\"\`, { cwd: projectRoot }); } else if (input.includes('读取') || input.includes('回顾') || input.includes('查看') || input.includes('记忆') || input.includes('小R') || input.includes('小r')) { execSync(\`\"\${autoRecordScript}\" read-history \"\${input}\"\`, { cwd: projectRoot }); } } } catch (error) { console.error('Auto record error:', error.message); } } });"
+      ],
+      "env": {
+        "AUTO_MEMORY_ENABLED": "true",
+        "PROJECT_ROOT": "/Users/zzj/Documents/w"
+      }
+    },
+    "graphiti": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "graph-memory-mcp-server@latest",
+        "--db-name",
+        "project-w"
+      ],
+      "env": {
+        "PROJECT_NAME": "w",
+        "STORAGE_TYPE": "file",
+        "PROJECT_ROOT": "/Users/zzj/Documents/w/.project-memory",
+        "AUTO_RECORD_ENABLED": "true"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@context7/mcp-server"
+      ],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}",
+        "CONTEXT7_PROJECT_ID": "w-project",
+        "AUTO_DOCS": "true"
+      }
+    },
+    "context7-enhanced": {
+      "command": "node",
+      "args": [
+        "/Users/zzj/Documents/w/context7-mcp-enhanced/src/index.js"
+      ],
+      "env": {
+        "PROJECT_ROOT": "/Users/zzj/Documents/w",
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

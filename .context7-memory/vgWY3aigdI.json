@@ -1,0 +1,10 @@
+{
+  "key": "test_pattern",
+  "value": {
+    "name": "React Hook Pattern",
+    "description": "Custom hook for data fetching"
+  },
+  "type": "pattern",
+  "timestamp": 1755174215531,
+  "projectRoot": "/Users/zzj/Documents/w"
+}

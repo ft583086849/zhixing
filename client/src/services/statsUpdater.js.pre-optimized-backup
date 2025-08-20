@@ -1,0 +1,254 @@
+/**
+ * 统计数据更新服务
+ * 用于更新overview_stats表的数据
+ */
+
+import { SupabaseService } from './supabase.js';
+
+export class StatsUpdater {
+  /**
+   * 更新指定时间范围的统计数据
+   * @param {string} period - 时间范围：'all' / 'today' / 'week' / 'month' / 'year'
+   * @param {Date} startDate - 开始日期（custom时使用）
+   * @param {Date} endDate - 结束日期（custom时使用）
+   */
+  static async updateStats(period = 'all', startDate = null, endDate = null) {
+    const startTime = Date.now();
+    
+    try {
+      console.log(`📊 开始更新统计数据 - 时间范围: ${period}`);
+      
+      // 使用SupabaseService的supabase实例
+      const supabase = SupabaseService.supabase;
+      
+      // 1. 获取订单数据
+      let ordersQuery = supabase.from('orders').select('*');
+      
+      // 应用时间筛选
+      if (period !== 'all') {
+        const { start, end } = this.getDateRange(period, startDate, endDate);
+        if (start && end) {
+          ordersQuery = ordersQuery
+            .gte('payment_time', start.toISOString())
+            .lte('payment_time', end.toISOString());
+        }
+      }
+      
+      const { data: orders, error: ordersError } = await ordersQuery;
+      if (ordersError) throw ordersError;
+      
+      // 2. 获取销售数据 - 包括primary_sales和secondary_sales
+      const { data: primarySales, error: primaryError } = await supabase
+        .from('primary_sales')
+        .select('*');
+      if (primaryError) console.warn('获取一级销售失败:', primaryError);
+      
+      const { data: secondarySales, error: secondaryError } = await supabase
+        .from('secondary_sales')
+        .select('*');
+      if (secondaryError) console.warn('获取二级销售失败:', secondaryError);
+      
+      // 3. 计算统计数据
+      const stats = this.calculateStats(orders, primarySales || [], secondarySales || [], period);
+      
+      // 4. 更新overview_stats表
+      const { error: updateError } = await supabase
+        .from('overview_stats')
+        .update({
+          ...stats,
+          last_calculated_at: new Date().toISOString(),
+          calculation_duration_ms: Date.now() - startTime,
+          data_version: 1
+        })
+        .eq('stat_type', 'realtime')
+        .eq('stat_period', period);
+      
+      if (updateError) {
+        console.error('❌ 更新统计表失败:', updateError);
+        throw updateError;
+      }
+      
+      console.log(`✅ 统计数据更新成功 - 耗时: ${Date.now() - startTime}ms`);
+      return stats;
+      
+    } catch (error) {
+      console.error('❌ 更新统计数据失败:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 获取日期范围
+   */
+  static getDateRange(period, customStart = null, customEnd = null) {
+    if (period === 'custom' && customStart && customEnd) {
+      return { start: new Date(customStart), end: new Date(customEnd) };
+    }
+    
+    const now = new Date();
+    const start = new Date();
+    const end = new Date();
+    
+    switch (period) {
+      case 'today':
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        start.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        start.setMonth(now.getMonth() - 1);
+        break;
+      case 'year':
+        start.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        return { start: null, end: null };
+    }
+    
+    return { start, end };
+  }
+  
+  /**
+   * 计算统计数据
+   */
+  static calculateStats(orders, primarySales, secondarySales, period) {
+    // 订单状态统计
+    const validStatuses = ['confirmed_config', 'config_confirmed', 'confirmed', 'active'];
+    const pendingStatuses = ['pending', 'pending_payment', 'pending_config'];
+    
+    const totalOrders = orders.length;
+    const rejectedOrders = orders.filter(o => o.status === 'rejected').length;
+    const activeOrders = orders.filter(o => validStatuses.includes(o.status)).length;
+    const pendingOrders = orders.filter(o => pendingStatuses.includes(o.status)).length;
+    
+    // 金额统计
+    const totalAmount = orders
+      .filter(o => o.status !== 'rejected')
+      .reduce((sum, o) => {
+        const price = parseFloat(o.price || o.amount || o.actual_payment_amount || 0);
+        return sum + price;
+      }, 0);
+    
+    const confirmedAmount = orders
+      .filter(o => validStatuses.includes(o.status))
+      .reduce((sum, o) => {
+        const price = parseFloat(o.price || o.amount || o.actual_payment_amount || 0);
+        return sum + price;
+      }, 0);
+    
+    // 佣金统计
+    const totalCommission = orders
+      .filter(o => validStatuses.includes(o.status))
+      .reduce((sum, o) => {
+        const price = parseFloat(o.price || o.amount || o.actual_payment_amount || 0);
+        const commissionRate = parseFloat(o.commission_rate) || 0.25;
+        return sum + (price * commissionRate);
+      }, 0);
+    
+    // 销售团队统计
+    const primarySalesCount = primarySales.length;
+    const secondarySalesCount = secondarySales.length;
+    const independentSalesCount = secondarySales.filter(s => !s.primary_sales_id).length;
+    
+    // 时长分布
+    const durationMap = {
+      'free_trial': ['free_trial', '7days', 'free'],
+      '1month': ['1month', '30days', 'monthly'],
+      '3months': ['3months', '90days', 'quarterly'],
+      '6months': ['6months', '180days', 'semi-annual'],
+      'yearly': ['yearly', '1year', '365days', 'annual']
+    };
+    
+    const freeTrialOrders = orders.filter(o => 
+      durationMap['free_trial'].includes(o.duration)
+    ).length;
+    const oneMonthOrders = orders.filter(o => 
+      durationMap['1month'].includes(o.duration)
+    ).length;
+    const threeMonthOrders = orders.filter(o => 
+      durationMap['3months'].includes(o.duration)
+    ).length;
+    const sixMonthOrders = orders.filter(o => 
+      durationMap['6months'].includes(o.duration)
+    ).length;
+    const yearlyOrders = orders.filter(o => 
+      durationMap['yearly'].includes(o.duration)
+    ).length;
+    
+    // 计算百分比
+    const validOrders = totalOrders - rejectedOrders || 1;
+    const freeTrialPercentage = (freeTrialOrders / validOrders * 100);
+    const oneMonthPercentage = (oneMonthOrders / validOrders * 100);
+    const threeMonthPercentage = (threeMonthOrders / validOrders * 100);
+    const sixMonthPercentage = (sixMonthOrders / validOrders * 100);
+    const yearlyPercentage = (yearlyOrders / validOrders * 100);
+    
+    // 今日数据
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayOrders = orders.filter(o => new Date(o.created_at) >= today);
+    const todayOrdersCount = todayOrders.length;
+    const todayAmount = todayOrders
+      .filter(o => o.status !== 'rejected')
+      .reduce((sum, o) => {
+        const price = parseFloat(o.price || o.amount || o.actual_payment_amount || 0);
+        return sum + price;
+      }, 0);
+    
+    return {
+      total_orders: totalOrders,
+      today_orders: todayOrdersCount,
+      pending_payment_orders: pendingOrders,
+      confirmed_payment_orders: 0,
+      pending_config_orders: 0,
+      confirmed_config_orders: activeOrders,
+      rejected_orders: rejectedOrders,
+      active_orders: activeOrders,
+      total_amount: totalAmount.toFixed(2),
+      today_amount: todayAmount.toFixed(2),
+      confirmed_amount: confirmedAmount.toFixed(2),
+      total_commission: totalCommission.toFixed(2),
+      paid_commission: 0,
+      pending_commission: totalCommission.toFixed(2),
+      primary_sales_count: primarySalesCount,
+      secondary_sales_count: secondarySalesCount,
+      independent_sales_count: independentSalesCount,
+      active_sales_count: primarySalesCount + secondarySalesCount,
+      free_trial_orders: freeTrialOrders,
+      one_month_orders: oneMonthOrders,
+      three_month_orders: threeMonthOrders,
+      six_month_orders: sixMonthOrders,
+      yearly_orders: yearlyOrders,
+      free_trial_percentage: freeTrialPercentage.toFixed(1),
+      one_month_percentage: oneMonthPercentage.toFixed(1),
+      three_month_percentage: threeMonthPercentage.toFixed(1),
+      six_month_percentage: sixMonthPercentage.toFixed(1),
+      yearly_percentage: yearlyPercentage.toFixed(1)
+    };
+  }
+  
+  /**
+   * 计算销售排行榜
+   */
+  static calculateRankings(orders, sales, period) {
+    // TODO: 实现销售排行榜计算逻辑
+    return [];
+  }
+  
+  /**
+   * 自动更新任务
+   */
+  static startAutoUpdate(intervalMinutes = 5) {
+    setInterval(() => {
+      this.updateStats('all');
+      this.updateStats('today');
+      this.updateStats('week');
+      this.updateStats('month');
+      this.updateStats('year');
+    }, intervalMinutes * 60 * 1000);
+    
+    console.log(`📊 自动更新任务已启动，每${intervalMinutes}分钟更新一次`);
+  }
+}

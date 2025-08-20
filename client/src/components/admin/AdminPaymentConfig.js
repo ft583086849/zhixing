@@ -19,6 +19,7 @@ import {
   SaveOutlined
 } from '@ant-design/icons';
 import { getPaymentConfig, updatePaymentConfig } from '../../store/slices/paymentConfigSlice';
+import ExcludedSalesConfig from './ExcludedSalesConfig';
 
 const { Title, Text } = Typography;
 
@@ -286,6 +287,12 @@ const AdminPaymentConfig = () => {
           </Button>
         </Form.Item>
       </Form>
+
+      {/* 排除管理功能 */}
+      <div style={{ marginTop: 32 }}>
+        <Divider />
+        <ExcludedSalesConfig />
+      </div>
     </div>
   );
 };

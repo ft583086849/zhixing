@@ -19,7 +19,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "^2.54.0",
+    "@supabase/supabase-js": "^2.55.0",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.2.1",
     "pg": "^8.16.3",
     "react": "^18.0.0",
@@ -27,5 +28,8 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.16.2"
   }
 }
