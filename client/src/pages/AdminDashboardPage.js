@@ -18,7 +18,8 @@ import {
   SettingOutlined,
   CrownOutlined,
   WalletOutlined,
-  ExperimentOutlined
+  ExperimentOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { logout } from '../store/slices/authSlice';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -91,6 +92,11 @@ const AdminDashboardPage = () => {
       key: '/admin/sales',
       icon: <UserOutlined />,
       label: '销售管理',
+    },
+    {
+      key: '/admin/customers',
+      icon: <TeamOutlined />,
+      label: '客户管理',
     },
     {
       key: '/admin/payment-config',
@@ -194,6 +200,7 @@ const AdminDashboardPage = () => {
                   <Route path="finance" element={<AdminFinance />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="sales" element={<AdminSalesOptimized />} />
+                  <Route path="customers" element={<AdminCustomersOptimized />} />
                   <Route path="payment-config" element={<AdminPaymentConfig />} />
                 </Routes>
               </Suspense>
