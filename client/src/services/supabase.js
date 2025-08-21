@@ -269,11 +269,33 @@ export class SupabaseService {
         allSalesCodes = [...allSalesCodes, ...secondaryCodes];
       }
       
-      const { data: orders, error: ordersError } = await supabase
+      // 构建订单查询
+      let ordersQuery = supabase
         .from('orders_optimized')  // 直接从订单表查询
         .select('*')
-        .in('sales_code', allSalesCodes)
-        .in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active'])  // 只获取确认的订单
+        .in('sales_code', allSalesCodes);
+      
+      // 处理订单状态筛选
+      if (params.order_status) {
+        ordersQuery = ordersQuery.eq('status', params.order_status);
+      } else {
+        // 默认只显示确认的订单
+        ordersQuery = ordersQuery.in('status', ['confirmed', 'confirmed_config', 'confirmed_configuration', 'active']);
+      }
+      
+      // 处理金额筛选（精确匹配）
+      if (params.amount_list && params.amount_list.length > 0) {
+        // 将字符串数组转换为数字数组
+        const amounts = params.amount_list.map(a => parseFloat(a));
+        ordersQuery = ordersQuery.in('amount', amounts);
+      }
+      
+      // 处理销售代码筛选
+      if (params.sales_code && params.sales_code !== primaryStats.sales_code) {
+        ordersQuery = ordersQuery.eq('sales_code', params.sales_code);
+      }
+      
+      const { data: orders, error: ordersError } = await ordersQuery
         .order('created_at', { ascending: false })
         .limit(100);  // 限制返回数量
       

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Tooltip, Typography, InputNumber, DatePicker } from 'antd';
 import { DollarOutlined, UserOutlined, ShoppingCartOutlined, TeamOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined, BellOutlined } from '@ant-design/icons';
+import { supabase } from '../services/supabase';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPrimarySalesStats, fetchPrimarySalesOrders, updateSecondarySalesCommission, removeSecondarySales, getPrimarySalesSettlement } from '../store/slices/salesSlice';
 import { 
@@ -38,13 +39,15 @@ const PrimarySalesSettlementPage = () => {
   
   // 自动刷新（每30秒）
   useEffect(() => {
-    if (salesData && lastSearchParams.current) {
-      const interval = setInterval(() => {
-        handleRefresh();
-      }, 30000); // 30秒自动刷新
-      
-      return () => clearInterval(interval);
-    }
+    // 移除自动刷新，避免数据闪烁
+    // 用户可以手动点击刷新按钮
+    // if (salesData && lastSearchParams.current) {
+    //   const interval = setInterval(() => {
+    //     handleRefresh();
+    //   }, 30000); // 30秒自动刷新
+    //   
+    //   return () => clearInterval(interval);
+    // }
   }, [salesData]);
 
   // 刷新数据
@@ -717,8 +720,44 @@ const PrimarySalesSettlementPage = () => {
             urgedAt: new Date().toISOString()
           });
           
-          // TODO: 调用API记录催单状态
-          // await salesAPI.recordUrgeOrder(order.id);
+          // 调用API记录催单状态
+          const { data, error } = await supabase
+            .from('orders_optimized')
+            .update({ 
+              is_reminded: true,
+              reminded_at: new Date().toISOString(),
+              reminder_note: '已线下联系客户'
+            })
+            .eq('id', order.id)
+            .select();
+          
+          if (error) throw error;
+          
+          // 更新本地状态 - 从催单列表中移除该订单
+          if (primarySalesStats && primarySalesStats.pendingReminderOrders) {
+            const updatedReminderOrders = primarySalesStats.pendingReminderOrders.filter(
+              o => o.id !== order.id
+            );
+            setPrimarySalesStats({
+              ...primarySalesStats,
+              pendingReminderOrders: updatedReminderOrders,
+              pendingReminderCount: updatedReminderOrders.length
+            });
+          }
+          
+          // 同时更新订单列表中的状态
+          if (primarySalesOrders && primarySalesOrders.data) {
+            const updatedOrders = primarySalesOrders.data.map(o => {
+              if (o.id === order.id) {
+                return { ...o, is_reminded: true };
+              }
+              return o;
+            });
+            setPrimarySalesOrders({
+              ...primarySalesOrders,
+              data: updatedOrders
+            });
+          }
           
           message.success(`已记录：已线下联系客户 ${order.customer_wechat}`);
         } catch (error) {
@@ -730,14 +769,36 @@ const PrimarySalesSettlementPage = () => {
 
   // 二级销售搜索处理
   const handleSecondarySalesSearch = (values) => {
+    if (!primarySalesStats || !primarySalesStats.secondarySales) {
+      return;
+    }
+    
+    const filteredSecondarySales = [...(primarySalesStats.secondarySales || [])];
+    
+    // 按订单状态过滤
+    if (values.status) {
+      // 需要先获取每个二级销售的订单，然后根据状态过滤
+      // 这里暂时无法实现，因为二级销售数据中没有订单状态信息
+      message.warning('二级销售的订单状态筛选需要后端支持');
+    }
+    
+    // 按订单金额过滤
+    if (values.amount && values.amount.length > 0) {
+      // 同样需要订单数据才能过滤
+      message.warning('二级销售的订单金额筛选需要后端支持');
+    }
+    
+    // 如果有付款时间范围
     if (values.payment_date_range) {
       const [startDate, endDate] = values.payment_date_range;
       message.info(`搜索付款时间: ${startDate.format('YYYY-MM-DD')} 至 ${endDate.format('YYYY-MM-DD')}`);
-      // 这里应该调用API进行筛选
-    } else {
-      // 重置搜索，显示全部数据
-      message.info('显示全部二级销售数据');
     }
+    
+    // 暂时返回原数据
+    setPrimarySalesStats({
+      ...primarySalesStats,
+      secondarySales: filteredSecondarySales
+    });
   };
 
   // 订单搜索处理
@@ -767,11 +828,14 @@ const PrimarySalesSettlementPage = () => {
           filteredOrders = filteredOrders.filter(order => order.status === values.status);
         }
         
-        // 按金额列表过滤
+        // 按金额列表过滤 - 使用精确匹配
         if (values.amount && values.amount.length > 0) {
           filteredOrders = filteredOrders.filter(order => {
-            const orderAmount = order.actual_payment_amount || order.amount || 0;
-            return values.amount.includes(String(orderAmount));
+            // 优先使用total_amount，如果没有则使用amount
+            const orderAmount = parseFloat(order.total_amount || order.amount || 0);
+            // 将选中的金额转换为数字进行精确比较
+            const selectedAmounts = values.amount.map(a => parseFloat(a));
+            return selectedAmounts.includes(orderAmount);
           });
         }
         

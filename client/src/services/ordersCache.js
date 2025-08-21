@@ -154,6 +154,55 @@ class OrdersCacheManager {
       // 添加销售信息
       const salesInfo = salesMap.get(order.sales_code);
       
+      // 添加前端期望的字段结构
+      let primary_sales = null;
+      let secondary_sales = null;
+      let sales_wechat_name = '-';
+      
+      if (salesInfo) {
+        // 设置销售微信号
+        sales_wechat_name = salesInfo.wechat_name || salesInfo.sales?.wechat_name || '-';
+        
+        if (salesInfo.sales_type === 'primary') {
+          // 一级销售
+          primary_sales = {
+            id: salesInfo.id,
+            wechat_name: salesInfo.wechat_name || salesInfo.sales?.wechat_name,
+            sales_code: salesInfo.sales_code,
+            sales_type: 'primary',
+            commission_rate: salesInfo.commission_rate
+          };
+        } else {
+          // 二级或独立销售
+          secondary_sales = {
+            id: salesInfo.id,
+            wechat_name: salesInfo.wechat_name || salesInfo.sales?.wechat_name,
+            sales_code: salesInfo.sales_code,
+            sales_type: salesInfo.sales_type || 'secondary',
+            primary_sales_id: salesInfo.primary_sales_id,
+            commission_rate: salesInfo.commission_rate
+          };
+          
+          // 如果有上级，尝试获取一级销售信息
+          if (salesInfo.primary_sales_id) {
+            const primarySale = salesData.find(s => 
+              s.id === salesInfo.primary_sales_id && s.sales_type === 'primary'
+            );
+            if (primarySale) {
+              primary_sales = {
+                id: primarySale.id,
+                wechat_name: primarySale.wechat_name || primarySale.sales?.wechat_name,
+                sales_code: primarySale.sales_code,
+                sales_type: 'primary',
+                commission_rate: primarySale.commission_rate
+              };
+              // 设置二级销售的primary_sales属性
+              secondary_sales.primary_sales = primary_sales;
+            }
+          }
+        }
+      }
+      
       // 计算订单状态标签
       const statusInfo = this.getOrderStatusInfo(order.status);
       
@@ -162,7 +211,10 @@ class OrdersCacheManager {
       
       return {
         ...order,
-        salesInfo,
+        primary_sales,      // 前端期望的字段
+        secondary_sales,    // 前端期望的字段
+        sales_wechat_name,  // 兼容旧代码
+        salesInfo,          // 保留原有字段以兼容
         statusInfo,
         timeInfo,
         // 添加显示用的格式化字段

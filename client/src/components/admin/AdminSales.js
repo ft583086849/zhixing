@@ -473,11 +473,11 @@ const AdminSales = () => {
       render: (value) => value || 0  // 🔧 修复：直接使用API返回的valid_orders
     },
     {
-      title: '总金额',
-      dataIndex: 'total_amount',
-      key: 'total_amount',
+      title: '总销售额',
+      dataIndex: 'confirmed_amount',
+      key: 'confirmed_amount',
       width: 110,
-      render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：直接使用API返回的total_amount
+      render: (value) => value ? `$${value.toFixed(2)}` : '$0.00'  // 🔧 修复：使用confirmed_amount显示已确认订单金额
     },
     // 🚀 佣金系统v2.0 - 新增列
     {

@@ -1612,8 +1612,8 @@ export const AdminAPI = {
       let independent_sales_amount = 0;  // 独立销售
       
       ordersToProcess.forEach(order => {
-        // 只计算确认状态的订单
-        if (['confirmed', 'confirmed_configuration', 'confirmed_config', 'active'].includes(order.status)) {
+        // 只计算已配置确认的订单（修复：只统计confirmed_config状态）
+        if (order.status === 'confirmed_config') {
           const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
           const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
           
