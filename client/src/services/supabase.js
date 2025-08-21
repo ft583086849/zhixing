@@ -234,11 +234,16 @@ export class SupabaseService {
           const todayAmount = todayOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0);
           const allOrdersAmount = nonRejectedOrders.reduce((sum, o) => sum + (o.actual_payment_amount || o.amount || 0), 0) || 0;
           
-          // 使用佣金率计算佣金，如果没有设置则为0
-          const commissionRate = sale.commission_rate || 0;
-          const commissionAmount = totalAmount * commissionRate;
-          const monthCommission = monthAmount * commissionRate;
-          const todayCommission = todayAmount * commissionRate;
+          // 使用佣金率计算佣金
+          const commissionRate = sale.commission_rate || 0.25; // 默认25%
+          // 二级销售佣金
+          const secondaryCommission = totalAmount * commissionRate;
+          const monthSecondaryCommission = monthAmount * commissionRate;
+          const todaySecondaryCommission = todayAmount * commissionRate;
+          // 一级从二级获得的佣金（固定15%）
+          const primaryCommissionFromSecondary = totalAmount * 0.15;
+          const monthPrimaryCommission = monthAmount * 0.15;
+          const todayPrimaryCommission = todayAmount * 0.15;
           
           secondaryStats.push({
             ...sale,
@@ -247,15 +252,21 @@ export class SupabaseService {
             confirmed_orders: confirmedOrders.length,  // 已确认订单数
             total_amount: totalAmount,  // 已确认订单金额
             all_orders_amount: allOrdersAmount,  // 所有订单金额（不包括rejected）
-            total_commission: commissionAmount,
+            // 二级销售的佣金
+            secondary_commission: secondaryCommission,
+            total_commission: secondaryCommission, // 兼容旧字段
+            // 一级从二级获得的佣金
+            primary_commission_from_secondary: primaryCommissionFromSecondary,
             // 本月数据（基于payment_time）
             month_orders: monthOrders.length,
             month_amount: monthAmount,
-            month_commission: monthCommission,
+            month_commission: monthSecondaryCommission,
+            month_primary_commission: monthPrimaryCommission,
             // 当日数据（基于payment_time）
             today_orders: todayOrders.length,
             today_amount: todayAmount,
-            today_commission: todayCommission,
+            today_commission: todaySecondaryCommission,
+            today_primary_commission: todayPrimaryCommission,
             order_count: nonRejectedOrders.length,  // 🔧 修复：使用非rejected订单数
             commission_rate: commissionRate  // 确保返回佣金率，即使是0
           });
@@ -696,7 +707,8 @@ export class SupabaseService {
           .lte('payment_time', endDate.toISOString());
       }
       
-      ordersQuery = ordersQuery.limit(50);  // 限制返回数量，提高性能
+      // 移除限制以显示所有订单数据
+      // ordersQuery = ordersQuery.limit(50);  // 原来的限制
       
       // 添加日期筛选（旧代码，保留兼容性）
       if (params.payment_date_range) {

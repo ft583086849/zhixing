@@ -28,10 +28,12 @@ const PrimarySalesSettlementPage = () => {
   const [commissionModalVisible, setCommissionModalVisible] = useState(false);
   const [removeModalVisible, setRemoveModalVisible] = useState(false);
   const [selectedSecondarySales, setSelectedSecondarySales] = useState(null);
+  const [filteredSecondarySales, setFilteredSecondarySales] = useState(null); // 过滤后的二级销售数据
   const [commissionForm] = Form.useForm();
   const [removeForm] = Form.useForm();
   const [secondarySalesSearchForm] = Form.useForm();
   const [ordersSearchForm] = Form.useForm();
+  const [reminderSearchForm] = Form.useForm(); // 添加待催单搜索表单
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // 保存上次查询参数
@@ -68,6 +70,9 @@ const PrimarySalesSettlementPage = () => {
         };
         
         const statsData = {
+          // 销售基本信息（重要！用于判断销售人员）
+          sales_code: sales?.sales_code,
+          wechat_name: sales?.wechat_name,
           totalCommission: stats?.totalCommission || 0,
           monthlyCommission: stats?.totalCommission || 0,
           totalOrders: stats?.totalOrders || 0,
@@ -101,6 +106,7 @@ const PrimarySalesSettlementPage = () => {
       return;
     }
 
+    // 不需要手动设置loading，Redux会管理
     try {
       // 调用真实API - 一级销售对账查询
       const params = {};
@@ -128,6 +134,9 @@ const PrimarySalesSettlementPage = () => {
 
       // 构建统计数据（复用销售管理页面的数据结构）
       const statsData = {
+        // 销售基本信息（重要！用于判断销售人员）
+        sales_code: sales?.sales_code,
+        wechat_name: sales?.wechat_name,
         // 总佣金收入
         totalCommission: stats?.totalCommission || sales?.total_commission || 0,
         // 本月佣金
@@ -467,94 +476,134 @@ const PrimarySalesSettlementPage = () => {
     // 🔧 修复：移除操作列（用户要求）
   ];
 
-  // 二级销售列表表格列定义
+  // 处理二级销售数据，将有金额的订单拆分显示
+  const processSecondaryData = (secondarySalesData) => {
+    const processedData = [];
+    
+    secondarySalesData?.forEach(sale => {
+      // 判断是否有付费订单（总金额 > 0）
+      const hasPaidOrders = (sale.total_amount || 0) > 0;
+      
+      if (hasPaidOrders) {
+        // 有付费订单，拆分成两条记录
+        
+        // 第一条：二级销售的佣金收益
+        processedData.push({
+          ...sale,
+          id: `${sale.id}_secondary`,
+          display_type: 'secondary',
+          display_name: sale.wechat_name,
+          commission_type: '二级销售佣金',
+          commission_amount: (sale.total_amount || 0) * (sale.commission_rate || 0.25),
+          commission_rate_display: sale.commission_rate || 0.25
+        });
+        
+        // 第二条：一级销售从该二级获得的佣金
+        processedData.push({
+          ...sale,
+          id: `${sale.id}_primary`,
+          display_type: 'primary',
+          display_name: primarySalesStats?.wechat_name || '一级销售',
+          commission_type: '一级分销收益',
+          commission_amount: (sale.total_amount || 0) * 0.15, // 固定15%
+          commission_rate_display: 0.15
+        });
+      } else {
+        // 免费订单，只显示一条记录
+        processedData.push({
+          ...sale,
+          id: `${sale.id}_single`,
+          display_type: 'single',
+          display_name: sale.wechat_name,
+          commission_type: '免费订单',
+          commission_amount: 0,
+          commission_rate_display: sale.commission_rate || 0
+        });
+      }
+    });
+    
+    return processedData;
+  };
+
+  // 二级销售列表表格列定义（新设计）
   const secondarySalesColumns = [
     {
-      title: '微信号',
-      dataIndex: 'wechat_name',
-      key: 'wechat_name',
-      width: 120,
-    },
-    {
-      title: '收款方式',
-      dataIndex: 'payment_method',
-      key: 'payment_method',
+      title: '销售类型',
+      key: 'sales_type',
       width: 100,
-      render: (method) => {
-        const methodMap = {
-          'alipay': '支付宝',
-          'wechat': '微信',
-          'crypto': '加密货币'
-        };
-        return methodMap[method] || method || '-';
+      render: (_, record) => {
+        if (record.display_type === 'secondary') {
+          return <Tag color="green">二级销售</Tag>;
+        } else if (record.display_type === 'primary') {
+          return <Tag color="blue">一级收益</Tag>;
+        } else {
+          return <Tag color="gray">免费订单</Tag>;
+        }
       }
     },
     {
-      title: '总订单金额',
+      title: '销售人员',
+      key: 'sales_person',
+      width: 120,
+      render: (_, record) => {
+        return record.display_name || '-';
+      }
+    },
+    {
+      title: '订单金额',
       dataIndex: 'total_amount',
       key: 'total_amount',
-      width: 120,
+      width: 100,
       render: (amount) => {
         const value = parseFloat(amount || 0);
         return `$${value.toFixed(2)}`;
       }
     },
     {
-      title: '当前佣金率',
-      dataIndex: 'commission_rate',
+      title: '佣金类型',
+      dataIndex: 'commission_type',
+      key: 'commission_type',
+      width: 120,
+    },
+    {
+      title: '佣金率',
       key: 'commission_rate',
       width: 100,
-      render: (rate) => {
-        // 🔧 修复：区分0和未设置的情况
+      render: (_, record) => {
+        const rate = record.commission_rate_display;
         if (rate === null || rate === undefined) {
-          return <Tag color="orange">未设置</Tag>;
+          return '-';
         }
-        // 🔧 修复2500%显示错误：如果rate已经是百分比格式，不要再乘100
         const numRate = parseFloat(rate);
-        if (numRate > 10) {
-          // 如果大于10，说明已经是百分比格式（如25），直接显示
+        if (numRate > 1) {
           return `${numRate.toFixed(1)}%`;
         } else {
-          // 如果小于10，说明是小数格式（如0.25），需要乘100
           return `${(numRate * 100).toFixed(1)}%`;
         }
       }
     },
     {
-      title: '二级销售佣金',
-      dataIndex: 'secondary_commission',
-      key: 'secondary_commission',
+      title: '佣金金额',
+      key: 'commission_amount',
       width: 120,
-      render: (commission) => {
-        const value = parseFloat(commission || 0);
-        return <span style={{ color: '#52c41a' }}>${value.toFixed(2)}</span>;
-      }
-    },
-    {
-      title: '一级销售佣金',
-      dataIndex: 'primary_commission_from_secondary',
-      key: 'primary_commission_from_secondary',
-      width: 120,
-      render: (commission) => {
-        const value = parseFloat(commission || 0);
-        return <span style={{ color: '#1890ff' }}>${value.toFixed(2)}</span>;
+      render: (_, record) => {
+        const amount = record.commission_amount || 0;
+        const color = record.display_type === 'secondary' ? '#52c41a' : 
+                      record.display_type === 'primary' ? '#1890ff' : '#999';
+        return <span style={{ color, fontWeight: 'bold' }}>${amount.toFixed(2)}</span>;
       }
     },
     {
       title: '订单数量',
       dataIndex: 'total_orders',
       key: 'total_orders',
-      width: 100,
-      render: (count) => count || 0,
-    },
-    {
-      title: '最新订单状态',
-      key: 'latest_order_status',
-      width: 120,
-      render: (_, record) => {
-        // TODO: 需要从订单中获取该二级销售的最新订单状态
-        // 暂时显示占位
-        return <Tag color="blue">已配置</Tag>;
+      width: 80,
+      render: (count, record) => {
+        // 只在第一条记录显示订单数
+        if (record.display_type === 'secondary' || record.display_type === 'single') {
+          return count || 0;
+        }
+        return '-';
       }
     },
     {
@@ -562,11 +611,15 @@ const PrimarySalesSettlementPage = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 150,
-      render: (date) => {
-        if (!date) return '-';
-        const dateObj = new Date(date);
-        if (isNaN(dateObj.getTime())) return '-';
-        return dateObj.toLocaleString('zh-CN');
+      render: (date, record) => {
+        // 只在第一条记录显示注册时间
+        if (record.display_type === 'secondary' || record.display_type === 'single') {
+          if (!date) return '-';
+          const dateObj = new Date(date);
+          if (isNaN(dateObj.getTime())) return '-';
+          return dateObj.toLocaleString('zh-CN');
+        }
+        return '-';
       }
     },
     {
@@ -720,18 +773,20 @@ const PrimarySalesSettlementPage = () => {
             urgedAt: new Date().toISOString()
           });
           
-          // 调用API记录催单状态
+          // 调用API记录催单状态（只更新存在的字段）
           const { data, error } = await supabase
             .from('orders_optimized')
             .update({ 
               is_reminded: true,
-              reminded_at: new Date().toISOString(),
-              reminder_note: '已线下联系客户'
+              reminded_at: new Date().toISOString()
             })
             .eq('id', order.id)
             .select();
           
-          if (error) throw error;
+          if (error) {
+            console.error('催单更新失败:', error);
+            throw error;
+          }
           
           // 更新本地状态 - 从催单列表中移除该订单
           if (primarySalesStats && primarySalesStats.pendingReminderOrders) {
@@ -773,32 +828,21 @@ const PrimarySalesSettlementPage = () => {
       return;
     }
     
-    const filteredSecondarySales = [...(primarySalesStats.secondarySales || [])];
+    let filteredData = [...(primarySalesStats.secondarySales || [])];
     
-    // 按订单状态过滤
-    if (values.status) {
-      // 需要先获取每个二级销售的订单，然后根据状态过滤
-      // 这里暂时无法实现，因为二级销售数据中没有订单状态信息
-      message.warning('二级销售的订单状态筛选需要后端支持');
-    }
-    
-    // 按订单金额过滤
+    // 按订单总金额过滤（前端过滤）
     if (values.amount && values.amount.length > 0) {
-      // 同样需要订单数据才能过滤
-      message.warning('二级销售的订单金额筛选需要后端支持');
+      const selectedAmounts = values.amount.map(a => parseFloat(a));
+      filteredData = filteredData.filter(sale => {
+        const totalAmount = parseFloat(sale.total_amount || 0);
+        return selectedAmounts.includes(totalAmount);
+      });
+      
+      message.success(`找到 ${filteredData.length} 个符合条件的二级销售`);
     }
     
-    // 如果有付款时间范围
-    if (values.payment_date_range) {
-      const [startDate, endDate] = values.payment_date_range;
-      message.info(`搜索付款时间: ${startDate.format('YYYY-MM-DD')} 至 ${endDate.format('YYYY-MM-DD')}`);
-    }
-    
-    // 暂时返回原数据
-    setPrimarySalesStats({
-      ...primarySalesStats,
-      secondarySales: filteredSecondarySales
-    });
+    // 使用单独的过滤状态
+    setFilteredSecondarySales(filteredData);
   };
 
   // 订单搜索处理
@@ -1037,39 +1081,40 @@ const PrimarySalesSettlementPage = () => {
             <div style={{ marginBottom: 16, padding: '16px', backgroundColor: '#fafafa', borderRadius: '6px' }}>
               <Form form={secondarySalesSearchForm} layout="horizontal" onFinish={handleSecondarySalesSearch}>
                 <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} md={6}>
-                    <Form.Item name="status" label="订单状态" style={{ marginBottom: 0 }}>
-                      <Select placeholder="请选择订单状态" allowClear>
-                        <Option value="pending_payment">待付款确认</Option>
-                        <Option value="confirmed_payment">已付款确认</Option>
-                        <Option value="pending_config">待配置确认</Option>
-                        <Option value="confirmed_config">已配置确认</Option>
-                        <Option value="rejected">已拒绝</Option>
-                      </Select>
-                    </Form.Item>
-                  </Col>
                   <Col xs={24} sm={12} md={8}>
                     <Form.Item 
                       name="amount" 
-                      label="订单金额" 
+                      label="订单总金额" 
                       style={{ marginBottom: 0 }}
-                      tooltip="按订单套餐价格筛选，可多选"
+                      tooltip="按销售人员的订单总金额筛选（所有订单求和），可多选"
                     >
                       <Select 
                         mode="multiple"
-                        placeholder="选择订单金额（可多选）" 
+                        placeholder="选择订单总金额（可多选）" 
                         allowClear 
                         style={{ width: '100%' }}
+                        showSearch
+                        optionFilterProp="children"
                       >
-                        <Option value="0">免费体验（$0）</Option>
-                        <Option value="188">$188</Option>
-                        <Option value="488">$488</Option>
-                        <Option value="888">$888</Option>
-                        <Option value="1588">$1588</Option>
+                        {/* 动态生成金额选项 */}
+                        {(() => {
+                          const amountSet = new Set();
+                          primarySalesStats?.secondarySales?.forEach(sale => {
+                            const amount = parseFloat(sale.total_amount || 0);
+                            if (amount >= 0) {
+                              amountSet.add(amount);
+                            }
+                          });
+                          return Array.from(amountSet).sort((a, b) => a - b).map(amount => (
+                            <Option key={amount} value={amount.toString()}>
+                              ${amount === 0 ? '0（免费）' : amount.toFixed(2)}
+                            </Option>
+                          ));
+                        })()}
                       </Select>
                     </Form.Item>
                   </Col>
-                  <Col xs={24} sm={24} md={10}>
+                  <Col xs={24} sm={24} md={16}>
                     <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
                       <Space wrap>
                         <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
@@ -1077,7 +1122,9 @@ const PrimarySalesSettlementPage = () => {
                         </Button>
                         <Button onClick={() => {
                           secondarySalesSearchForm.resetFields();
-                          handleSecondarySalesSearch({});
+                          // 清除过滤状态，恢复到原始数据
+                          setFilteredSecondarySales(null);
+                          message.success('已重置搜索条件');
                         }}>
                           重置
                         </Button>
@@ -1089,7 +1136,7 @@ const PrimarySalesSettlementPage = () => {
             </div>
         <Table
           columns={secondarySalesColumns}
-          dataSource={primarySalesStats?.secondarySales || []}
+          dataSource={processSecondaryData(filteredSecondarySales || primarySalesStats?.secondarySales || [])}
           rowKey="id"
           loading={loading}
           scroll={{ x: 1200 }}
@@ -1194,10 +1241,11 @@ const PrimarySalesSettlementPage = () => {
             pageSize: 10,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-            current: primarySalesOrders?.page || 1,
-            total: primarySalesOrders?.total || 0,
-            responsive: true
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条记录`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            responsive: true,
+            // 让 Antd Table 自动处理客户端分页
+            // 移除 current 和 total 配置，让组件自动计算
           }}
         />
       </Card>
@@ -1218,6 +1266,74 @@ const PrimarySalesSettlementPage = () => {
           </Col>
         </Row>
 
+        {/* 待催单订单搜索 */}
+        <div style={{ marginBottom: 16, padding: '16px', backgroundColor: '#fafafa', borderRadius: '6px' }}>
+          <Form 
+            form={reminderSearchForm}
+            layout="inline" 
+            onFinish={(values) => {
+            // 筛选待催单订单
+            if (!primarySalesStats?.pendingReminderOrders) return;
+            
+            let filteredOrders = [...primarySalesStats.pendingReminderOrders];
+            
+            // 按金额筛选
+            if (values.amount && values.amount.length > 0) {
+              const selectedAmounts = values.amount.map(a => parseFloat(a));
+              filteredOrders = filteredOrders.filter(order => {
+                const orderAmount = parseFloat(order.total_amount || order.amount || 0);
+                return selectedAmounts.includes(orderAmount);
+              });
+            }
+            
+            // 更新显示的催单订单
+            setPrimarySalesStats({
+              ...primarySalesStats,
+              filteredReminderOrders: filteredOrders
+            });
+            
+            message.success(`找到 ${filteredOrders.length} 个符合条件的待催单订单`);
+          }}>
+            <Form.Item 
+              name="amount" 
+              label="订单金额"
+              tooltip="按订单套餐价格筛选，可多选"
+            >
+              <Select 
+                mode="multiple"
+                placeholder="选择订单金额（可多选）" 
+                allowClear 
+                style={{ width: 300 }}
+              >
+                <Option value="0">免费体验（$0）</Option>
+                <Option value="188">$188</Option>
+                <Option value="488">$488</Option>
+                <Option value="888">$888</Option>
+                <Option value="1588">$1588</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
+                  搜索
+                </Button>
+                <Button onClick={() => {
+                  // 重置表单
+                  reminderSearchForm.resetFields();
+                  // 重置筛选，显示所有待催单订单
+                  setPrimarySalesStats({
+                    ...primarySalesStats,
+                    filteredReminderOrders: null
+                  });
+                  message.success('已重置搜索条件');
+                }}>
+                  重置
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </div>
+
         {/* 待催单客户列表 */}
         <Table
           title={() => "待催单订单列表"}
@@ -1234,9 +1350,9 @@ const PrimarySalesSettlementPage = () => {
               width: 200,
               render: (_, record) => (
                 <div>
-                  <div>{record.customer_wechat || record.wechat_name || record.tradingview_username || '未知客户'}</div>
+                  <div>微信: {record.customer_wechat || '-'}</div>
                   <div style={{ fontSize: 12, color: '#999' }}>
-                    订单号: {record.id}
+                    TR用户名: {record.tradingview_username || '-'}
                   </div>
                 </div>
               ),
@@ -1246,22 +1362,36 @@ const PrimarySalesSettlementPage = () => {
               key: 'sales_info',
               width: 150,
               render: (_, record) => {
-                // 判断是否是二级销售订单
-                if (record.parent_sales_code) {
-                  return (
-                    <div>
-                      <Tag color="orange" size="small">二级销售</Tag>
-                      <div style={{ fontSize: 12, color: '#666' }}>
-                        {record.sales_wechat_name || record.sales_code}
-                      </div>
-                    </div>
-                  );
-                } else {
+                // 根据sales_code查找销售名称
+                if (record.sales_code === primarySalesStats?.sales_code) {
+                  // 是一级销售自己的订单
                   return (
                     <div>
                       <Tag color="blue" size="small">一级直销</Tag>
                       <div style={{ fontSize: 12, color: '#666' }}>
                         {primarySalesStats?.wechat_name || '一级销售'}
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // 查找二级销售信息
+                  const secondarySale = primarySalesStats?.secondarySales?.find(s => s.sales_code === record.sales_code);
+                  if (secondarySale) {
+                    return (
+                      <div>
+                        <Tag color="orange" size="small">二级销售</Tag>
+                        <div style={{ fontSize: 12, color: '#666' }}>
+                          {secondarySale.wechat_name || record.sales_code}
+                        </div>
+                      </div>
+                    );
+                  }
+                  // 默认显示
+                  return (
+                    <div>
+                      <Tag color="default" size="small">销售</Tag>
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        {record.sales_code || '-'}
                       </div>
                     </div>
                   );
@@ -1344,8 +1474,8 @@ const PrimarySalesSettlementPage = () => {
               key: 'action',
               width: 120,
               render: (_, record) => {
-                // 判断是否是一级销售自己的订单
-                const isOwnOrder = !record.parent_sales_code || record.parent_sales_code === primarySalesStats?.sales_code;
+                // 判断是否是一级销售自己的订单（通过sales_code判断）
+                const isOwnOrder = record.sales_code === primarySalesStats?.sales_code;
                 const isActiveOrder = record.status === 'confirmed_config' || record.status === 'active';
                 
                 if (isActiveOrder) {
@@ -1362,6 +1492,7 @@ const PrimarySalesSettlementPage = () => {
                       </Button>
                     );
                   } else {
+                    // 二级销售的订单，一级只能查看
                     return (
                       <Tooltip title="二级销售的订单由对应销售员自行催单">
                         <Button 
@@ -1381,7 +1512,7 @@ const PrimarySalesSettlementPage = () => {
               },
             },
           ]}
-          dataSource={primarySalesStats?.pendingReminderOrders || []}
+          dataSource={primarySalesStats?.filteredReminderOrders || primarySalesStats?.pendingReminderOrders || []}
           rowKey="id"
           loading={loading}
           pagination={{
