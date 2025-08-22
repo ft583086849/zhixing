@@ -160,14 +160,14 @@ class OrdersCacheManager {
       let sales_wechat_name = '-';
       
       if (salesInfo) {
-        // 设置销售微信号
-        sales_wechat_name = salesInfo.wechat_name || salesInfo.sales?.wechat_name || '-';
+        // 🔧 修复：适配 sales_optimized 表结构，wechat_name 字段直接存在
+        sales_wechat_name = salesInfo.wechat_name || '-';
         
         if (salesInfo.sales_type === 'primary') {
           // 一级销售
           primary_sales = {
             id: salesInfo.id,
-            wechat_name: salesInfo.wechat_name || salesInfo.sales?.wechat_name,
+            wechat_name: salesInfo.wechat_name,
             sales_code: salesInfo.sales_code,
             sales_type: 'primary',
             commission_rate: salesInfo.commission_rate
@@ -176,29 +176,47 @@ class OrdersCacheManager {
           // 二级或独立销售
           secondary_sales = {
             id: salesInfo.id,
-            wechat_name: salesInfo.wechat_name || salesInfo.sales?.wechat_name,
+            wechat_name: salesInfo.wechat_name,
             sales_code: salesInfo.sales_code,
             sales_type: salesInfo.sales_type || 'secondary',
             primary_sales_id: salesInfo.primary_sales_id,
             commission_rate: salesInfo.commission_rate
           };
           
-          // 如果有上级，尝试获取一级销售信息
+          // 🚀 修复：增强一级销售查找逻辑
+          let primarySale = null;
+          
+          // 方法1：通过 primary_sales_id 查找
           if (salesInfo.primary_sales_id) {
-            const primarySale = salesData.find(s => 
+            primarySale = salesData.find(s => 
               s.id === salesInfo.primary_sales_id && s.sales_type === 'primary'
             );
-            if (primarySale) {
-              primary_sales = {
-                id: primarySale.id,
-                wechat_name: primarySale.wechat_name || primarySale.sales?.wechat_name,
-                sales_code: primarySale.sales_code,
-                sales_type: 'primary',
-                commission_rate: primarySale.commission_rate
-              };
-              // 设置二级销售的primary_sales属性
-              secondary_sales.primary_sales = primary_sales;
-            }
+          }
+          
+          // 方法2：通过 primary_sales_code 查找
+          if (!primarySale && salesInfo.primary_sales_code) {
+            primarySale = salesData.find(s => 
+              s.sales_code === salesInfo.primary_sales_code && s.sales_type === 'primary'
+            );
+          }
+          
+          // 方法3：通过 parent_sales_code 查找
+          if (!primarySale && salesInfo.parent_sales_code) {
+            primarySale = salesData.find(s => 
+              s.sales_code === salesInfo.parent_sales_code && s.sales_type === 'primary'
+            );
+          }
+          
+          if (primarySale) {
+            primary_sales = {
+              id: primarySale.id,
+              wechat_name: primarySale.wechat_name,
+              sales_code: primarySale.sales_code,
+              sales_type: 'primary',
+              commission_rate: primarySale.commission_rate
+            };
+            // 设置二级销售的primary_sales属性
+            secondary_sales.primary_sales = primary_sales;
           }
         }
       }

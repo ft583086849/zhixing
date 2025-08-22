@@ -218,8 +218,17 @@ export const AdminAPI = {
         ? await SupabaseService.getOrdersWithFilters(queryParams)
         : await SupabaseService.getOrders();
       
-      // 获取销售数据用于关联
-      const salesData = await this.getSales();
+      // 🔧 修复：获取完整的销售数据，包括一级和二级销售信息
+      const [salesOptimized, primarySalesData, secondarySalesData] = await Promise.all([
+        this.getSalesOptimized(),
+        SupabaseService.supabase.from('primary_sales').select('*'),
+        SupabaseService.supabase.from('secondary_sales').select('*, primary_sales:primary_sales_id(*)')
+      ]);
+      
+      // 合并销售数据
+      const salesData = [...(salesOptimized.data || []), 
+                         ...(primarySalesData.data || []),
+                         ...(secondarySalesData.data || [])];
       
       // 批量处理订单数据
       const processedOrders = ordersCacheManager.processOrders(orders, salesData);
@@ -1148,7 +1157,7 @@ export const AdminAPI = {
           secondary_share_commission: Math.round(secondaryShareCommission * 100) / 100,  // 二级分销收益
           
           // 保留原字段（兼容）
-          commission_amount: Math.round(commissionAmount * 100) / 100,
+          commission_amount: sale.total_commission || Math.round(commissionAmount * 100) / 100,
           paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
           hierarchy_info: '一级销售',
           secondary_sales_count: managedSecondaryCount,
@@ -1310,7 +1319,7 @@ export const AdminAPI = {
           secondary_share_commission: Math.round(commissionAmount * 100) / 100,  // 二级分销收益（就是自己的佣金）
           
           // 保留原字段（兼容）
-          commission_amount: Math.round(commissionAmount * 100) / 100,
+          commission_amount: sale.total_commission || Math.round(commissionAmount * 100) / 100,
           paid_commission: sale.paid_commission || 0,  // 🔧 添加数据库中的已返佣金额
           hierarchy_info: hierarchyInfo,
           links: links  // 🔧 新增：销售链接
@@ -1343,14 +1352,168 @@ export const AdminAPI = {
       };
 
       // 保存到缓存
-      salesCacheManager.set(params, result.data);
+      salesCacheManager.set(params, result);
       
-      return result.data; // 直接返回销售数组
+      return result; // 返回包含success和data的完整对象
     } catch (error) {
       console.error('获取销售列表失败:', error);
-      // 返回空数组而不是抛出错误，确保页面不崩溃
-      console.log('返回空销售数组');
-      return [];
+      // 返回错误格式的对象，确保页面不崩溃
+      console.log('返回空销售数据');
+      return {
+        success: false,
+        data: [],
+        message: error.message || '获取销售列表失败'
+      };
+    }
+  },
+
+  /**
+   * 获取销售层级统计数据 - 🔧 修复：基于实际订单数据计算
+   */
+  async getSalesHierarchyStats(params = {}) {
+    try {
+      console.log('🔍 获取销售层级统计数据...');
+      
+      // 🚀 修复：同时获取销售数据和订单数据进行实时计算
+      const [salesResult, ordersResult] = await Promise.all([
+        SupabaseService.supabase
+          .from('sales_optimized')
+          .select('id, sales_code, sales_type, commission_rate, parent_sales_code, primary_sales_code, wechat_name'),
+        SupabaseService.supabase
+          .from('orders_optimized')
+          .select('id, sales_code, amount, status, commission_amount, created_at')
+          .in('status', ['confirmed_payment', 'confirmed_config', 'confirmed_configuration', 'active'])
+      ]);
+      
+      if (salesResult.error) {
+        console.error('获取销售数据失败:', salesResult.error);
+        throw salesResult.error;
+      }
+      
+      if (ordersResult.error) {
+        console.error('获取订单数据失败:', ordersResult.error);
+        throw ordersResult.error;
+      }
+      
+      const salesData = salesResult.data || [];
+      const ordersData = ordersResult.data || [];
+      
+      console.log(`✅ 获取到 ${salesData.length} 个销售，${ordersData.length} 个有效订单`);
+      
+      // 建立销售代码到销售信息的映射
+      const salesMap = new Map();
+      salesData.forEach(sale => {
+        salesMap.set(sale.sales_code, sale);
+      });
+      
+      // 初始化统计数据
+      const stats = {
+        // 一级销售统计
+        primary_sales_count: 0,
+        primary_sales_amount: 0,
+        primary_sales_commission: 0,
+        primary_sales_pending: 0,
+        
+        // 二级销售统计（有上级的）
+        linked_secondary_sales_count: 0,
+        linked_secondary_sales_amount: 0,
+        linked_secondary_sales_commission: 0,
+        linked_secondary_sales_pending: 0,
+        
+        // 独立销售统计（无上级的二级销售）
+        independent_sales_count: 0,
+        independent_sales_amount: 0,
+        independent_sales_commission: 0,
+        independent_sales_pending: 0
+      };
+      
+      // 按销售代码分组计算订单统计
+      const salesOrderStats = new Map();
+      
+      ordersData.forEach(order => {
+        const salesCode = order.sales_code;
+        const amount = parseFloat(order.amount || 0);
+        const commission = parseFloat(order.commission_amount || 0);
+        
+        if (!salesOrderStats.has(salesCode)) {
+          salesOrderStats.set(salesCode, {
+            totalAmount: 0,
+            totalCommission: 0,
+            orderCount: 0
+          });
+        }
+        
+        const stat = salesOrderStats.get(salesCode);
+        stat.totalAmount += amount;
+        stat.totalCommission += commission;
+        stat.orderCount += 1;
+      });
+      
+      // 统计各类型销售
+      const processedSales = new Set();
+      
+      salesData.forEach(sale => {
+        if (processedSales.has(sale.sales_code)) return;
+        processedSales.add(sale.sales_code);
+        
+        const orderStat = salesOrderStats.get(sale.sales_code) || {
+          totalAmount: 0,
+          totalCommission: 0,
+          orderCount: 0
+        };
+        
+        if (sale.sales_type === 'primary') {
+          // 一级销售
+          stats.primary_sales_count++;
+          stats.primary_sales_amount += orderStat.totalAmount;
+          stats.primary_sales_commission += orderStat.totalCommission;
+          // pending 暂时设为0，实际应该从pending订单计算
+          stats.primary_sales_pending += 0;
+        } else if (sale.sales_type === 'secondary') {
+          // 判断是否为有上级的二级销售
+          if (sale.parent_sales_code || sale.primary_sales_code) {
+            // 有上级的二级销售
+            stats.linked_secondary_sales_count++;
+            stats.linked_secondary_sales_amount += orderStat.totalAmount;
+            stats.linked_secondary_sales_commission += orderStat.totalCommission;
+            stats.linked_secondary_sales_pending += 0;
+          } else {
+            // 独立销售（无上级的二级销售）
+            stats.independent_sales_count++;
+            stats.independent_sales_amount += orderStat.totalAmount;
+            stats.independent_sales_commission += orderStat.totalCommission;
+            stats.independent_sales_pending += 0;
+          }
+        }
+      });
+      
+      // 四舍五入到2位小数
+      Object.keys(stats).forEach(key => {
+        if (key.includes('amount') || key.includes('commission') || key.includes('pending')) {
+          stats[key] = Math.round(stats[key] * 100) / 100;
+        }
+      });
+      
+      console.log('📊 销售层级统计结果:', stats);
+      
+      return stats;
+    } catch (error) {
+      console.error('获取销售层级统计失败:', error);
+      // 返回默认值确保页面不崩溃
+      return {
+        primary_sales_count: 0,
+        primary_sales_amount: 0,
+        primary_sales_commission: 0,
+        primary_sales_pending: 0,
+        linked_secondary_sales_count: 0,
+        linked_secondary_sales_amount: 0,
+        linked_secondary_sales_commission: 0,
+        linked_secondary_sales_pending: 0,
+        independent_sales_count: 0,
+        independent_sales_amount: 0,
+        independent_sales_commission: 0,
+        independent_sales_pending: 0
+      };
     }
   },
 
@@ -1548,36 +1711,56 @@ export const AdminAPI = {
       let paid_commission = 0;   // 已返佣金总额
       let pending_commission = 0; // 待返佣金总额
       
-      // 🎯 正确的逻辑：从销售数据汇总所有佣金
+      // 🎯 直接从数据库查询佣金数据，避免依赖getSales
       // 销售返佣金额 = SUM(每个销售的应返佣金额)
       // 待返佣金额 = SUM(每个销售的待返佣金额)
-      // 传递相同的排除参数确保销售数据也被过滤
-      const salesParams = {
-        skipExclusion: params.skipExclusion // 继承排除参数
-      };
-      const salesResponse = await this.getSales(salesParams);
-      // 修复：getSales现在直接返回数组，不是{success, data}格式
-      const salesData = Array.isArray(salesResponse) ? salesResponse : (salesResponse?.data || []);
-      if (salesData && salesData.length > 0) {
-        salesData.forEach(sale => {
-          // 汇总应返佣金 - 修复：使用正确的字段名total_commission
-          const commissionAmount = sale.total_commission || sale.commission_amount || 0;
-          total_commission += commissionAmount;
-          
-          // 汇总已返佣金
-          const paidAmount = sale.paid_commission || 0;
-          paid_commission += paidAmount;
-          
-          // 计算单个销售的待返佣金
-          const pendingAmount = commissionAmount - paidAmount;
-          pending_commission += pendingAmount;
-        });
+      try {
+        // 直接查询sales_optimized表获取佣金汇总
+        const { data: salesCommissionData, error: commissionError } = await SupabaseService.supabase
+          .from('sales_optimized')
+          .select('sales_code, wechat_name, sales_type, total_commission, paid_commission, total_amount');
         
-        console.log('📊 实时计算的佣金汇总:', {
-          应返: total_commission,
-          已返: paid_commission,
-          待返: pending_commission
-        });
+        if (!commissionError && salesCommissionData) {
+          // 计算佣金汇总
+          salesCommissionData.forEach(sale => {
+            // 汇总应返佣金（使用total_commission字段）
+            const commissionAmount = parseFloat(sale.total_commission) || 0;
+            total_commission += commissionAmount;
+            
+            // 汇总已返佣金
+            const paidAmount = parseFloat(sale.paid_commission) || 0;
+            paid_commission += paidAmount;
+            
+            // 计算待返佣金
+            const pendingAmount = commissionAmount - paidAmount;
+            pending_commission += pendingAmount;
+          });
+          
+          console.log('📊 从数据库计算的佣金汇总:', {
+            应返: total_commission,
+            已返: paid_commission,
+            待返: pending_commission
+          });
+        } else if (commissionError) {
+          console.error('获取佣金数据失败，尝试从getSales获取:', commissionError);
+          // 后备方案：尝试调用getSales
+          try {
+            const salesResponse = await this.getSales();
+            if (salesResponse.success && salesResponse.data) {
+              salesResponse.data.forEach(sale => {
+                const commissionAmount = sale.commission_amount || 0;
+                total_commission += commissionAmount;
+                const paidAmount = sale.paid_commission || 0;
+                paid_commission += paidAmount;
+                pending_commission += (commissionAmount - paidAmount);
+              });
+            }
+          } catch (salesError) {
+            console.error('getSales也失败了:', salesError);
+          }
+        }
+      } catch (error) {
+        console.error('计算佣金时出错:', error);
       }
       
       // 计算订单总金额（用于其他统计）
@@ -1597,41 +1780,55 @@ export const AdminAPI = {
         }
       });
       
-      // 获取实际销售表数据进行对比 - 从已过滤的salesData中提取
-      // 不再从旧表获取，确保应用了排除过滤
-      const primarySales = salesData?.filter(s => s.sales_type === 'primary') || [];
-      const secondarySales = salesData?.filter(s => s.sales_type === 'secondary') || [];
-      
-      // 🔧 修复：区分二级销售和独立销售
-      const linkedSecondarySales = secondarySales?.filter(s => s.primary_sales_id) || [];
-      const independentSales = secondarySales?.filter(s => !s.primary_sales_id) || [];
-      
-      // 计算销售业绩 - 只计算确认的订单
+      // 获取实际销售表数据 - 一次查询获取所有需要的信息
+      const primarySales = [];
+      const secondarySales = [];
+      const linkedSecondarySales = [];
+      const independentSales = [];
       let primary_sales_amount = 0;
-      let linked_secondary_sales_amount = 0;  // 二级销售（有上级）
-      let independent_sales_amount = 0;  // 独立销售
+      let linked_secondary_sales_amount = 0;
+      let independent_sales_amount = 0;
       
-      ordersToProcess.forEach(order => {
-        // 只计算已配置确认的订单（修复：只统计confirmed_config状态）
-        if (order.status === 'confirmed_config') {
-          const amount = parseFloat(order.actual_payment_amount || order.amount || 0);
-          const amountUSD = order.payment_method === 'alipay' ? amount / 7.15 : amount;
-          
-          if (order.sales_code) {
-            const isPrimarySale = primarySales?.some(ps => ps.sales_code === order.sales_code);
-            const linkedSecondary = linkedSecondarySales?.find(ss => ss.sales_code === order.sales_code);
-            const independentSale = independentSales?.find(ss => ss.sales_code === order.sales_code);
+      try {
+        // 一次查询获取所有销售数据
+        const { data: allSalesData, error: salesError } = await SupabaseService.supabase
+          .from('sales_optimized')
+          .select('id, sales_code, sales_type, primary_sales_id, parent_sales_code, total_amount, total_orders');
+        
+        if (!salesError && allSalesData) {
+          // 分类销售并计算金额
+          allSalesData.forEach(sale => {
+            const amount = parseFloat(sale.total_amount) || 0;
             
-            if (isPrimarySale) {
-              primary_sales_amount += amountUSD;
-            } else if (linkedSecondary) {
-              linked_secondary_sales_amount += amountUSD;
-            } else if (independentSale) {
-              independent_sales_amount += amountUSD;
+            if (sale.sales_type === 'primary') {
+              primarySales.push(sale);
+              primary_sales_amount += amount;
+            } else if (sale.sales_type === 'secondary') {
+              secondarySales.push(sale);
+              
+              // 区分有上级和无上级的二级销售
+              if (sale.parent_sales_code || sale.primary_sales_id) {
+                linkedSecondarySales.push(sale);
+                linked_secondary_sales_amount += amount;
+              } else {
+                independentSales.push(sale);
+                independent_sales_amount += amount;
+              }
             }
-          }
+          });
+          
+          console.log('📊 销售层级统计:', {
+            一级销售: primarySales.length,
+            二级销售_有上级: linkedSecondarySales.length,
+            独立销售: independentSales.length,
+            一级销售金额: primary_sales_amount,
+            二级销售金额: linked_secondary_sales_amount,
+            独立销售金额: independent_sales_amount
+          });
         }
-      });
+      } catch (error) {
+        console.error('获取销售数据失败:', error);
+      }
       
       // 计算订单时长分布（用户要求：删除终身，添加7天免费和年费）
       const orderDurationStats = {
@@ -1716,6 +1913,7 @@ export const AdminAPI = {
         total_commission: Math.round(total_commission * 100) / 100,
         commission_amount: Math.round(total_commission * 100) / 100,  // 销售返佣金额 = SUM(应返佣金)
         paid_commission_amount: Math.round(paid_commission * 100) / 100,  // 已返佣金额 = SUM(已返佣金)
+        paid_commission: Math.round(paid_commission * 100) / 100,  // 兼容旧字段名
         pending_commission_amount: Math.round(pending_commission * 100) / 100,  // 待返佣金额 = SUM(待返佣金)
         pending_commission: Math.round(pending_commission * 100) / 100,  // 兼容旧字段名
         // 🔧 优化：细分销售类型统计

@@ -1330,157 +1330,68 @@ export class SupabaseService {
       return [];
     }
     
-    // 复用getOrders的销售信息关联逻辑
-    // 收集所有需要查询的销售ID和代码
+    // 🔧 修复：使用 sales_optimized 表获取销售信息
+    // 收集所有需要查询的销售代码
     const salesCodes = [...new Set(orders.map(order => order.sales_code).filter(Boolean))];
-    const primarySalesIds = [...new Set(orders.map(order => order.primary_sales_id).filter(Boolean))];
-    const secondarySalesIds = [...new Set(orders.map(order => order.secondary_sales_id).filter(Boolean))];
-    
-    // 🔧 修复：先获取所有二级销售，以便获取他们的primary_sales_id
-    // 并行获取销售数据
-    const queries = [];
     
     if (salesCodes.length > 0) {
-      queries.push(
-        supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('sales_code', salesCodes),
-        supabase.from('sales_optimized').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('sales_code', salesCodes)
-      );
-    }
-    
-    if (primarySalesIds.length > 0) {
-      queries.push(
-        supabase.from('primary_sales').select('id, sales_code, name, wechat_name, phone').in('id', primarySalesIds)
-      );
-    }
-    
-    if (secondarySalesIds.length > 0) {
-      queries.push(
-        supabase.from('sales_optimized').select('id, sales_code, name, wechat_name, phone, primary_sales_id').in('id', secondarySalesIds)
-      );
-    }
-    
-    if (queries.length > 0) {
-      const results = await Promise.all(queries);
+      // 从 sales_optimized 表获取销售信息
+      const { data: salesData, error: salesError } = await supabase
+        .from('sales_optimized')
+        .select('id, sales_code, wechat_name, name, sales_type, commission_rate, parent_sales_code, parent_sales_id')
+        .in('sales_code', salesCodes);
       
-      // 创建映射
-      const primarySalesByCode = new Map();
-      const primarySalesById = new Map();
-      const secondarySalesByCode = new Map();
-      const secondarySalesById = new Map();
-      
-      results.forEach(result => {
-        if (result.data) {
-          result.data.forEach(sale => {
-            // 判断是一级还是二级销售
-            if (sale.primary_sales_id !== undefined) {
-              // 是二级销售
-              if (sale.sales_code) secondarySalesByCode.set(sale.sales_code, sale);
-              if (sale.id) secondarySalesById.set(sale.id, sale);
-            } else {
-              // 是一级销售
-              if (sale.sales_code) primarySalesByCode.set(sale.sales_code, sale);
-              if (sale.id) primarySalesById.set(sale.id, sale);
-            }
-          });
-        }
-      });
-      
-      // 🔧 修复：收集二级销售的primary_sales_id，并查询缺失的一级销售
-      const missingPrimaryIds = [];
-      secondarySalesByCode.forEach(sale => {
-        if (sale.primary_sales_id && !primarySalesById.has(sale.primary_sales_id)) {
-          missingPrimaryIds.push(sale.primary_sales_id);
-        }
-      });
-      secondarySalesById.forEach(sale => {
-        if (sale.primary_sales_id && !primarySalesById.has(sale.primary_sales_id)) {
-          missingPrimaryIds.push(sale.primary_sales_id);
-        }
-      });
-      
-      // 如果有缺失的一级销售，查询它们
-      if (missingPrimaryIds.length > 0) {
-        const uniqueMissingIds = [...new Set(missingPrimaryIds)];
-        const { data: missingPrimarySales } = await supabase
-          .from('primary_sales')
-          .select('id, sales_code, name, wechat_name, phone')
-          .in('id', uniqueMissingIds);
+      if (salesError) {
+        console.error('获取销售信息失败:', salesError);
+      } else if (salesData) {
+        // 建立销售代码到销售信息的映射
+        const salesDataMap = new Map();
+        salesData.forEach(sale => {
+          salesDataMap.set(sale.sales_code, sale);
+        });
         
-        if (missingPrimarySales) {
-          missingPrimarySales.forEach(sale => {
-            primarySalesById.set(sale.id, sale);
-            if (sale.sales_code) primarySalesByCode.set(sale.sales_code, sale);
-          });
-        }
-      }
-      
-      // 为每个订单添加销售信息
-      orders.forEach(order => {
-        let salesInfo = null;
-        let salesType = null;
-        
-        // 🔧 修复：正确的匹配优先级 - sales_code优先（最准确）
-        if (order.sales_code) {
-          // 先通过sales_code判断是谁实际出的单
-          if (secondarySalesByCode.has(order.sales_code)) {
-            salesInfo = secondarySalesByCode.get(order.sales_code);
-            salesType = 'secondary';
-          } else if (primarySalesByCode.has(order.sales_code)) {
-            salesInfo = primarySalesByCode.get(order.sales_code);
-            salesType = 'primary';
-          }
-        } else if (order.secondary_sales_id && secondarySalesById.has(order.secondary_sales_id)) {
-          // 其次使用secondary_sales_id
-          salesInfo = secondarySalesById.get(order.secondary_sales_id);
-          salesType = 'secondary';
-        } else if (order.primary_sales_id && primarySalesById.has(order.primary_sales_id)) {
-          // 最后才使用primary_sales_id（仅当没有sales_code和secondary_sales_id时）
-          salesInfo = primarySalesById.get(order.primary_sales_id);
-          salesType = 'primary';
-        }
-        
-        if (salesInfo) {
-          order.sales_type = salesType;
-          order.sales_wechat_name = salesInfo.wechat_name || '-';
-          order.sales_name = salesInfo.name || '-';
-          order.sales_phone = salesInfo.phone || '-';
+        // 为每个订单添加销售信息
+        orders.forEach(order => {
+          const salesInfo = salesDataMap.get(order.sales_code);
           
-          // 如果是二级销售，尝试获取其一级销售信息
-          if (salesType === 'secondary' && salesInfo.primary_sales_id) {
-            const primarySales = primarySalesById.get(salesInfo.primary_sales_id);
-            if (primarySales) {
-              order.secondary_sales = {
-                ...salesInfo,
-                primary_sales: primarySales
+          if (salesInfo) {
+            // 设置销售基本信息
+            order.sales_wechat_name = salesInfo.wechat_name || '-';
+            order.sales_name = salesInfo.name || '-';
+            order.sales_type = salesInfo.sales_type;
+            
+            // 根据销售类型设置对应的销售对象
+            if (salesInfo.sales_type === 'primary') {
+              order.primary_sales = {
+                id: salesInfo.id,
+                wechat_name: salesInfo.wechat_name,
+                sales_code: salesInfo.sales_code,
+                sales_type: 'primary',
+                commission_rate: salesInfo.commission_rate
               };
             } else {
-              order.secondary_sales = salesInfo;
+              order.secondary_sales = {
+                id: salesInfo.id,
+                wechat_name: salesInfo.wechat_name,
+                sales_code: salesInfo.sales_code,
+                sales_type: salesInfo.sales_type || 'secondary',
+                primary_sales_id: salesInfo.parent_sales_id,
+                commission_rate: salesInfo.commission_rate
+              };
+              
+              // 如果有上级销售，需要查询上级信息
+              if (salesInfo.parent_sales_id) {
+                order.secondary_sales.primary_sales_id = salesInfo.parent_sales_id;
+              }
             }
-          } else if (salesType === 'primary') {
-            order.primary_sales = salesInfo;
-          } else if (salesType === 'secondary') {
-            order.secondary_sales = salesInfo;
+          } else {
+            // 没有找到销售信息时的默认值
+            order.sales_wechat_name = '-';
+            order.sales_name = '-';
+            order.sales_type = '-';
           }
-        }
-        
-        // 计算生效时间和到期时间
-        if (order.created_at && order.duration) {
-          const createdDate = new Date(order.created_at);
-          order.effective_time = order.created_at;
-          
-          const expiryDate = new Date(createdDate);
-          if ((order.duration === '7天' || order.duration === '7days')) {
-            expiryDate.setDate(expiryDate.getDate() + 7);
-          } else if ((order.duration === '1个月' || order.duration === '1month')) {
-            expiryDate.setMonth(expiryDate.getMonth() + 1);
-          } else if ((order.duration === '3个月' || order.duration === '3months')) {
-            expiryDate.setMonth(expiryDate.getMonth() + 3);
-          } else if ((order.duration === '1年' || order.duration === '1year')) {
-            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-          }
-          order.expiry_time = expiryDate.toISOString();
-        }
-      });
+        });
+      }
     }
     
     return orders;
@@ -1694,16 +1605,24 @@ export class SupabaseService {
       console.log('SupabaseService: 更新收益分配配置', ratios);
       
       // 先将所有现有配置设为非激活
-      await supabase
+      const { error: updateError } = await supabase
         .from('profit_distribution')
         .update({ is_active: false })
         .eq('is_active', true);
       
-      // 创建新的激活配置
+      if (updateError) {
+        console.error('SupabaseService: 更新现有配置失败', updateError);
+        throw updateError;
+      }
+      
+      // 创建新的激活配置（包含完整字段）
       const { data, error } = await supabase
         .from('profit_distribution')
         .insert({
           public_ratio: ratios.public || 40,
+          marketing_ratio: ratios.marketing || 10,
+          dividend_ratio: ratios.dividend || 15,
+          development_ratio: ratios.development || 15,
           zhixing_ratio: ratios.zhixing || 35,
           zijun_ratio: ratios.zijun || 25,
           is_active: true,
@@ -1712,7 +1631,10 @@ export class SupabaseService {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('SupabaseService: 插入新配置失败', error);
+        throw error;
+      }
       
       console.log('SupabaseService: 收益分配配置更新成功', data);
       return data;

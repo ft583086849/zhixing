@@ -215,6 +215,7 @@ class SalesCacheManager {
       confirmed_amount: Math.round(confirmedAmount * 100) / 100,
       commission_rate: primaryRate * 100,
       commission_amount: Math.round(totalCommission * 100) / 100,
+      paid_commission: sale.paid_commission || 0,  // 添加已返佣金字段
       secondary_sales_count: managedSecondaries.length,
       primary_direct_amount: Math.round(confirmedAmount * 100) / 100,
       primary_direct_commission: Math.round(primaryDirectCommission * 100) / 100,
@@ -266,6 +267,7 @@ class SalesCacheManager {
       confirmed_amount: Math.round(confirmedAmount * 100) / 100,
       commission_rate: commissionRate,
       commission_amount: Math.round(commissionAmount * 100) / 100,
+      paid_commission: sale.paid_commission || 0,  // 添加已返佣金字段
       created_at: sale.created_at,
       links: this.generateLinks(sale)
     };

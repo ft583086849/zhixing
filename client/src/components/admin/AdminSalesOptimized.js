@@ -128,17 +128,22 @@ const AdminSalesOptimized = () => {
   const fetchOptimizedSales = async () => {
     setLoading(true);
     try {
-      const response = await AdminAPI.getSalesOptimized();
-      if (response && response.success) {
-        // 计算统计数据
-        calculateStatistics(response.data);
+      // 同时获取销售数据和统计数据（使用数据概览的API逻辑）
+      const [salesResponse, statsResponse] = await Promise.all([
+        AdminAPI.getSalesOptimized(),
+        AdminAPI.getStats()
+      ]);
+      
+      if (salesResponse && salesResponse.success) {
+        // 计算统计数据，但使用API统计数据的总销售额
+        calculateStatistics(salesResponse.data, statsResponse);
         
         // 不使用Redux，直接设置本地state
-        setSalesData(response.data);
+        setSalesData(salesResponse.data);
         
-        message.success(`加载了 ${response.data.length} 条销售数据`);
+        message.success(`加载了 ${salesResponse.data.length} 条销售数据`);
       } else {
-        message.error(response.message || '加载失败');
+        message.error(salesResponse.message || '加载失败');
       }
     } catch (error) {
       message.error('获取销售数据失败');
@@ -148,7 +153,7 @@ const AdminSalesOptimized = () => {
   };
 
   // 计算统计数据
-  const calculateStatistics = (salesData) => {
+  const calculateStatistics = (salesData, statsResponse = null) => {
     const stats = {
       totalSales: salesData.length,
       primaryCount: 0,
@@ -171,10 +176,16 @@ const AdminSalesOptimized = () => {
       }
 
       // 金额统计（使用预计算字段）
+      // 注意：totalAmount使用API的逻辑（数据概览的逻辑）
       stats.totalAmount += sale.total_amount || 0;
       stats.totalCommission += sale.total_commission || 0;
       stats.paidCommission += sale.paid_commission || 0;
     });
+
+    // 如果有API统计数据，使用API的总销售额（数据概览逻辑）
+    if (statsResponse && statsResponse.total_amount) {
+      stats.totalAmount = statsResponse.total_amount;
+    }
 
     stats.pendingCommission = stats.totalCommission - stats.paidCommission;
     setStatistics(stats);
@@ -218,10 +229,15 @@ const AdminSalesOptimized = () => {
   // 带参数获取销售数据
   const fetchOptimizedSalesWithParams = async (params) => {
     try {
-      const response = await AdminAPI.getSalesOptimized(params);
-      if (response.success) {
-        calculateStatistics(response.data);
-        setSalesData(response.data);
+      // 同时获取销售数据和统计数据
+      const [salesResponse, statsResponse] = await Promise.all([
+        AdminAPI.getSalesOptimized(params),
+        AdminAPI.getStats()
+      ]);
+      
+      if (salesResponse.success) {
+        calculateStatistics(salesResponse.data, statsResponse);
+        setSalesData(salesResponse.data);
         message.success('搜索完成');
       }
     } catch (error) {
@@ -834,7 +850,7 @@ const AdminSalesOptimized = () => {
         <Col span={6}>
           <Card style={{ height: 140 }}>
             <Statistic
-              title="应返佣金"
+              title="总佣金"
               value={statistics.totalCommission}
               prefix="$"
               precision={2}
@@ -848,7 +864,7 @@ const AdminSalesOptimized = () => {
         <Col span={6}>
           <Card style={{ height: 140 }}>
             <Statistic
-              title="待返佣金"
+              title="应返佣金"
               value={statistics.pendingCommission}
               prefix="$"
               precision={2}

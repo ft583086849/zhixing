@@ -480,8 +480,8 @@ const AdminOrders = () => {
     // 🚀 佣金系统v2.0 - 新增佣金拆分列
     {
       title: '一级销售佣金额',
-      dataIndex: 'commission_amount_primary',
-      key: 'commission_amount_primary',
+      dataIndex: 'primary_commission_amount',
+      key: 'primary_commission_amount',
       width: 140,
       render: (commission) => {
         // 如果数据库字段存在，直接使用

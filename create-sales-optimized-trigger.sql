@@ -150,7 +150,9 @@ BEGIN
     total_team_orders = t.team_orders,
     total_team_amount = t.team_amount,
     secondary_commission_amount = t.team_commission,
-    total_commission = s.primary_commission_amount + t.team_commission
+    total_commission = s.primary_commission_amount + t.team_commission,
+    total_orders = s.total_direct_orders + t.team_orders,
+    total_amount = s.total_direct_amount + t.team_amount
   FROM team_commission_stats t
   WHERE s.sales_code = t.primary_sales_code
     AND s.sales_type = 'primary';

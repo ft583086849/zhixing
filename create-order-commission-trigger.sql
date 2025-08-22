@@ -21,7 +21,7 @@ BEGIN
     NEW.secondary_commission_amount := 0;
     RETURN NEW;
   END IF;
-  
+  /
   -- 从sales_optimized表获取销售信息
   SELECT commission_rate, sales_type, parent_sales_code 
   INTO v_commission_rate, v_sales_type, v_parent_sales_code

@@ -126,7 +126,7 @@ const AdminOverview = () => {
                 sales_name: sale.sales?.wechat_name || sale.wechat_name || sale.sales?.name || sale.name || '-',
                 primary_sales_name: sale.parent_sales_name || sale.primary_sales_name || sale.sales?.parent_sales_name || '-',  // 所属一级销售
                 total_amount: sale.total_amount || 0,
-                commission_amount: sale.total_commission || 0,
+                commission_amount: sale.commission_amount || sale.total_commission || 0,
                 // 计算占比
                 percentage: totalSalesAmount > 0 
                   ? ((sale.total_amount || 0) / totalSalesAmount * 100).toFixed(2)
@@ -294,10 +294,11 @@ const AdminOverview = () => {
               <Card role="region">
                 <Statistic
                   title="待返佣金金额"
-                  value={stats?.pending_commission || stats?.pending_commission_amount || 0}
+                  value={Math.round(((stats?.total_commission || 0) - (stats?.paid_commission || 0)) * 100) / 100}
                   prefix={<DollarOutlined />}
                   valueStyle={{ color: '#ff4d4f' }}
                   suffix="美元"
+                  precision={2}
                 />
               </Card>
             </Col>
