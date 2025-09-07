@@ -441,6 +441,33 @@ const AdminSales = () => {
       render: (_, record) => getSalesTypeTag(record.sales?.sales_type || 'secondary'),
     },
     {
+      title: '主营产品',
+      dataIndex: 'primary_product',
+      key: 'primary_product',
+      width: 110,
+      render: (primaryProduct) => {
+        // 产品显示和颜色映射
+        const productMap = {
+          '信号策略': { text: '信号策略', color: 'blue' },
+          '推币系统': { text: '推币系统', color: 'green' },
+          '推股系统': { text: '推股系统', color: 'purple' },
+          '套餐组合': { text: '套餐组合', color: 'gold' }
+        };
+        
+        const product = primaryProduct || '信号策略'; // 默认推币策略
+        const productInfo = productMap[product] || { text: product, color: 'default' };
+        
+        return <Tag color={productInfo.color}>{productInfo.text}</Tag>;
+      },
+      filters: [
+        { text: '信号策略', value: '信号策略' },
+        { text: '推币系统', value: '推币系统' },
+        { text: '推股系统', value: '推股系统' },
+        { text: '套餐组合', value: '套餐组合' }
+      ],
+      onFilter: (value, record) => (record.primary_product || '信号策略') === value
+    },
+    {
       title: '销售微信号',
       dataIndex: ['sales', 'wechat_name'],
       key: 'wechat_name',

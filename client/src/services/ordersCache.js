@@ -180,6 +180,8 @@ class OrdersCacheManager {
             sales_code: salesInfo.sales_code,
             sales_type: salesInfo.sales_type || 'secondary',
             primary_sales_id: salesInfo.primary_sales_id,
+            parent_sales_code: salesInfo.parent_sales_code,  // 添加parent_sales_code
+            parent_sales_id: salesInfo.parent_sales_id,      // 添加parent_sales_id
             commission_rate: salesInfo.commission_rate
           };
           

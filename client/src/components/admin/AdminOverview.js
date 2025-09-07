@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ErrorBoundary from '../common/ErrorBoundary';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Statistic, Spin, Progress, Radio, DatePicker, Space, Typography, Divider, Table, Tag, Select, Button, message } from 'antd';
@@ -49,12 +50,15 @@ const AdminOverview = () => {
     
     // 并行加载统计数据和销售数据
     const loaders = [
-      // 统计数据加载 - 不使用筛选参数，只用时间范围
+      // 统计数据加载 - 使用当前选中的时间范围
       () => {
         const params = {
-          timeRange: 'all',  // 主数据始终显示全部
+          timeRange: timeRange,  // 使用当前选中的时间范围
+          customRange: customRange,  // 传递自定义时间范围
           usePaymentTime: true
         };
+        
+        console.log('📊 加载统计数据，时间范围:', timeRange, customRange);
         
         return dispatch(getStats(params)).then(result => {
           if (!result.payload) {
@@ -64,10 +68,11 @@ const AdminOverview = () => {
           return result;
         });
       },
-      // 销售数据加载 - 不使用筛选参数
+      // 销售数据加载 - 使用当前选中的时间范围
       () => {
         const salesParams = {
-          timeRange: 'all',  // 主数据始终显示全部
+          timeRange: timeRange,  // 使用当前选中的时间范围
+          customRange: customRange,  // 传递自定义时间范围
           usePaymentTime: true
         };
         
@@ -146,7 +151,7 @@ const AdminOverview = () => {
 
   useEffect(() => {
     loadData();
-  }, [dispatch]); // 只在组件加载时获取一次主数据
+  }, [dispatch, timeRange, customRange]); // 监听时间范围变化，自动重新加载数据
 
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
@@ -163,7 +168,8 @@ const AdminOverview = () => {
 
 
   return (
-    <div>
+    <ErrorBoundary>
+      <div>
       <Title level={2}>数据概览</Title>
 
       {loading && (
@@ -194,11 +200,12 @@ const AdminOverview = () => {
                 type="primary" 
                 icon={<CheckCircleOutlined />}
                 onClick={() => {
-                  message.success('数据已确认');
+                  loadData();  // 手动触发数据重新加载
+                  message.success('数据已更新');
                 }}
                 style={{ marginLeft: 16 }}
               >
-                确认数据
+                查询
               </Button>
             </Space>
           </Card>
@@ -399,7 +406,7 @@ const AdminOverview = () => {
                 <Card bordered={false} style={{ textAlign: 'center', background: '#fff' }}>
                   <div style={{ marginBottom: 12 }}>
                     <span style={{ fontSize: '14px', fontWeight: '500', color: '#52c41a' }}>
-                      🎁 7天免费
+                      🎁 免费试用
                     </span>
                   </div>
                   <Progress 
@@ -669,7 +676,7 @@ const AdminOverview = () => {
                     setTempSalesNameFilter(value);
                   }}
                 >
-                  {sales?.map(sale => (
+                  {sales && Array.isArray(sales) && sales.map(sale => (
                     <Select.Option key={sale.id || sale.sales_code} value={sale.sales?.wechat_name || sale.wechat_name || sale.sales?.name || sale.name}>
                       {sale.sales?.wechat_name || sale.wechat_name || sale.sales?.name || sale.name || '-'}
                     </Select.Option>
@@ -726,7 +733,8 @@ const AdminOverview = () => {
           </Card>
         </>
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

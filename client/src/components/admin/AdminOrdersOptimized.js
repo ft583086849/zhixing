@@ -312,7 +312,9 @@ const AdminOrdersOptimized = () => {
       width: 100,
       render: (duration) => {
         const durationMap = {
-          '7days': '7天免费',
+          '7days': '免费试用',
+          '3天': '免费试用',
+          '7天': '免费试用',
           '1month': '1个月',
           '3months': '3个月',
           '6months': '6个月',

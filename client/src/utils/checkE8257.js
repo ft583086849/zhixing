@@ -2,7 +2,8 @@
  * 检查e8257订单数据的工具函数
  */
 
-import { supabase } from '../config/supabase';
+import { SupabaseService } from '../services/supabase';
+const { supabase } = SupabaseService;
 
 export async function checkE8257Order() {
   console.log('🔍 直接从数据库查询e8257的订单...\n');

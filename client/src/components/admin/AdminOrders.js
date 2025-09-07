@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ErrorBoundary from '../common/ErrorBoundary';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { 
@@ -343,22 +344,24 @@ const AdminOrders = () => {
           let salesType = '-';
           let salesTypeColor = 'default';
           
-          // 优先判断是否有二级销售信息
-          if (record?.secondary_sales) {
+          // 🔧 修复：统一判断逻辑，与"一级销售微信"列保持一致
+          // 1. 如果这个订单有一级销售微信，说明是二级销售的订单
+          if (record.secondary_sales?.primary_sales_id) {
             salesWechat = record.secondary_sales.wechat_name || '-';
-            if (record.secondary_sales.primary_sales_id) {
-              salesType = '二级销售';
-              salesTypeColor = 'orange';
-            } else {
-              salesType = '独立销售';
-              salesTypeColor = 'green';
-            }
+            salesType = '二级销售';
+            salesTypeColor = 'orange';
           }
-          // 判断是否有一级销售信息
-          else if (record?.primary_sales) {
+          // 2. 如果是一级销售的直接订单
+          else if (record.primary_sales?.wechat_name) {
             salesWechat = record.primary_sales.wechat_name || '-';
             salesType = '一级销售';
             salesTypeColor = 'blue';
+          }
+          // 3. 其他情况（独立销售或二级销售但没有上级信息）
+          else if (record?.secondary_sales) {
+            salesWechat = record.secondary_sales.wechat_name || '-';
+            salesType = '独立销售';
+            salesTypeColor = 'green';
           }
           // 从sales_wechat_name字段获取
           else if (record?.sales_wechat_name && record.sales_wechat_name !== '-') {
@@ -414,16 +417,51 @@ const AdminOrders = () => {
     },
 
     {
+      title: '产品类型',
+      dataIndex: 'product_type',
+      key: 'product_type', 
+      width: 100,
+      render: (productType) => {
+        const colorMap = {
+          '信号策略': 'blue',
+          '推币系统': 'green', 
+          '套餐组合': 'gold',
+          // 兼容旧名称
+          '推币策略': 'blue'
+        };
+        const type = productType || '信号策略'; // 默认为信号策略
+        return <Tag color={colorMap[type] || 'default'}>{type}</Tag>;
+      },
+      filters: [
+        { text: '信号策略', value: '信号策略' },
+        { text: '推币策略', value: '推币策略' }, // 兼容旧数据
+        { text: '推币系统', value: '推币系统' },
+        { text: '套餐组合', value: '套餐组合' }
+      ],
+      onFilter: (value, record) => {
+        const productType = record.product_type || '信号策略';
+        return productType === value;
+      }
+    },
+
+
+    {
       title: '购买时长',
       dataIndex: 'duration',
       key: 'duration',
       width: 100,
       render: (duration) => {
         const durationMap = {
-          '7days': '7天免费',
+          '3天': '免费试用',
+          '7天': '免费试用', // 兼容历史数据
+          '7days': '免费试用', // 兼容历史数据
+          '1个月': '1个月',
           '1month': '1个月',
+          '3个月': '3个月', 
           '3months': '3个月',
+          '6个月': '6个月',
           '6months': '6个月',
+          '1年': '1年',
           'lifetime': '终身'
         };
         return durationMap[duration] || duration;
@@ -551,7 +589,7 @@ const AdminOrders = () => {
         
         // 7天免费订单特殊处理：如果是pending状态直接显示为待配置
         let displayStatus = status;
-        if ((record.duration === '7天' || record.duration === '7days') && (status === 'pending' || status === 'pending_payment')) {
+        if ((record.duration === '3天' || record.duration === '7天' || record.duration === '7days') && (status === 'pending' || status === 'pending_payment')) {
           displayStatus = 'pending_config';
         }
         
@@ -620,7 +658,7 @@ const AdminOrders = () => {
           switch (currentStatus) {
             case 'pending_payment':
               // 7天免费订单特殊处理：直接显示"配置确认"按钮
-              if ((record.duration === '7天' || record.duration === '7days')) {
+              if ((record.duration === '3天' || record.duration === '7天' || record.duration === '7days')) {
                 return (
                   <>
                     <Button 
@@ -787,7 +825,8 @@ const AdminOrders = () => {
   ];
 
   return (
-    <div style={{ padding: '0 24px' }}>
+    <ErrorBoundary>
+      <div style={{ padding: '0 24px' }}>
       <Title level={2} style={{ marginBottom: 24 }}>订单管理</Title>
 
       {/* 搜索表单 */}
@@ -889,11 +928,16 @@ const AdminOrders = () => {
                   style={{ width: '100%' }}
                 >
                   <Option value="0">免费体验（$0）</Option>
-                  <Option value="100">$100</Option>
-                  <Option value="188">$188</Option>
-                  <Option value="488">$488</Option>
-                  <Option value="888">$888</Option>
+                  <Option value="288">$288</Option>
+                  <Option value="588">$588</Option>
+                  <Option value="688">$688</Option>
+                  <Option value="1088">$1088</Option>
                   <Option value="1588">$1588</Option>
+                  <Option value="1888">$1888</Option>
+                  <Option value="2588">$2588</Option>
+                  <Option value="3188">$3188</Option>
+                  <Option value="3999">$3999</Option>
+                  <Option value="4688">$4688</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -1012,7 +1056,8 @@ const AdminOrders = () => {
           src={previewImage}
         />
       </Modal>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

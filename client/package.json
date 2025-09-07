@@ -5,7 +5,7 @@
   "private": true,
   "dependencies": {
     "@reduxjs/toolkit": "^1.9.7",
-    "@supabase/supabase-js": "^2.53.0",
+    "@supabase/supabase-js": "^2.57.2",
     "antd": "^5.12.8",
     "axios": "^1.6.2",
     "dayjs": "^1.11.10",

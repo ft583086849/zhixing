@@ -9,7 +9,8 @@
  * 4. 批量处理优化
  */
 
-import { supabase } from '../config/supabase';
+import { SupabaseService } from './supabase';
+const { supabase } = SupabaseService;
 
 // 判断是否使用优化表
 const USE_OPTIMIZED = process.env.REACT_APP_USE_OPTIMIZED_TABLES === 'true';

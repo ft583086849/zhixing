@@ -115,6 +115,33 @@ const AdminCustomers = () => {
       width: 150,
     },
     {
+      title: '主要产品',
+      dataIndex: 'primary_product',
+      key: 'primary_product',
+      width: 120,
+      render: (primaryProduct) => {
+        // 产品显示和颜色映射
+        const productMap = {
+          '信号策略': { text: '信号策略', color: 'blue' },
+          '推币系统': { text: '推币系统', color: 'green' },
+          '推股系统': { text: '推股系统', color: 'purple' },
+          '套餐组合': { text: '套餐组合', color: 'gold' }
+        };
+        
+        const product = primaryProduct || '信号策略'; // 默认推币策略
+        const productInfo = productMap[product] || { text: product, color: 'default' };
+        
+        return <Tag color={productInfo.color}>{productInfo.text}</Tag>;
+      },
+      filters: [
+        { text: '信号策略', value: '信号策略' },
+        { text: '推币系统', value: '推币系统' },
+        { text: '推股系统', value: '推股系统' },
+        { text: '套餐组合', value: '套餐组合' }
+      ],
+      onFilter: (value, record) => (record.primary_product || '信号策略') === value
+    },
+    {
       title: '销售微信号',
       dataIndex: 'sales_wechat_name',
       key: 'sales_wechat_name',
@@ -332,11 +359,16 @@ const AdminCustomers = () => {
                   style={{ width: '100%' }}
                 >
                   <Option value="0">免费体验（$0）</Option>
-                  <Option value="100">$100</Option>
-                  <Option value="188">$188</Option>
-                  <Option value="488">$488</Option>
-                  <Option value="888">$888</Option>
+                  <Option value="288">$288</Option>
+                  <Option value="588">$588</Option>
+                  <Option value="688">$688</Option>
+                  <Option value="1088">$1088</Option>
                   <Option value="1588">$1588</Option>
+                  <Option value="1888">$1888</Option>
+                  <Option value="2588">$2588</Option>
+                  <Option value="3188">$3188</Option>
+                  <Option value="3999">$3999</Option>
+                  <Option value="4688">$4688</Option>
                 </Select>
               </Form.Item>
             </Col>

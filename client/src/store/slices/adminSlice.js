@@ -21,9 +21,17 @@ export const getAdminOrders = createAsyncThunk(
   async (params, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getOrders(params);
-      // 🔧 修复：需要检查adminAPI.getOrders返回格式，保持一致性
-      return response.data || response;
+      // 🔧 修复：确保返回的是数组格式，防止r.map错误
+      if (response?.success && Array.isArray(response.data)) {
+        return response.data;
+      } else if (Array.isArray(response)) {
+        return response;
+      } else {
+        console.error('getAdminOrders返回的数据格式不正确:', response);
+        return [];
+      }
     } catch (error) {
+      console.error('getAdminOrders失败:', error);
       return rejectWithValue(error.response?.data?.message || '获取订单列表失败');
     }
   }
@@ -98,8 +106,8 @@ export const getSales = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await adminAPI.getSales(params);
-      // 🔧 修复：adminAPI.getSales直接返回销售数组，不需要.data
-      return response;
+      // 🔧 修复：adminAPI.getSales返回 { success, data, message }，提取data数组
+      return response?.data || [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || '获取销售列表失败');
     }
@@ -215,9 +223,9 @@ const adminSlice = createSlice({
       })
       .addCase(getSales.fulfilled, (state, action) => {
         state.loading = false;
-        // 修复：AdminAPI.getSales()返回的data直接是sales数组
+        // 修复：action.payload 现在已经是提取后的 data 数组
         console.log('getSales收到数据:', action.payload);
-        state.sales = action.payload || [];
+        state.sales = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(getSales.rejected, (state, action) => {
         state.loading = false;
@@ -230,13 +238,14 @@ const adminSlice = createSlice({
       })
       .addCase(getAdminOrders.fulfilled, (state, action) => {
         state.loading = false;
-        // 修复：AdminAPI.getOrders()返回的data直接是orders数组
-        console.log('getAdminOrders收到数据:', action.payload);
-        state.orders = action.payload || [];
-        // 临时设置分页信息
+        // 修复：确保payload是数组，防止r.map错误
+        const ordersArray = Array.isArray(action.payload) ? action.payload : [];
+        console.log('getAdminOrders收到数据:', ordersArray.length, '个订单');
+        state.orders = ordersArray;
+        // 设置分页信息
         state.pagination = {
           ...state.pagination,
-          total: action.payload ? action.payload.length : 0
+          total: ordersArray.length
         };
       })
       .addCase(getAdminOrders.rejected, (state, action) => {

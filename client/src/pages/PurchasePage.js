@@ -27,7 +27,8 @@ import {
   WalletOutlined, 
   UploadOutlined,
   DollarOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  StarOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getSalesByLink, clearCurrentSales } from '../store/slices/salesSlice';
@@ -35,7 +36,9 @@ import { createOrder, clearCreatedOrder } from '../store/slices/ordersSlice';
 import { getPaymentConfig } from '../store/slices/paymentConfigSlice';
 import QRCodeDisplay from '../components/QRCodeDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ProductSelectorDynamic from '../components/common/ProductSelectorDynamic';
 import { SupabaseService } from '../services/supabase';
+import ProductConfigAPI from '../services/productConfigAPI';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -52,7 +55,13 @@ const PurchasePage = () => {
   const { config: paymentConfig, loading: configLoading, error: configError } = useSelector((state) => state.paymentConfig);
   const [form] = Form.useForm();
 
-  const [selectedDuration, setSelectedDuration] = useState('');
+  // 🆕 产品体系升级状态
+  const [selectedProduct, setSelectedProduct] = useState('信号策略');
+  const [selectedPrice, setSelectedPrice] = useState(288);
+  const [discordId, setDiscordId] = useState('');
+  
+  const [selectedDuration, setSelectedDuration] = useState('1个月');
+  const [isFreeOrder, setIsFreeOrder] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('crypto'); // 默认选择链上地址
   const [purchaseType, setPurchaseType] = useState('immediate');
   const [effectiveTime, setEffectiveTime] = useState(null);
@@ -62,14 +71,18 @@ const PurchasePage = () => {
   // const [alipayAmount, setAlipayAmount] = useState(''); // 已移除支付宝
   // const [cryptoAmount, setCryptoAmount] = useState(''); // 改为Form.Item管理
 
-  // 时长选项和价格 - 统一使用中文值存储到数据库
-  const durationOptions = [
-    { value: '7天', label: '7天免费', price: 0 },
-    { value: '1个月', label: '1个月', price: 188 },
-    { value: '3个月', label: '3个月', price: 488 },
-    { value: '6个月', label: '6个月', price: 888 },
-    { value: '1年', label: '1年', price: 1588 }
-  ];
+  // 🔄 产品选择器回调函数
+  const handleProductChange = (product) => {
+    setSelectedProduct(product);
+  };
+
+  const handlePriceChange = (price) => {
+    setSelectedPrice(price);
+  };
+
+  const handleDurationChange = (duration) => {
+    setSelectedDuration(duration);
+  };
 
   // 获取销售信息和管理员收款配置
   useEffect(() => {
@@ -82,17 +95,23 @@ const PurchasePage = () => {
     };
   }, [dispatch, linkCode]);
 
-  // 7天免费时自动选择即时购买
+  // 免费订单时自动选择即时购买
   useEffect(() => {
-    if (selectedDuration === '7天') {
-      setPurchaseType('immediate');
-    }
-  }, [selectedDuration]);
+    const checkFreeOrder = async () => {
+      if (selectedProduct && selectedDuration) {
+        const isFree = await ProductConfigAPI.isFreeOrder(selectedProduct, selectedDuration);
+        setIsFreeOrder(isFree);
+        if (isFree) {
+          setPurchaseType('immediate');
+        }
+      }
+    };
+    checkFreeOrder();
+  }, [selectedProduct, selectedDuration]);
 
-  // 获取选中时长的价格
+  // 🔄 获取选中的价格（从产品选择器获取）
   const getSelectedPrice = () => {
-    const option = durationOptions.find(opt => opt.value === selectedDuration);
-    return option ? option.price : 0;
+    return selectedPrice;
   };
 
   // 计算到期时间
@@ -111,8 +130,8 @@ const PurchasePage = () => {
     }
 
     switch (selectedDuration) {
-      case '7天':
-        return baseTime.add(7, 'day');
+      case '3天':
+        return baseTime.add(3, 'day');
       case '1个月':
         return baseTime.add(1, 'month');
       case '3个月':
@@ -154,30 +173,10 @@ const PurchasePage = () => {
         return;
       }
       
-      // 🔧 新增：7天免费订单重复检查
-      if (selectedDuration === '7天') {
-        try {
-          // 检查是否已经提交过7天免费订单
-          const { data: existingOrders, error } = await SupabaseService.supabase
-            .from('orders_optimized')
-            .select('id')
-            .eq('tradingview_username', values.tradingview_username)
-            .eq('duration', '7天')
-            .limit(1);
-          
-          if (!error && existingOrders && existingOrders.length > 0) {
-            // 已经提交过7天免费订单
-            message.error('您已提交过7天免费订单，请进行续费');
-            return;
-          }
-        } catch (error) {
-          console.error('检查7天免费订单失败:', error);
-          // 继续提交，不阻塞用户
-        }
-      }
+      // 免费订单的试用资格检查已经在前面处理
       
       // 免费订单不需要验证付款金额和截图
-      if (selectedDuration !== '7天') {
+      if (!isFreeOrder) {
         // 获取付款金额
         const paymentAmount = values.crypto_amount;
         if (!paymentAmount) {
@@ -198,7 +197,7 @@ const PurchasePage = () => {
       }
 
       // 计算实付金额：对于免费订单为0，对于付费订单使用用户输入的金额
-      const actualPaymentAmount = selectedDuration === '7天' ? 0 : parseFloat(values.crypto_amount) || 0;
+      const actualPaymentAmount = isFreeOrder ? 0 : parseFloat(values.crypto_amount) || 0;
 
       const formData = {
         sales_code: linkCode, // 使用新的sales_code字段
@@ -209,7 +208,7 @@ const PurchasePage = () => {
         amount: getSelectedPrice(), // 添加金额字段
         actual_payment_amount: actualPaymentAmount, // 实付金额
         payment_method: paymentMethod, // 发送原始值，后端负责映射
-        payment_time: selectedDuration === '7天' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
+        payment_time: isFreeOrder ? dayjs().format('YYYY-MM-DD HH:mm:ss') : values.payment_time.format('YYYY-MM-DD HH:mm:ss'),
         purchase_type: purchaseType, // 发送原始值，后端负责映射
         effective_time: purchaseType === 'advance' && effectiveTime ? effectiveTime.format('YYYY-MM-DD HH:mm:ss') : null,
         screenshot_data: screenshotData,
@@ -222,8 +221,8 @@ const PurchasePage = () => {
       dispatch(clearCreatedOrder());
       
       // 根据订单类型显示不同的提示信息
-      if (selectedDuration === '7天') {
-        // 🔧 新增：7天免费订单特殊提示
+      if (isFreeOrder) {
+        // 🔧 新增：免费订单特殊提示
         Modal.success({
           title: '订单提交成功',
           content: (
@@ -321,7 +320,7 @@ const PurchasePage = () => {
 
   // 显示收款信息
   const renderPaymentInfo = () => {
-    if (!currentSales || !paymentMethod || !paymentConfig || selectedDuration === '7天') return null;
+    if (!currentSales || !paymentMethod || !paymentConfig || isFreeOrder) return null;
 
     // 只支持链上地址支付
     if (paymentMethod === 'crypto') {
@@ -538,6 +537,15 @@ const PurchasePage = () => {
           🚀 购买服务
         </Title>
 
+        {/* 🆕 产品选择器 */}
+        <ProductSelectorDynamic
+          onProductChange={handleProductChange}
+          onPriceChange={handlePriceChange}
+          onDurationChange={handleDurationChange}
+          defaultProduct="信号策略"
+          defaultDuration="1个月"
+        />
+
         {/* 购买表单 */}
         <Card title="购买信息" style={{ marginBottom: 16 }} role="region">
 
@@ -569,46 +577,23 @@ const PurchasePage = () => {
               />
             </Form.Item>
 
-            {/* 购买时长 */}
-            <Form.Item
-              label="购买时长"
-              required>
-              <Radio.Group 
-                value={selectedDuration}
-                onChange={(e) => setSelectedDuration(e.target.value)}
-                style={{ width: '100%' }}
+            {/* 🆕 Discord账号输入（仅推币系统和套餐组合需要） */}
+            {(selectedProduct === '推币系统' || selectedProduct === '套餐组合') && (
+              <Form.Item
+                name="discord_id"
+                label="Discord账号"
+                rules={[
+                  { required: true, message: '请输入Discord账号' },
+                  { pattern: /^.{3,32}#[0-9]{4}$/, message: '请输入正确的Discord格式（用户名#0000）' }
+                ]}
+                extra="格式：用户名#0000，用于Discord频道权限配置"
               >
-                <Row gutter={[16, 16]}>
-                  {durationOptions.map(option => (
-                    <Col span={24} sm={12} md={8} key={option.value}>
-                      <Radio.Button 
-                        value={option.value}
-                        disabled={option.disabled}
-                        style={{ 
-                          width: '100%', 
-                          textAlign: 'center',
-                          height: 'auto',
-                          padding: '12px',
-                          opacity: option.disabled ? 0.5 : 1
-                        }}
-                      >
-                        <div>
-                          <div>{option.label}</div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>
-                            {option.price === 0 ? '免费' : `$${option.price}`}
-                          </div>
-                          {option.disabled && (
-                            <div style={{ fontSize: '10px', color: '#ff4d4f' }}>
-                              已售罄
-                            </div>
-                          )}
-                        </div>
-                      </Radio.Button>
-                    </Col>
-                  ))}
-                </Row>
-              </Radio.Group>
-            </Form.Item>
+                <Input 
+                  placeholder="例如：YourName#1234" 
+                  prefix={<UserOutlined />}
+                />
+              </Form.Item>
+            )}
 
             {/* 购买方式 */}
             <Form.Item
@@ -663,7 +648,7 @@ const PurchasePage = () => {
             </Form.Item>
 
             {/* 付款金额输入框 - 付费订单都显示 */}
-            {selectedDuration !== '7天' && (
+            {!isFreeOrder && (
               <Form.Item
                 name="crypto_amount"
                 label="付款金额（美元）"
@@ -682,7 +667,7 @@ const PurchasePage = () => {
             {renderPaymentInfo()}
 
             {/* 付款时间 - 免费订单不显示 */}
-            {selectedDuration !== '7天' && (
+            {!isFreeOrder && (
               <Form.Item
                 name="payment_time"
                 label="付款时间"
@@ -699,7 +684,7 @@ const PurchasePage = () => {
             )}
 
             {/* 付款截图 - 免费订单不显示 */}
-            {selectedDuration !== '7天' && (
+            {!isFreeOrder && (
               <Form.Item
                 label="付款截图"
                 required
@@ -726,9 +711,18 @@ const PurchasePage = () => {
                 <Row gutter={16}>
                   <Col span={8}>
                     <Statistic
-                      title="选择时长"
-                      value={durationOptions.find(opt => opt.value === selectedDuration)?.label}
+                      title="选择产品"
+                      value={selectedProduct}
+                      prefix={<StarOutlined />}
+                      valueStyle={{ fontSize: '14px', color: '#1890ff' }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="购买时长"
+                      value={selectedDuration}
                       prefix={<ClockCircleOutlined />}
+                      valueStyle={{ fontSize: '14px' }}
                     />
                   </Col>
                   <Col span={8}>
@@ -737,22 +731,10 @@ const PurchasePage = () => {
                       value={getSelectedPrice()}
                       prefix={<DollarOutlined />}
                       suffix="美元"
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <Statistic
-                      title="预计到期时间"
-                      value={
-                        selectedDuration === 'lifetime' 
-                          ? '无限时长' 
-                          : calculateExpiryTime() 
-                            ? calculateExpiryTime().format('YYYY-MM-DD HH:mm') 
-                            : '请选择生效时间'
-                      }
-                      prefix={<ClockCircleOutlined />}
                       valueStyle={{ 
-                        fontSize: '14px',
-                        color: selectedDuration === 'lifetime' ? '#52c41a' : undefined
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        color: getSelectedPrice() === 0 ? '#52c41a' : '#f1c40f'
                       }}
                     />
                   </Col>
@@ -778,8 +760,8 @@ const PurchasePage = () => {
                 block
                 disabled={
                   !selectedDuration || 
-                  (selectedDuration !== '7天' && !paymentMethod) || 
-                  (selectedDuration !== '7天' && !form.getFieldValue('crypto_amount')) ||
+                  (!isFreeOrder && !paymentMethod) || 
+                  (!isFreeOrder && !form.getFieldValue('crypto_amount')) ||
                   (purchaseType === 'advance' && !effectiveTime)
                 }
                 style={{

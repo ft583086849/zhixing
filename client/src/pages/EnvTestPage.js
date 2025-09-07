@@ -18,7 +18,7 @@ const EnvTestPage = () => {
 
   // 检查硬编码值（用于对比）
   const hardcodedValues = {
-    supabaseUrl: 'https://itvmeamoqthfqtkpubdv.supabase.co',
+    supabaseUrl: 'https://mbqjkpqnjnrwzuafgqed.supabase.co',
     // 只显示密钥前缀，避免完整暴露
     supabaseKeyPrefix: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
   };
@@ -197,7 +197,7 @@ const EnvTestPage = () => {
                   <li>进入项目设置 Settings → Environment Variables</li>
                   <li>添加以下变量：
                     <ul>
-                      <li>REACT_APP_SUPABASE_URL = https://itvmeamoqthfqtkpubdv.supabase.co</li>
+                      <li>REACT_APP_SUPABASE_URL = https://mbqjkpqnjnrwzuafgqed.supabase.co</li>
                       <li>REACT_APP_SUPABASE_ANON_KEY = [你的Supabase Anon Key]</li>
                     </ul>
                   </li>

@@ -4,7 +4,8 @@
  * 所有对primary_sales的查询都转向secondary_sales表
  */
 
-import supabase from '../config/supabase';
+import { SupabaseService } from './supabase';
+const { supabase } = SupabaseService;
 
 class PrimarySalesCompat {
   /**

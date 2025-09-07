@@ -10,7 +10,7 @@ import AdminOverview from '../components/admin/AdminOverview'; // 使用原有�
 import AdminOrdersOptimized from '../components/admin/AdminOrdersOptimized';
 import AdminSalesOptimized from '../components/admin/AdminSalesOptimized';
 import AdminCustomersOptimized from '../components/admin/AdminCustomersOptimized';
-import AdminFinanceOptimized from '../components/admin/AdminFinanceOptimized';
+import AdminFinance from '../components/admin/AdminFinance';
 import SalesReconciliation from '../components/admin/SalesReconciliation';
 
 const TestRoutes = () => {
@@ -35,8 +35,8 @@ const TestRoutes = () => {
         {/* 客户管理 - 优化版 */}
         <Route path="customers" element={<AdminCustomersOptimized />} />
         
-        {/* 资金统计 - 优化版 */}
-        <Route path="finance" element={<AdminFinanceOptimized />} />
+        {/* 资金统计 - 稳定版 */}
+        <Route path="finance" element={<AdminFinance />} />
         
         {/* 一级销售对账 */}
         <Route path="reconciliation/primary" element={<SalesReconciliation salesType="primary" />} />
