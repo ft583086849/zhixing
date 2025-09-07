@@ -9,6 +9,40 @@ import { SupabaseService } from './supabase.js';
 import { AuthService } from './auth.js';
 import ExcludedSalesService from './excludedSalesService.js';
 
+// 🔧 永久排除的测试账号（直接定义，避免模块加载问题）
+const PERMANENT_EXCLUDED_SALES = ['PRI17554350234757516'];
+
+// 🎯 简化的双层排除逻辑
+const ExclusionHelper = {
+  // 获取显示排除列表（仅动态排除，测试订单可见）
+  async getDisplayExcludedSales() {
+    try {
+      return await ExcludedSalesService.getExcludedSalesCodes();
+    } catch (error) {
+      console.warn('获取显示排除列表失败:', error);
+      return [];
+    }
+  },
+  
+  // 获取统计排除列表（永久排除+动态排除，统计纯净）
+  async getStatsExcludedSales() {
+    try {
+      const dynamicExcluded = await ExcludedSalesService.getExcludedSalesCodes();
+      return [...PERMANENT_EXCLUDED_SALES, ...dynamicExcluded];
+    } catch (error) {
+      console.warn('获取统计排除列表失败，使用永久排除:', error);
+      return PERMANENT_EXCLUDED_SALES;
+    }
+  },
+  
+  // 日志输出
+  logExclusion(excludedCodes, type) {
+    const permanentCount = excludedCodes.filter(code => PERMANENT_EXCLUDED_SALES.includes(code)).length;
+    const dynamicCount = excludedCodes.length - permanentCount;
+    console.log(`📊 ${type}排除: 总${excludedCodes.length}个 (永久${permanentCount}个, 动态${dynamicCount}个)`);
+  }
+};
+
 /**
  * 统一错误处理
  */
@@ -193,15 +227,17 @@ export const AdminAPI = {
     try {
       console.log('📋 getOrders 参数:', params);
       
-      // 🚫 获取排除的销售代码（只在管理员查看时应用）
+      // 🚫 获取排除的销售代码（显示控制：仅动态排除）
       const isAdminView = !params.skipExclusion; // 默认应用排除
       let excludedSalesCodes = [];
       
       if (isAdminView) {
         try {
-          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          // 订单管理只使用显示排除（不包含永久排除）
+          excludedSalesCodes = await ExclusionHelper.getDisplayExcludedSales();
           if (excludedSalesCodes.length > 0) {
-            console.log(`🚫 getOrders将排除 ${excludedSalesCodes.length} 个销售的订单`);
+            console.log(`🚫 getOrders显示排除 ${excludedSalesCodes.length} 个销售的订单`);
+            ExclusionHelper.logExclusion(excludedSalesCodes, '订单显示');
           }
         } catch (err) {
           console.warn('获取排除名单失败，继续执行:', err);
@@ -271,15 +307,17 @@ export const AdminAPI = {
       // 0. 首先尝试同步销售微信号（如果需要）
       await this.syncSalesWechatNames();
       
-      // 🚫 获取排除的销售代码（只在管理员查看时应用）
+      // 🚫 获取排除的销售代码（显示控制：仅动态排除）
       const isAdminView = !params.skipExclusion; // 默认应用排除
       let excludedSalesCodes = [];
       
       if (isAdminView) {
         try {
-          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          // 客户管理只使用显示排除（不包含永久排除）
+          excludedSalesCodes = await ExclusionHelper.getDisplayExcludedSales();
           if (excludedSalesCodes.length > 0) {
-            console.log(`🚫 getCustomers将排除 ${excludedSalesCodes.length} 个销售的客户`);
+            console.log(`🚫 getCustomers显示排除 ${excludedSalesCodes.length} 个销售的客户`);
+            ExclusionHelper.logExclusion(excludedSalesCodes, '客户显示');
           }
         } catch (err) {
           console.warn('获取排除名单失败，继续执行:', err);
@@ -289,8 +327,12 @@ export const AdminAPI = {
       // 🔧 修复：获取订单数据和销售数据用于正确关联
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
-      // 构建订单查询
-      let ordersQuery = supabaseClient.from('orders_optimized').select('*');
+      // 🚀 优化：构建订单查询，只选择客户管理所需字段，添加限制
+      let ordersQuery = supabaseClient
+        .from('orders_optimized')
+        .select('customer_wechat, sales_code, amount, status, created_at, expiry_time')
+        .order('created_at', { ascending: false })
+        .limit(2000);
       
       // 应用排除过滤
       if (excludedSalesCodes.length > 0) {
@@ -782,11 +824,12 @@ export const AdminAPI = {
         }
       }
       
-      // 从 sales_optimized 表获取数据
+      // 🚀 优化：从 sales_optimized 表获取数据，添加限制避免全表扫描
       let salesQuery = supabaseClient
         .from('sales_optimized')
         .select('*')
-        .order('total_amount', { ascending: false });
+        .order('total_amount', { ascending: false })
+        .limit(500);
       
       // 应用排除过滤
       if (excludedWechatNames.length > 0) {
@@ -1545,25 +1588,29 @@ export const AdminAPI = {
         return await this.getStatsFromTable(params, supabaseClient);
       }
       
-      // 🚫 获取排除的销售代码（只在管理员统计时应用）
+      // 🚫 获取排除的销售代码（统计控制：永久排除+动态排除）
       const isAdminStats = !params.skipExclusion; // 默认应用排除
       let excludedSalesCodes = [];
       
       if (isAdminStats) {
         try {
-          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          // 统计API使用完整排除列表（永久排除+动态排除）
+          excludedSalesCodes = await ExclusionHelper.getStatsExcludedSales();
           if (excludedSalesCodes.length > 0) {
-            console.log(`🚫 将排除 ${excludedSalesCodes.length} 个销售的数据:`, excludedSalesCodes);
+            console.log(`🚫 统计排除 ${excludedSalesCodes.length} 个销售的数据`);
+            ExclusionHelper.logExclusion(excludedSalesCodes, '统计数据');
           }
         } catch (err) {
           console.warn('获取排除名单失败，继续执行:', err);
         }
       }
       
-      // 原有的实时查询逻辑
+      // 原有的实时查询逻辑 - 🚀 优化：只选择统计所需字段，添加LIMIT
       let ordersQuery = supabaseClient
         .from('orders_optimized')
-        .select('*');
+        .select('id, amount, status, created_at, sales_code, customer_wechat, duration')
+        .order('created_at', { ascending: false })
+        .limit(5000);
       
       // 应用排除过滤
       if (excludedSalesCodes.length > 0) {
@@ -2134,21 +2181,8 @@ export const AdminAPI = {
    * 实时查询统计数据（原有方式）
    */
   async getStatsRealtime(params, supabaseClient) {
-    // 这里是原有的实时查询逻辑
-    // 将原getStats方法的主体逻辑移到这里
-    const { data: orders, error } = await supabaseClient
-      .from('orders_optimized')
-      .select('*');
-    
-    if (error) {
-      console.error('❌ 订单数据获取失败:', error);
-      throw error;
-    }
-    
-    // ... 原有的统计逻辑 ...
-    // 这里保持原有逻辑不变，确保向后兼容
-    
-    return this.getEmptyStats(); // 临时返回，需要补充完整逻辑
+    // 🚀 优化：降级到主查询逻辑，避免重复的全表查询
+    return this.getStats(params);
   },
 
 
@@ -2274,10 +2308,12 @@ export const AdminAPI = {
    */
   async getSalesOptimized(params = {}) {
     try {
-      // 构建查询 - 直接从 sales_optimized 表获取所有数据
+      // 🚀 优化：构建查询，添加排序和限制避免全表扫描
       let query = SupabaseService.supabase
         .from('sales_optimized')
-        .select('*');
+        .select('*')
+        .order('total_amount', { ascending: false })
+        .limit(500);
       
       // 应用过滤条件
       if (params.sales_type) {
@@ -2555,25 +2591,29 @@ export const AdminAPI = {
       
       const supabaseClient = SupabaseService.supabase || window.supabaseClient;
       
-      // 检查是否需要应用排除过滤（管理员统计默认排除）
+      // 检查是否需要应用排除过滤（统计控制：永久排除+动态排除）
       const isAdminStats = !params.skipExclusion;
       let excludedSalesCodes = [];
       
       if (isAdminStats) {
         try {
-          excludedSalesCodes = await ExcludedSalesService.getExcludedSalesCodes();
+          // 转化率统计使用完整排除列表
+          excludedSalesCodes = await ExclusionHelper.getStatsExcludedSales();
           if (excludedSalesCodes.length > 0) {
-            console.log('🚫 转化率统计排除销售代码:', excludedSalesCodes);
+            console.log('🚫 转化率统计排除销售代码');
+            ExclusionHelper.logExclusion(excludedSalesCodes, '转化率统计');
           }
         } catch (error) {
           console.error('获取排除销售列表失败:', error);
         }
       }
       
-      // 1. 获取销售列表
+      // 🚀 优化：获取销售列表，只选择转化率统计所需字段+限制
       let salesQuery = supabaseClient
         .from('sales_optimized')
-        .select('*');
+        .select('sales_code, wechat_name, sales_type, total_orders, total_amount, created_at')
+        .order('total_amount', { ascending: false })
+        .limit(200);
       
       // 应用销售筛选
       if (params.sales_type) {

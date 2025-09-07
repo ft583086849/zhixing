@@ -50,20 +50,24 @@ export class SupabaseService {
 
   // 一级销售操作
   static async getPrimarySales() {
+    // 🚀 优化：添加限制，一级销售通常不会太多
     const { data, error } = await supabase
       .from('primary_sales')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
     
     if (error) throw error;
     return data;
   }
 
   static async getSecondarySales() {
+    // 🚀 优化：添加限制，二级销售可能较多，设置合理上限
     const { data, error } = await supabase
       .from('secondary_sales')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(1000);
     
     if (error) throw error;
     return data;
@@ -937,44 +941,47 @@ export class SupabaseService {
       updated_at: new Date().toISOString()
     };
     
-    // 如果状态改为confirmed_config，需要设置到期时间
-    if (status === 'confirmed_config' && order) {
+    // 设置生效时间（如果还没有）
+    if (!order.effective_time) {
+      // 优先使用config_time，其次payment_time，最后created_at
+      updates.effective_time = order.config_time || order.payment_time || order.created_at;
+    }
+    
+    // 如果状态改为confirmed_config或confirmed_payment，都需要设置时间
+    if ((status === 'confirmed_config' || status === 'confirmed_payment') && order) {
       const now = new Date();
-      let expiryDate;
       
-      // 根据订单时长计算到期时间
-      switch(order.duration || order.price_plan) {
-        case '7days':
-        case '7_days':
-          expiryDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-          break;
-        case '1month':
-        case '1_month':
-        case '30days':
-          expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-          break;
-        case '3months':
-        case '3_months':
-        case '90days':
-          expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-          break;
-        case '6months':
-        case '6_months':
-        case '180days':
-          expiryDate = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
-          break;
-        case '1year':
-        case '12months':
-        case '365days':
-          expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          // 默认30天
-          expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      // 设置配置/支付时间
+      if (status === 'confirmed_config') {
+        updates.config_time = now.toISOString();
+      } else if (status === 'confirmed_payment') {
+        updates.payment_time = now.toISOString();
       }
       
-      updates.expiry_time = expiryDate.toISOString();
-      updates.config_time = now.toISOString(); // 记录配置时间
+      // 计算到期时间（如果还没有）
+      if (!order.expiry_time) {
+        const effectiveTime = updates.effective_time || order.effective_time || now.toISOString();
+        const effectiveDate = new Date(effectiveTime);
+        
+        // 🚀 简化的订单时长计算（减少超时风险）
+        const duration = order.duration || order.price_plan || '';
+        let days = 30; // 默认30天
+        
+        // 简化匹配逻辑，只保留核心格式
+        if (duration.includes('7') || duration.includes('免费')) {
+          days = 7;
+        } else if (duration.includes('3个月') || duration.includes('3months') || duration.includes('90')) {
+          days = 90;
+        } else if (duration.includes('6个月') || duration.includes('6months') || duration.includes('180')) {
+          days = 180;
+        } else if (duration.includes('年') || duration.includes('year') || duration.includes('365')) {
+          days = 365;
+        }
+        
+        const expiryDate = new Date(effectiveDate.getTime() + days * 24 * 60 * 60 * 1000);
+        
+        updates.expiry_time = expiryDate.toISOString();
+      }
     }
     
     const { data, error } = await supabase
@@ -1001,10 +1008,12 @@ export class SupabaseService {
 
   // 订单查询
   static async getOrders() {
+    // 🚀 优化：添加分页限制，订单管理首页只显示最新1000条
     const { data: orders, error } = await supabase
       .from('orders_optimized')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
     if (error) throw error;
     
