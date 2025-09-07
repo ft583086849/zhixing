@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>测试Supabase连接</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase连接测试</h1>
+    <div id="status">正在测试连接...</div>
+    <pre id="result"></pre>
+
+    <script>
+        const supabaseUrl = 'https://mbqjkpqnjnrwzuafgqed.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1icWprcHFuam5yd3p1YWZncWVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwNTg0NTgsImV4cCI6MjA0ODYzNDQ1OH0.d5xoIDAJx0TR4KnBiFiWSRGDZqCPcVdZBe0G2x2hVlE';
+
+        async function testConnection() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+
+            try {
+                // 创建Supabase客户端
+                const { createClient } = supabase;
+                const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+                statusDiv.innerHTML = '✅ Supabase客户端创建成功';
+
+                // 测试查询
+                const { data, error } = await supabaseClient
+                    .from('orders_optimized')
+                    .select('*')
+                    .limit(5);
+
+                if (error) {
+                    statusDiv.innerHTML = '❌ 查询失败';
+                    resultDiv.textContent = JSON.stringify(error, null, 2);
+                } else {
+                    statusDiv.innerHTML = '✅ 连接成功！获取到 ' + data.length + ' 条订单';
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (err) {
+                statusDiv.innerHTML = '❌ 连接失败';
+                resultDiv.textContent = err.toString();
+            }
+        }
+
+        // 页面加载完成后测试
+        window.addEventListener('load', testConnection);
+    </script>
+</body>
+</html>

@@ -19,7 +19,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "^2.55.0",
+    "@supabase/supabase-js": "^2.57.2",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.2.1",
     "pg": "^8.16.3",

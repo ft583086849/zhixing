@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>客户管理 - 多产品合并显示方案</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      margin: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #1890ff;
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #f0f0f0;
+    }
+    
+    .table th, .table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .table th {
+      background: #fafafa;
+      font-weight: 600;
+      color: #262626;
+    }
+    
+    .table tbody tr:hover {
+      background: #f5f5f5;
+    }
+    
+    .customer-cell {
+      position: relative;
+    }
+    
+    .customer-name {
+      font-weight: 600;
+      color: #262626;
+      margin-bottom: 4px;
+    }
+    
+    .customer-stats {
+      font-size: 12px;
+      color: #8c8c8c;
+    }
+    
+    .products-cell {
+      min-width: 200px;
+    }
+    
+    .product-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      margin: 2px 4px 2px 0;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .product-strategy {
+      background: #e6f7ff;
+      color: #1890ff;
+      border: 1px solid #91d5ff;
+    }
+    
+    .product-discord {
+      background: #f6ffed;
+      color: #52c41a;
+      border: 1px solid #b7eb8f;
+    }
+    
+    .product-combo {
+      background: #fff2e8;
+      color: #fa8c16;
+      border: 1px solid #ffd591;
+    }
+    
+    .amount-cell {
+      text-align: right;
+      font-weight: 600;
+    }
+    
+    .amount-main {
+      color: #262626;
+      font-size: 16px;
+    }
+    
+    .amount-detail {
+      font-size: 12px;
+      color: #8c8c8c;
+      margin-top: 2px;
+    }
+    
+    .sales-cell {
+      color: #1890ff;
+    }
+    
+    .status-tag {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .status-active {
+      background: #f6ffed;
+      color: #52c41a;
+      border: 1px solid #b7eb8f;
+    }
+    
+    .status-pending {
+      background: #fff7e6;
+      color: #fa8c16;
+      border: 1px solid #ffd591;
+    }
+    
+    .status-expired {
+      background: #fff2f0;
+      color: #ff4d4f;
+      border: 1px solid #ffb3b3;
+    }
+    
+    .comparison {
+      margin-top: 40px;
+    }
+    
+    .comparison h3 {
+      color: #262626;
+      margin-bottom: 16px;
+    }
+    
+    .comparison-table {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .comparison-column {
+      flex: 1;
+      border: 1px solid #f0f0f0;
+      border-radius: 6px;
+    }
+    
+    .comparison-header {
+      padding: 12px 16px;
+      background: #fafafa;
+      font-weight: 600;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .comparison-content {
+      padding: 16px;
+    }
+    
+    .old-method {
+      border-top: 3px solid #ff4d4f;
+    }
+    
+    .new-method {
+      border-top: 3px solid #52c41a;
+    }
+    
+    .highlight {
+      background: #fff1f0;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: 8px 0;
+      border-left: 3px solid #ff4d4f;
+    }
+    
+    .benefit {
+      background: #f6ffed;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: 8px 0;
+      border-left: 3px solid #52c41a;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">🎯 客户管理 - 多产品合并显示方案</div>
+    
+    <table class="table">
+      <thead>
+        <tr>
+          <th>客户信息</th>
+          <th>购买产品</th>
+          <th>总金额</th>
+          <th>销售员</th>
+          <th>订单状态</th>
+          <th>最新订单时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="customer-cell">
+            <div class="customer-name">customer1</div>
+            <div class="customer-stats">总订单: 3 | 活跃产品: 3</div>
+          </td>
+          <td class="products-cell">
+            <span class="product-tag product-strategy">推币策略</span>
+            <span class="product-tag product-discord">推币系统</span>
+            <span class="product-tag product-combo">组合套餐</span>
+          </td>
+          <td class="amount-cell">
+            <div class="amount-main">$2,252</div>
+            <div class="amount-detail">策略: $588 | 系统: $588 | 组合: $1,076</div>
+          </td>
+          <td class="sales-cell">张销售</td>
+          <td>
+            <span class="status-tag status-active">活跃中</span>
+          </td>
+          <td>2025-09-05 14:30</td>
+        </tr>
+        
+        <tr>
+          <td class="customer-cell">
+            <div class="customer-name">customer2</div>
+            <div class="customer-stats">总订单: 2 | 活跃产品: 1</div>
+          </td>
+          <td class="products-cell">
+            <span class="product-tag product-strategy">推币策略</span>
+            <span class="product-tag product-discord" style="opacity: 0.5;">推币系统 (已过期)</span>
+          </td>
+          <td class="amount-cell">
+            <div class="amount-main">$1,176</div>
+            <div class="amount-detail">策略: $588 | 系统: $588 (过期)</div>
+          </td>
+          <td class="sales-cell">李销售</td>
+          <td>
+            <span class="status-tag status-pending">部分过期</span>
+          </td>
+          <td>2025-09-03 09:15</td>
+        </tr>
+        
+        <tr>
+          <td class="customer-cell">
+            <div class="customer-name">customer3</div>
+            <div class="customer-stats">总订单: 1 | 活跃产品: 0</div>
+          </td>
+          <td class="products-cell">
+            <span class="product-tag product-strategy" style="opacity: 0.5;">推币策略 (已过期)</span>
+          </td>
+          <td class="amount-cell">
+            <div class="amount-main">$188</div>
+            <div class="amount-detail">策略: $188 (过期)</div>
+          </td>
+          <td class="sales-cell">王销售</td>
+          <td>
+            <span class="status-tag status-expired">已过期</span>
+          </td>
+          <td>2025-08-20 16:45</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div class="comparison">
+      <h3>📊 对比分析：原方案 vs 新方案</h3>
+      <div class="comparison-table">
+        <div class="comparison-column old-method">
+          <div class="comparison-header">❌ 原方案：分行显示</div>
+          <div class="comparison-content">
+            <p><strong>customer1 的三个订单：</strong></p>
+            <p>• 行1: customer1 | 推币策略 | $588 | 张销售</p>
+            <p>• 行2: customer1 | 推币系统 | $588 | 张销售</p>
+            <p>• 行3: customer1 | 组合套餐 | $1,076 | 张销售</p>
+            
+            <div class="highlight">
+              <strong>问题：</strong><br>
+              • 重复显示客户信息<br>
+              • 无法快速了解客户总价值<br>
+              • 表格行数过多，查找困难<br>
+              • 客户购买全貌不清晰
+            </div>
+          </div>
+        </div>
+        
+        <div class="comparison-column new-method">
+          <div class="comparison-header">✅ 新方案：合并显示</div>
+          <div class="comparison-content">
+            <p><strong>customer1 的合并显示：</strong></p>
+            <p>• 行1: customer1 | [推币策略][推币系统][组合套餐] | $2,252 | 张销售</p>
+            <p style="margin-left: 20px; color: #8c8c8c; font-size: 12px;">详细: 策略$588 + 系统$588 + 组合$1,076</p>
+            
+            <div class="benefit">
+              <strong>优势：</strong><br>
+              • 一行显示客户全貌<br>
+              • 清楚展示总价值 $2,252<br>
+              • 产品标签直观易识别<br>
+              • 表格更简洁，查找方便<br>
+              • 状态一目了然
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div style="margin-top: 30px; padding: 16px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #1890ff;">
+      <h4 style="margin: 0 0 12px 0; color: #1890ff;">💡 实现细节</h4>
+      <ul style="margin: 0; padding-left: 20px;">
+        <li><strong>数据聚合</strong>：按 customer_wechat 分组，合并同一客户的所有订单</li>
+        <li><strong>产品标签</strong>：不同产品类型用不同颜色标签区分</li>
+        <li><strong>金额计算</strong>：显示总金额，hover 显示各产品明细</li>
+        <li><strong>状态逻辑</strong>：活跃中 > 部分过期 > 全部过期</li>
+        <li><strong>排序规则</strong>：按总金额降序，便于识别高价值客户</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

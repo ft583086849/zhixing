@@ -1327,8 +1327,10 @@ export class SupabaseService {
         .lte('expiry_time', params.expiry_end_date + ' 23:59:59');
     }
     
-    // 排序
-    query = query.order('created_at', { ascending: false });
+    // 排序和限制 - 🚀 优化：添加LIMIT防止超时
+    query = query
+      .order('created_at', { ascending: false })
+      .limit(2000);  // 限制最多返回2000条记录
     
     const { data: orders, error } = await query;
     

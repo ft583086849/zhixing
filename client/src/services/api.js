@@ -255,10 +255,11 @@ export const AdminAPI = {
         : await SupabaseService.getOrders();
       
       // 🔧 修复：获取完整的销售数据，包括一级和二级销售信息
+      // 🚀 优化：添加LIMIT防止超时
       const [salesOptimized, primarySalesData, secondarySalesData] = await Promise.all([
         this.getSalesOptimized(),
-        SupabaseService.supabase.from('primary_sales').select('*'),
-        SupabaseService.supabase.from('secondary_sales').select('*, primary_sales:primary_sales_id(*)')
+        SupabaseService.supabase.from('primary_sales').select('*').limit(1000),
+        SupabaseService.supabase.from('secondary_sales').select('*, primary_sales:primary_sales_id(*)').limit(2000)
       ]);
       
       // 合并销售数据
