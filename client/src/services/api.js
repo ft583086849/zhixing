@@ -996,9 +996,14 @@ export const AdminAPI = {
           二级销售: processedSecondarySales.length
         });
         
-        // 保存到缓存并返回
-        salesCacheManager.set(params, allSales);
-        return allSales;
+        // 保存到缓存并返回 - 🔧 修复：包装成标准格式
+        const result = {
+          success: true,
+          data: allSales,
+          message: '获取销售列表成功'
+        };
+        salesCacheManager.set(params, result);
+        return result;
       }
       
       // 原有处理逻辑（保留以防需要回滚）
