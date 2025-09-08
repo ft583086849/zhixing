@@ -258,8 +258,8 @@ export const AdminAPI = {
       // 🚀 优化：添加LIMIT防止超时
       const [salesOptimized, primarySalesData, secondarySalesData] = await Promise.all([
         this.getSalesOptimized(),
-        SupabaseService.supabase.from('primary_sales').select('*').limit(1000),
-        SupabaseService.supabase.from('secondary_sales').select('*, primary_sales:primary_sales_id(*)').limit(2000)
+        SupabaseService.supabase.from('primary_sales').select('*').limit(300),  // 🚀 方案A+：减少销售数据查询量
+        SupabaseService.supabase.from('secondary_sales').select('*, primary_sales:primary_sales_id(*)').limit(500)  // 🚀 方案A+：减少销售数据查询量
       ]);
       
       // 合并销售数据
@@ -828,9 +828,9 @@ export const AdminAPI = {
       // 🚀 优化：从 sales_optimized 表获取数据，添加限制避免全表扫描
       let salesQuery = supabaseClient
         .from('sales_optimized')
-        .select('*')
-        .order('total_amount', { ascending: false })
-        .limit(500);
+        .select('id, sales_code, wechat_name, name, sales_type, primary_sales_id, parent_sales_code, total_amount, total_orders, commission_rate')
+        .order('id', { ascending: false })  // 🔧 修复：使用id排序，通常有主键索引
+        .limit(100);  // 🔧 修复：进一步降低到100条
       
       // 应用排除过滤
       if (excludedWechatNames.length > 0) {
@@ -1843,15 +1843,37 @@ export const AdminAPI = {
       let independent_sales_amount = 0;
       
       try {
+        console.log('🔍 查询销售表数据...');
         // 一次查询获取所有销售数据
         const { data: allSalesData, error: salesError } = await SupabaseService.supabase
           .from('sales_optimized')
           .select('id, sales_code, sales_type, primary_sales_id, parent_sales_code, total_amount, total_orders');
         
+        console.log('📊 销售查询结果:', { 
+          error: salesError, 
+          dataCount: allSalesData?.length, 
+          hasData: !!allSalesData 
+        });
+        
+        if (salesError) {
+          console.error('❌ 销售数据查询失败:', salesError);
+          // 即使查询失败，也不要抛异常，让统计继续进行
+        }
+        
         if (!salesError && allSalesData) {
+          console.log('🔍 开始处理销售数据，总数:', allSalesData.length);
           // 分类销售并计算金额
-          allSalesData.forEach(sale => {
+          allSalesData.forEach((sale, index) => {
             const amount = parseFloat(sale.total_amount) || 0;
+            
+            if (index < 5) { // 打印前5个销售的详细信息
+              console.log(`📋 销售${index+1}:`, {
+                sales_code: sale.sales_code,
+                sales_type: sale.sales_type,
+                total_amount: sale.total_amount,
+                parsed_amount: amount
+              });
+            }
             
             if (sale.sales_type === 'primary') {
               primarySales.push(sale);
@@ -1870,7 +1892,7 @@ export const AdminAPI = {
             }
           });
           
-          console.log('📊 销售层级统计:', {
+          console.log('✅ 销售层级统计完成:', {
             一级销售: primarySales.length,
             二级销售_有上级: linkedSecondarySales.length,
             独立销售: independentSales.length,
@@ -1878,6 +1900,8 @@ export const AdminAPI = {
             二级销售金额: linked_secondary_sales_amount,
             独立销售金额: independent_sales_amount
           });
+        } else {
+          console.log('⚠️ 销售数据为空或查询失败，销售金额将为0');
         }
       } catch (error) {
         console.error('获取销售数据失败:', error);
@@ -2319,7 +2343,7 @@ export const AdminAPI = {
         .from('sales_optimized')
         .select('*')
         .order('total_amount', { ascending: false })
-        .limit(500);
+        .limit(300);  // 🚀 方案A+：减少到300条，提升查询性能
       
       // 应用过滤条件
       if (params.sales_type) {

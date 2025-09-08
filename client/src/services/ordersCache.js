@@ -6,7 +6,7 @@
 class OrdersCacheManager {
   constructor() {
     this.cache = new Map();
-    this.cacheDuration = 3 * 60 * 1000; // 3分钟缓存
+    this.cacheDuration = 5 * 60 * 1000; // 🚀 方案A+：5分钟缓存，平衡性能和实时性
     this.indexCache = new Map(); // 索引缓存
   }
 

@@ -77,6 +77,11 @@ const AdminOverview = () => {
         };
         
         return dispatch(getSales(salesParams)).then(result => {
+          console.log('🔍 AdminOverview getSales返回结果:', result);
+          console.log('  - result.payload类型:', typeof result.payload);
+          console.log('  - result.payload是数组:', Array.isArray(result.payload));
+          console.log('  - result.payload长度:', result.payload?.length);
+          
           if (result.payload && Array.isArray(result.payload)) {
             // 计算总销售额
             const totalSalesAmount = result.payload.reduce((sum, sale) => 
@@ -138,6 +143,10 @@ const AdminOverview = () => {
                   : '0.00'
               }));
             setTop5Sales(top5);
+            console.log('✅ 设置Top5销售数据:', top5.length, '条');
+          } else {
+            console.log('⚠️ getSales数据为空或格式错误，清空Top5排行榜');
+            setTop5Sales([]);
           }
           return result;
         });

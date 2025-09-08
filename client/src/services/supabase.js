@@ -1008,12 +1008,12 @@ export class SupabaseService {
 
   // 订单查询
   static async getOrders() {
-    // 🚀 优化：添加分页限制，订单管理首页只显示最新1000条
+    // 🚀 优化：添加分页限制，订单管理首页只显示最新200条
     const { data: orders, error } = await supabase
       .from('orders_optimized')
-      .select('*')
+      .select('id, sales_code, customer_wechat, amount, status, created_at, payment_time, duration')
       .order('created_at', { ascending: false })
-      .limit(1000);
+      .limit(500);  // 🚀 方案A+：统一设置500条，与筛选查询保持一致
 
     if (error) throw error;
     
@@ -1166,7 +1166,7 @@ export class SupabaseService {
   static async getOrdersWithFilters(params = {}) {
     let query = supabase
       .from('orders_optimized')
-      .select('*');
+      .select('id, sales_code, customer_wechat, amount, status, created_at, payment_time, duration, tradingview_username, payment_method');
     
     // 🚫 应用排除的销售代码
     if (params.excludedSalesCodes && params.excludedSalesCodes.length > 0) {
@@ -1330,7 +1330,7 @@ export class SupabaseService {
     // 排序和限制 - 🚀 优化：添加LIMIT防止超时
     query = query
       .order('created_at', { ascending: false })
-      .limit(2000);  // 限制最多返回2000条记录
+      .limit(500);  // 🚀 方案A+：统一设置500条，平衡性能和数据完整性
     
     const { data: orders, error } = await query;
     
